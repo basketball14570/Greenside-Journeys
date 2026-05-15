@@ -466,16 +466,15 @@ const FEED = {
   leaderboard: 'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard'
 };
 
-function proxify(url) {
-  switch (state.prefs.proxy) {
-    case 'corsproxy.io': return 'https://corsproxy.io/?' + encodeURIComponent(url);
-    case 'allorigins':   return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    default: return url;
-  }
-}
-
-async function jsonGet(url, useProxy=false) {
-  const finalUrl = useProxy ? proxify(url) : url;
+const PROXIES = [
+  url => url,
+  url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+  url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  url => 'https://thingproxy.freeboard.io/fetch/' + url,
+  url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)
+];
+async function jsonGet(url, proxyFn) {
+  const finalUrl = proxyFn ? proxyFn(url) : url;
   const res = await fetch(finalUrl, { headers: { 'Accept':'application/json' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
@@ -532,30 +531,34 @@ async function fetchLeaderboard() {
   const url = state.prefs.tid
     ? `${FEED.leaderboard}?event=${encodeURIComponent(state.prefs.tid)}`
     : FEED.leaderboard;
-  const attempts = [
-    () => jsonGet(url, false),
-    () => jsonGet(url, true)   // proxy fallback
-  ];
+  // Try direct first, then each proxy in turn. file:// origins are often blocked
+  // by browsers from hitting cross-origin APIs, so the proxy chain is essential.
   let lastErr;
-  for (const attempt of attempts) {
+  for (let i = 0; i < PROXIES.length; i++) {
+    const label = i === 0 ? 'direct' : `proxy ${i}`;
     try {
-      const json = await attempt();
+      $('#lastUpdate').textContent = `fetching (${label})…`;
+      const json = await jsonGet(url, PROXIES[i]);
       const norm = normalizeESPN(json);
       if (!norm || !norm.players?.length) throw new Error('No players in feed');
       state.leaderboard = norm;
       state.tournament = { id: norm.eventId, tournamentName: norm.tournamentName };
       state.lastFetch = Date.now();
+      state.workingProxy = i;
       save();
       $('#tournamentBadge').textContent = norm.tournamentName + (norm.roundDisplay ? ` • ${norm.roundDisplay}` : '');
-      $('#lastUpdate').textContent = 'Updated ' + fmtTime(state.lastFetch);
+      $('#lastUpdate').textContent = `Updated ${fmtTime(state.lastFetch)} via ${label}`;
       buildTicker();
       evaluateBets();
       render();
       return;
-    } catch (err) { lastErr = err; }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Leaderboard fetch failed via ${label}:`, err.message);
+    }
   }
-  console.error(lastErr);
-  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — ${lastErr?.message||'unknown error'}</span>`;
+  console.error('All proxies failed', lastErr);
+  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — all proxies failed (${lastErr?.message||'unknown'})</span>`;
   if (state.leaderboard) { buildTicker(); evaluateBets(); render(); }
 }
 
