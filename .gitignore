@@ -12,3 +12,4 @@ dist/
 .turbo
 next-env.d.ts
 coverage/
+tsconfig.tsbuildinfo

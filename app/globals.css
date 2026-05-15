@@ -3,44 +3,40 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --green-deep: #0a3d2e;
-    --green-mid: #0f5c3f;
-    --green-bright: #1a7a4a;
-    --gold: #c9a84c;
-    --cream: #f5f0e8;
-    --paper: #fefcf8;
-  }
-
-  html {
-    scroll-behavior: smooth;
+  html,
+  body {
+    @apply bg-bg text-text antialiased;
+    font-family: "Instrument Sans", -apple-system, system-ui, sans-serif;
   }
 
   body {
-    @apply font-sans text-ink bg-paper antialiased;
-    font-feature-settings: "ss01", "cv11";
-  }
-
-  h1, h2, h3, h4 {
-    @apply font-display tracking-tight;
+    text-wrap: pretty;
   }
 }
 
 @layer components {
-  .glass {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-  }
-
-  .card {
-    @apply bg-white rounded-card shadow-card border border-cream-dark/60;
-  }
-
-  .pill {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
-  }
-
   .num {
-    @apply font-mono tabular-nums;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .serif-italic {
+    font-family: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    font-style: italic;
+  }
+
+  .label-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: theme("colors.text.muted");
+  }
+
+  .card-surface {
+    background: theme("colors.surface.1");
+    border: 1px solid theme("colors.line.DEFAULT");
+    border-radius: 14px;
   }
 }

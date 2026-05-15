@@ -1,53 +1,53 @@
 import type { Config } from "tailwindcss";
 
+// Palette + typography from Claude Design handoff (dfs-bet-dashboard).
+// Dark fairway green aesthetic — bright `green` is the live/positive accent,
+// `amber` for wind warnings, `red` for negative EV / hedge needed.
 const config: Config = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Greenside brand palette (carried from marketing site)
-        green: {
-          deep: "#0a3d2e",
-          mid: "#0f5c3f",
-          bright: "#1a7a4a",
-          light: "#2a9960",
+        bg: "#0a1f14",
+        bgDeep: "#06140c",
+        surface: {
+          1: "#102619",
+          2: "#173326",
+          3: "#1e4030",
         },
-        gold: {
-          DEFAULT: "#c9a84c",
-          light: "#e8c96e",
+        line: {
+          DEFAULT: "rgba(255,255,255,0.06)",
+          strong: "rgba(255,255,255,0.12)",
         },
-        cream: {
-          DEFAULT: "#f5f0e8",
-          dark: "#e8e0d0",
+        text: {
+          DEFAULT: "#f0ebe0",
+          dim: "#a8b3ac",
+          muted: "#6c7a72",
         },
-        ink: {
-          DEFAULT: "#1a1a1a",
-          mid: "#4a4a4a",
-          light: "#8a8a8a",
+        fairway: {
+          DEFAULT: "#8ee68e",
+          deep: "#3f8a52",
         },
-        paper: "#fefcf8",
-        // Edge-specific semantic colors (live data states)
-        signal: {
-          positive: "#1a7a4a",
-          negative: "#b04848",
-          warning: "#c9a84c",
-          neutral: "#8a8a8a",
+        amber: {
+          DEFAULT: "#f5c558",
+          deep: "#a07a1f",
+        },
+        red: {
+          DEFAULT: "#e07868",
+          deep: "#7a3027",
+        },
+        sky: {
+          DEFAULT: "#7cc0e8",
         },
       },
       fontFamily: {
-        display: ['"Playfair Display"', "serif"],
-        sans: ['"DM Sans"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+        sans: ['"Instrument Sans"', "-apple-system", "system-ui", "sans-serif"],
+        serif: ['"Instrument Serif"', '"Iowan Old Style"', "Georgia", "serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
       },
-      boxShadow: {
-        card: "0 1px 3px rgba(10, 61, 46, 0.06), 0 4px 16px rgba(10, 61, 46, 0.04)",
-        elevated: "0 4px 24px rgba(10, 61, 46, 0.12)",
-      },
-      borderRadius: {
-        card: "10px",
+      letterSpacing: {
+        ui: "0.04em",
+        label: "0.1em",
       },
     },
   },

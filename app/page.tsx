@@ -1,36 +1,98 @@
 import Link from "next/link";
-import { Nav } from "@/components/brand/Nav";
+import { BrandMark } from "@/components/edge/primitives";
 
 export default function MarketingHome() {
   return (
-    <main className="min-h-screen bg-paper">
-      <Nav />
+    <main className="min-h-screen bg-bg text-text">
+      <nav className="flex items-center justify-between px-6 lg:px-12 py-5">
+        <div className="flex items-center gap-2.5">
+          <BrandMark size={28} />
+          <span
+            className="serif-italic"
+            style={{ fontSize: 22, letterSpacing: -0.3, fontStyle: "normal" }}
+          >
+            Greenside
+          </span>
+        </div>
+        <div className="flex items-center gap-6">
+          <Link
+            href="/login"
+            className="text-text-dim hover:text-text"
+            style={{ fontSize: 14 }}
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/login"
+            className="px-4 py-2 rounded font-semibold"
+            style={{
+              background: "#8ee68e",
+              color: "#06140c",
+              fontSize: 14,
+            }}
+          >
+            Open Dashboard
+          </Link>
+        </div>
+      </nav>
 
-      <section className="relative overflow-hidden bg-green-deep text-white">
-        <div className="max-w-6xl mx-auto px-6 md:px-12 py-24 md:py-32">
-          <div className="inline-block text-gold text-xs uppercase tracking-[0.2em] mb-6">
-            Greenside Edge · Intelligence for Golf Bettors
-          </div>
-          <h1 className="font-display text-5xl md:text-7xl leading-[1.05] mb-6">
-            Every bet. Every book.
+      <section className="relative overflow-hidden">
+        <div
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            top: -120,
+            right: -120,
+            width: 480,
+            height: 480,
+            background:
+              "radial-gradient(circle, rgba(245,197,88,0.15) 0%, transparent 65%)",
+          }}
+        />
+        <div className="relative max-w-5xl mx-auto px-6 lg:px-12 py-24 lg:py-36">
+          <span
+            className="num font-semibold uppercase"
+            style={{
+              fontSize: 11,
+              letterSpacing: 1.6,
+              color: "#f5c558",
+            }}
+          >
+            ● Conditions Edge · for serious golf bettors
+          </span>
+          <h1
+            className="serif-italic mt-5 mb-6 text-text"
+            style={{
+              fontSize: 72,
+              lineHeight: 1.02,
+              letterSpacing: -1,
+              fontStyle: "normal",
+            }}
+          >
+            <em>Wind&apos;s up.</em>
             <br />
-            <em className="text-gold-light">One edge.</em>
+            Your edge just moved.
           </h1>
-          <p className="text-lg md:text-xl text-white/80 max-w-2xl mb-10">
-            Track every golf bet across DraftKings, FanDuel, PrizePicks, and
-            Underdog. Get live course-condition alerts when wind or weather
-            shifts your EV. Build DFS lineups that account for the wave.
+          <p
+            className="text-text-dim mb-10 max-w-2xl"
+            style={{ fontSize: 19, lineHeight: 1.45 }}
+          >
+            Greenside tracks every bet across every book, watches the wind on
+            every course, and tells you the moment your portfolio&apos;s EV
+            shifts. Wave-aware DFS lineups, live conditions alerts, one
+            dashboard for golf.
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3">
             <Link
-              href="/dashboard"
-              className="bg-gold text-green-deep px-6 py-3 rounded font-semibold hover:bg-gold-light"
+              href="/login"
+              className="px-6 py-3 rounded font-semibold"
+              style={{ background: "#8ee68e", color: "#06140c", fontSize: 15 }}
             >
               Open Dashboard
             </Link>
             <Link
               href="/dashboard/upload"
-              className="border border-white/30 text-white px-6 py-3 rounded font-semibold hover:bg-white/10"
+              className="px-6 py-3 rounded font-semibold border border-line text-text hover:bg-surface-1"
+              style={{ fontSize: 15 }}
             >
               Upload a Bet Slip
             </Link>
@@ -38,29 +100,30 @@ export default function MarketingHome() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 md:px-12 py-20 grid md:grid-cols-3 gap-8">
+      <section className="max-w-5xl mx-auto px-6 lg:px-12 pb-24 grid lg:grid-cols-3 gap-5">
         <Feature
           label="Aggregation"
-          title="One dashboard, every book"
-          body="Snap a screenshot of any bet slip — DK, FD, PrizePicks, Underdog — and we extract the line, odds, and stake. See total exposure, correlated risk, and live P&L across all your books in one place."
+          title="Every book, one screen"
+          body="Snap a bet slip from DK, FD, PrizePicks, or Underdog. Claude vision extracts the line, odds, and stake. Total exposure and correlated risk live in one dashboard."
         />
         <Feature
           label="Live Alerts"
-          title="Conditions that move EV"
-          body="When wind picks up at Quail Hollow or rain hits the AM wave at TPC Sawgrass, we notify you instantly with the bets in your portfolio that just shifted — and by how much."
+          title="Wind that moves EV"
+          body="When the forecast jumps from 8 to 18 mph at Quail Hollow, we tell you which of your bets just got cheaper and which just got expensive — with the math, not a vibe."
         />
         <Feature
           label="DFS Edge"
-          title="Wave-aware lineup builder"
-          body="DK DFS optimizer that prices in tee-time wave, course-fit, and live weather. Build, save, and deep-link lineups straight to DraftKings."
+          title="Wave-aware lineups"
+          body="DraftKings golf optimizer that prices in tee-time wave, course fit, and live weather. Build, save, and deep-link straight to DK."
         />
       </section>
 
-      <footer className="border-t border-cream-dark py-10 text-center text-sm text-ink-light">
-        <p>
-          Greenside Edge is a product of Greenside Journeys. For entertainment
-          and informational purposes only. 21+. Gamble responsibly.
-        </p>
+      <footer
+        className="border-t border-line py-8 text-center text-text-muted"
+        style={{ fontSize: 12 }}
+      >
+        Greenside is an analytics product. We don&apos;t accept wagers. 21+.
+        Gamble responsibly.
       </footer>
     </main>
   );
@@ -76,12 +139,27 @@ function Feature({
   body: string;
 }) {
   return (
-    <div className="card p-6">
-      <div className="text-xs uppercase tracking-[0.2em] text-gold mb-3">
+    <div className="p-5 rounded-[14px] bg-surface-1 border border-line">
+      <span
+        className="num font-semibold uppercase"
+        style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+      >
         {label}
-      </div>
-      <h3 className="font-display text-2xl mb-3">{title}</h3>
-      <p className="text-ink-mid leading-relaxed">{body}</p>
+      </span>
+      <h3
+        className="serif-italic mt-2 mb-2"
+        style={{
+          fontSize: 24,
+          letterSpacing: -0.3,
+          fontStyle: "normal",
+          color: "#f0ebe0",
+        }}
+      >
+        {title}
+      </h3>
+      <p className="text-text-dim" style={{ fontSize: 14, lineHeight: 1.5 }}>
+        {body}
+      </p>
     </div>
   );
 }

@@ -1,6 +1,14 @@
-# Greenside Edge — Architecture
+# Greenside — Architecture
 
-The intelligence layer for serious golf bettors and DFS players. Sub-product of Greenside Journeys.
+The intelligence layer for serious golf bettors and DFS players. Sub-product of Greenside Journeys; ships under the working brand **Greenside** (no "Edge" suffix per the Claude Design handoff).
+
+## Design system
+
+Locked in by the Claude Design handoff (`dfs-bet-dashboard`). Dark fairway aesthetic, NOT the original light cream palette from greensidejourneys.com — this dashboard is a distinct surface.
+
+- **Palette:** `#0a1f14` background, `#f0ebe0` warm off-white text, fairway green (`#8ee68e`) for live/positive, amber (`#f5c558`) for wind warnings, red (`#e07868`) for negative EV / hedge.
+- **Typography:** Instrument Serif (italic display for big stats), Instrument Sans (UI), JetBrains Mono (numerics + labels).
+- **Components:** ported in `components/edge/`. The pixel-level layout and color rules match the prototype.
 
 ## Product pillars
 

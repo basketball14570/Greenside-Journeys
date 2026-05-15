@@ -1,4 +1,4 @@
-# Greenside Edge — Build Roadmap
+# Greenside — Build Roadmap
 
 Approximate effort assumes one focused builder. Compress with parallel work.
 
@@ -7,12 +7,14 @@ Approximate effort assumes one focused builder. Compress with parallel work.
 - [x] Project scaffold (Next.js, Tailwind, brand tokens)
 - [x] Bet-slip parsing via Claude vision (`/api/bets/parse`)
 - [x] Upload page (`/dashboard/upload`)
-- [x] Dashboard skeleton with mock data
+- [x] Dashboard built against Claude Design handoff (mobile + desktop, alert detail)
 - [x] Postgres schema (`db/schema.sql`)
+- [x] Auth flow scaffolded (Supabase magic link, middleware, login page)
 - [ ] Supabase project provisioned, schema applied
-- [ ] Auth flow (email magic link → profile creation)
+- [ ] Auth callback wired end-to-end (currently a placeholder)
 - [ ] Bet persistence: upload screenshot → store to Supabase Storage → parse → write to `bets` table → display on dashboard
 - [ ] Confirmation flow for low-confidence parses
+- [ ] Replace demo data in `lib/demo-data.ts` with Supabase queries
 
 **Exit criteria:** A real user can sign up, upload a PrizePicks screenshot, see the parsed bet in their dashboard, confirm or edit it, and have it persist across sessions.
 

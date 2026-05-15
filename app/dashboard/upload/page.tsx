@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BookChip, type Book } from "@/components/edge/primitives";
 
 type ParsedBet = {
   book: string;
@@ -11,6 +12,13 @@ type ParsedBet = {
   stake: number;
   toWin: number;
   confidence: number;
+};
+
+const BOOK_MAP: Record<string, Book> = {
+  draftkings: "DK",
+  fanduel: "FD",
+  prizepicks: "PP",
+  underdog: "UD",
 };
 
 export default function UploadPage() {
@@ -26,7 +34,9 @@ export default function UploadPage() {
     setResult(null);
     try {
       const buf = await file.arrayBuffer();
-      const b64 = Buffer.from(buf).toString("base64");
+      const b64 = btoa(
+        new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ""),
+      );
       const res = await fetch("/api/bets/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,34 +53,63 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto px-5 lg:px-0 py-6 space-y-6">
       <header>
-        <div className="text-xs uppercase tracking-[0.2em] text-gold mb-1">
-          Ingestion
-        </div>
-        <h1 className="font-display text-4xl mb-2">Upload a Bet Slip</h1>
-        <p className="text-ink-mid">
-          Drop a screenshot from DraftKings, FanDuel, PrizePicks, Underdog, or
-          Caesars. We&apos;ll extract the line, odds, and stake automatically.
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+        >
+          ● Ingestion
+        </span>
+        <h1
+          className="serif-italic mt-1.5 mb-2"
+          style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
+        >
+          <em>Upload a bet slip.</em>
+        </h1>
+        <p className="text-text-dim" style={{ fontSize: 14 }}>
+          Drop a screenshot from DraftKings, FanDuel, PrizePicks, or Underdog.
+          We&apos;ll extract the line, odds, and stake automatically.
         </p>
       </header>
 
-      <div className="card p-8">
-        <label className="block">
-          <div className="border-2 border-dashed border-cream-dark rounded-card p-12 text-center cursor-pointer hover:border-gold transition">
+      <div className="rounded-[14px] bg-surface-1 border border-line p-6">
+        <label className="block cursor-pointer">
+          <div
+            className="rounded-[14px] p-10 text-center transition"
+            style={{
+              border: "2px dashed rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.18)",
+            }}
+          >
             {file ? (
               <div>
-                <div className="font-medium">{file.name}</div>
-                <div className="text-sm text-ink-light">
+                <div className="text-text font-semibold">{file.name}</div>
+                <div
+                  className="num text-text-dim mt-1"
+                  style={{ fontSize: 12 }}
+                >
                   {(file.size / 1024).toFixed(1)} KB
                 </div>
               </div>
             ) : (
-              <div className="text-ink-mid">
-                <div className="font-display text-xl mb-2">
+              <div className="text-text-dim">
+                <div
+                  className="serif-italic mb-2"
+                  style={{
+                    fontSize: 20,
+                    fontStyle: "normal",
+                    color: "#f0ebe0",
+                  }}
+                >
                   Drop screenshot or click to select
                 </div>
-                <div className="text-sm">PNG or JPG · up to 10MB</div>
+                <div
+                  className="num text-text-muted"
+                  style={{ fontSize: 11, letterSpacing: 0.5 }}
+                >
+                  PNG or JPG · up to 10MB
+                </div>
               </div>
             )}
             <input
@@ -85,45 +124,86 @@ export default function UploadPage() {
         <button
           disabled={!file || parsing}
           onClick={handleSubmit}
-          className="mt-6 w-full bg-green-deep text-white py-3 rounded font-semibold disabled:opacity-40 hover:bg-green-mid"
+          className="mt-5 w-full rounded-md font-bold disabled:opacity-40"
+          style={{
+            background: "#8ee68e",
+            color: "#06140c",
+            padding: "12px 0",
+            fontSize: 14,
+          }}
         >
-          {parsing ? "Parsing slip…" : "Extract Bets"}
+          {parsing ? "Parsing slip…" : "Extract bets"}
         </button>
 
         {error && (
-          <div className="mt-4 text-sm text-signal-negative">{error}</div>
+          <div className="mt-3 text-red" style={{ fontSize: 13 }}>
+            {error}
+          </div>
         )}
       </div>
 
       {result && (
         <div className="space-y-3">
-          <h2 className="font-display text-2xl">Extracted</h2>
-          {result.map((b, i) => (
-            <div key={i} className="card p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-ink-light mb-1">
-                    {b.book}
+          <h2
+            className="serif-italic"
+            style={{ fontSize: 24, fontStyle: "normal" }}
+          >
+            Extracted
+          </h2>
+          {result.map((b, i) => {
+            const bookChip = BOOK_MAP[b.book.toLowerCase()] ?? null;
+            return (
+              <div
+                key={i}
+                className="rounded-[14px] bg-surface-1 border border-line p-4"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {bookChip && <BookChip book={bookChip} />}
+                      <span
+                        className="num text-text-muted uppercase"
+                        style={{ fontSize: 10, letterSpacing: 1.1 }}
+                      >
+                        {b.book}
+                      </span>
+                    </div>
+                    <div
+                      className="text-text font-semibold"
+                      style={{ fontSize: 15 }}
+                    >
+                      {b.player}
+                    </div>
+                    <div
+                      className="text-text-dim mt-0.5"
+                      style={{ fontSize: 13 }}
+                    >
+                      {b.market}
+                    </div>
                   </div>
-                  <div className="font-display text-lg">{b.player}</div>
-                  <div className="text-sm text-ink-mid">{b.market}</div>
+                  <div className="text-right">
+                    <div className="num text-text font-semibold">
+                      {b.americanOdds > 0 ? "+" : ""}
+                      {b.americanOdds}
+                    </div>
+                    <div
+                      className="num text-text-dim mt-0.5"
+                      style={{ fontSize: 12 }}
+                    >
+                      ${b.stake.toFixed(2)} → ${b.toWin.toFixed(2)}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="num">
-                    {b.americanOdds > 0 ? "+" : ""}
-                    {b.americanOdds}
-                  </div>
-                  <div className="num text-sm text-ink-mid">
-                    ${b.stake.toFixed(2)} → ${b.toWin.toFixed(2)}
-                  </div>
+                <div
+                  className="num text-text-muted mt-2"
+                  style={{ fontSize: 11, letterSpacing: 0.5 }}
+                >
+                  Confidence {(b.confidence * 100).toFixed(0)}%
+                  {b.confidence < 0.8 ? " · Tap to confirm" : ""}
                 </div>
               </div>
-              <div className="mt-2 text-xs text-ink-light">
-                Confidence {(b.confidence * 100).toFixed(0)}%
-                {b.confidence < 0.8 ? " · Tap to confirm" : ""}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

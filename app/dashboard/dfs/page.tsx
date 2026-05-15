@@ -1,19 +1,32 @@
 export default function DfsPage() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto px-5 lg:px-0 py-6 space-y-6">
       <header>
-        <div className="text-xs uppercase tracking-[0.2em] text-gold mb-1">
-          DraftKings DFS
-        </div>
-        <h1 className="font-display text-4xl">Wave-Aware Lineup Builder</h1>
-        <p className="text-ink-mid mt-2">
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+        >
+          ● DraftKings DFS
+        </span>
+        <h1
+          className="serif-italic mt-1.5"
+          style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
+        >
+          <em>Wave-aware lineups.</em>
+        </h1>
+        <p className="text-text-dim mt-2" style={{ fontSize: 14 }}>
           Optimizer that prices in tee-time wave, live weather, and course fit
           on top of DK salaries.
         </p>
       </header>
-      <div className="card p-12 text-center text-ink-mid">
-        <div className="font-display text-2xl mb-2">Coming next</div>
-        <p>
+      <div className="rounded-[14px] bg-surface-1 border border-line p-12 text-center">
+        <div
+          className="serif-italic mb-2"
+          style={{ fontSize: 22, fontStyle: "normal", color: "#f0ebe0" }}
+        >
+          Coming next
+        </div>
+        <p className="text-text-dim" style={{ fontSize: 13.5 }}>
           Salary import · projections × wave multiplier · Monte Carlo lineup
           builder · deep-link export to DraftKings.
         </p>

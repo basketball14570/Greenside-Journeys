@@ -2,12 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Greenside Edge — Golf Intelligence for Bettors & DFS",
+  title: "Greenside — Golf Bet Intelligence",
   description:
-    "The intelligence layer for serious golf bettors. Track every bet across every book, get live course-conditions alerts, and optimize DFS lineups — all in one place.",
-  icons: {
-    icon: "/brand/greenside-journeys-icon.svg",
-  },
+    "Live course conditions, every bet across every book, and wave-aware DFS lineups for serious golf bettors.",
 };
 
 export default function RootLayout({
@@ -16,16 +13,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="bg-bg">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body className="bg-bg text-text">{children}</body>
     </html>
   );
 }

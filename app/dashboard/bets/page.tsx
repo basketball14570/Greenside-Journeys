@@ -1,19 +1,32 @@
 export default function BetsPage() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto px-5 lg:px-0 py-6 space-y-6">
       <header>
-        <div className="text-xs uppercase tracking-[0.2em] text-gold mb-1">
-          Portfolio
-        </div>
-        <h1 className="font-display text-4xl">All Bets</h1>
-        <p className="text-ink-mid mt-2">
-          Filter by book, tournament, status, market. Export CSV. Tag for
-          model training.
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+        >
+          ● Portfolio
+        </span>
+        <h1
+          className="serif-italic mt-1.5"
+          style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
+        >
+          <em>All tickets.</em>
+        </h1>
+        <p className="text-text-dim mt-2" style={{ fontSize: 14 }}>
+          Filter by book, tournament, status, market. Export CSV. Tag for model
+          training.
         </p>
       </header>
-      <div className="card p-12 text-center text-ink-mid">
-        <div className="font-display text-2xl mb-2">Coming next</div>
-        <p>
+      <div className="rounded-[14px] bg-surface-1 border border-line p-12 text-center">
+        <div
+          className="serif-italic mb-2"
+          style={{ fontSize: 22, fontStyle: "normal", color: "#f0ebe0" }}
+        >
+          Coming next
+        </div>
+        <p className="text-text-dim" style={{ fontSize: 13.5 }}>
           Full table view · book filters · CSV export · win/loss analytics ·
           correlation visualizer.
         </p>
