@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Greenside Bet Tracker — PGA Championship</title>
+<style>
+  :root {
+    --bg: #0b1410;
+    --panel: #111c17;
+    --panel-2: #16241d;
+    --line: #1f3329;
+    --ink: #e6efe9;
+    --ink-dim: #92a89a;
+    --ink-mute: #5e7569;
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,0.14);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,0.14);
+    --red: #f85149;
+    --red-soft: rgba(248,81,73,0.14);
+    --blue: #58a6ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px; line-height: 1.45; }
+  a { color: var(--blue); text-decoration: none; }
+  button { font: inherit; color: inherit; }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 18px 48px; }
+
+  header.app {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .pin { width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, #1c4d2e, #3fb950);
+    display: grid; place-items: center; font-size: 16px; }
+  .brand h1 { font-size: 16px; margin: 0; letter-spacing: 0.2px; }
+  .brand .sub { color: var(--ink-dim); font-size: 12px; }
+  .spacer { flex: 1; }
+  .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--green-soft); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .badge.warn { background: var(--amber-soft); color: var(--amber); border-color: rgba(210,153,34,0.3); }
+  .badge.err  { background: var(--red-soft);   color: var(--red);   border-color: rgba(248,81,73,0.3); }
+  .badge.idle { background: #1f2a24; color: var(--ink-dim); border-color: var(--line); }
+  .meta { color: var(--ink-dim); font-size: 12px; }
+  .btn { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+    padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .btn:hover { border-color: #2c4a3a; }
+  .btn.primary { background: linear-gradient(180deg, #2a6b3e, #1f5230); border-color: #2e7a45; }
+
+  .tabs { display: inline-flex; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 4px; gap: 4px; }
+  .tab { background: transparent; border: 0; color: var(--ink-dim);
+    padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; }
+  .tab.active { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 980px) { .grid { grid-template-columns: 1.4fr 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .card h2 { margin: 0; padding: 12px 14px; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-dim);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .card h2 .count { margin-left: auto; color: var(--ink-mute); font-weight: 500; }
+
+  /* ===== TAPE view ===== */
+  .tape { padding: 4px 0; }
+  .tape .row { display: grid; grid-template-columns: 1fr 90px 110px 110px;
+    gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .tape .row:last-child { border-bottom: 0; }
+  .tape .player { font-weight: 700; font-size: 15px; }
+  .tape .desc   { color: var(--ink-dim); font-size: 12px; margin-top: 2px; }
+  .tape .num    { text-align: right; font-variant-numeric: tabular-nums; }
+  .tape .num .k { color: var(--ink-mute); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; display:block; }
+  .tape .num .v { font-size: 16px; font-weight: 700; }
+  .pill { display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px;
+    border: 1px solid transparent; justify-content: center; }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .pill.live { background: var(--amber-soft); color: var(--amber); border-color: rgba(210,153,34,0.3); }
+  .pill.live .dot { background: var(--amber); box-shadow: 0 0 0 0 rgba(210,153,34,0.6);
+    animation: pulse 1.6s infinite; }
+  .pill.won  { background: var(--green-soft); color: var(--green); border-color: rgba(63,185,80,0.3); }
+  .pill.won .dot { background: var(--green); }
+  .pill.lost { background: var(--red-soft); color: var(--red); border-color: rgba(248,81,73,0.3); }
+  .pill.lost .dot { background: var(--red); }
+  .pill.pending { background: #1f2a24; color: var(--ink-dim); border-color: var(--line); }
+  .pill.pending .dot { background: var(--ink-mute); }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(210,153,34,0.55); }
+    70%  { box-shadow: 0 0 0 7px rgba(210,153,34,0); }
+    100% { box-shadow: 0 0 0 0 rgba(210,153,34,0); }
+  }
+
+  /* ===== PULSE view ===== */
+  .pulse-grid { display: grid; gap: 12px; padding: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .pulse-card { background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px; position: relative; overflow: hidden; }
+  .pulse-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--ink-mute); }
+  .pulse-card.live::before { background: var(--amber); }
+  .pulse-card.won::before  { background: var(--green); }
+  .pulse-card.lost::before { background: var(--red); }
+  .pulse-card .name { font-weight: 700; font-size: 15px; }
+  .pulse-card .bet  { color: var(--ink-dim); font-size: 12px; margin: 2px 0 10px; }
+  .pulse-card .bar  { height: 6px; background: #0e1a14; border-radius: 3px; overflow: hidden;
+    border: 1px solid var(--line); margin: 6px 0 8px; }
+  .pulse-card .bar > i { display:block; height: 100%; background: var(--amber); }
+  .pulse-card.won  .bar > i { background: var(--green); }
+  .pulse-card.lost .bar > i { background: var(--red); }
+  .pulse-card .stats { display: flex; gap: 10px; flex-wrap: wrap; color: var(--ink-dim); font-size: 12px; }
+  .pulse-card .stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .pulse-card .foot { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+
+  /* ===== LEDGER view ===== */
+  table.ledger { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  table.ledger th, table.ledger td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  table.ledger th { color: var(--ink-dim); font-weight: 600; font-size: 11px;
+    letter-spacing: 0.6px; text-transform: uppercase; background: var(--panel-2); }
+  table.ledger td.num { text-align: right; }
+  table.ledger tr.lost td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+  table.ledger tr.won  td:first-child { box-shadow: inset 3px 0 0 var(--green); }
+  table.ledger tr.live td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+
+  /* ===== Leaderboard ===== */
+  .lb { padding: 4px 0; max-height: 640px; overflow: auto; }
+  .lb-row { display: grid; grid-template-columns: 36px 1fr 56px 56px 56px;
+    gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line);
+    align-items: center; font-size: 13px; }
+  .lb-row.head { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.5px;
+    text-transform: uppercase; background: var(--panel-2); position: sticky; top: 0; }
+  .lb-row .pos  { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .lb-row .name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-row .v    { text-align: right; font-variant-numeric: tabular-nums; }
+  .lb-row.me    { background: rgba(63,185,80,0.08); }
+  .lb-row.me .name { color: var(--green); font-weight: 700; }
+  .neg { color: var(--red); }
+  .pos { color: var(--green); }
+
+  footer.foot { color: var(--ink-mute); font-size: 11px; text-align: center; margin-top: 18px; }
+  .hidden { display: none !important; }
+  code.kbd { background: var(--panel-2); border: 1px solid var(--line);
+    padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <div class="brand">
+      <div class="pin">⛳</div>
+      <div>
+        <h1>Greenside Bet Tracker</h1>
+        <div class="sub">PGA Championship · Underdog parlay (9 legs)</div>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <span id="evtBadge" class="badge idle">No data</span>
+    <span id="lastUpdated" class="meta">never updated</span>
+    <button id="refreshBtn" class="btn primary">↻ Refresh</button>
+    <label class="meta" style="display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="autoRefresh" checked />
+      Auto 30s
+    </label>
+  </header>
+
+  <div style="margin-bottom: 14px;">
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab active" data-view="tape">Tape</button>
+      <button class="tab" data-view="pulse">Pulse</button>
+      <button class="tab" data-view="ledger">Ledger</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section>
+      <div class="card" id="viewTape">
+        <h2>Tape <span class="count" id="tapeCount"></span></h2>
+        <div class="tape" id="tapeRows"></div>
+      </div>
+      <div class="card hidden" id="viewPulse">
+        <h2>Pulse <span class="count" id="pulseCount"></span></h2>
+        <div class="pulse-grid" id="pulseCards"></div>
+      </div>
+      <div class="card hidden" id="viewLedger">
+        <h2>Ledger <span class="count" id="ledgerCount"></span></h2>
+        <table class="ledger">
+          <thead><tr>
+            <th>Player</th><th>Bet</th><th>Line</th><th>Actual</th>
+            <th>Pos</th><th>Thru</th><th>Status</th>
+          </tr></thead>
+          <tbody id="ledgerRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Leaderboard <span class="count" id="lbName"></span></h2>
+      <div class="lb" id="leaderboard">
+        <div class="lb-row head">
+          <div class="pos">POS</div>
+          <div class="name">PLAYER</div>
+          <div class="v">TOT</div>
+          <div class="v">R2</div>
+          <div class="v">THRU</div>
+        </div>
+        <div id="lbRows"></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="foot">
+    Data: ESPN public scoreboard API · Per-round Fairways Hit & GIR are not exposed in the public feed, so those legs stay <code class="kbd">Live</code> until the round closes. Refresh manually or toggle <code class="kbd">Auto 30s</code>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+// ---- Bet slip ---------------------------------------------------------------
+const BETS = [
+  { player: "Nicolai Hojgaard",   type: "fh",      dir: "lower",  line: 7.5,  round: 2, label: "Fairways Hit · UNDER 7.5 · R2" },
+  { player: "Alex Noren",         type: "gir",     dir: "lower",  line: 11.5, round: 2, label: "Greens in Reg · UNDER 11.5 · R2" },
+  { player: "Bryson DeChambeau",  type: "strokes", dir: "higher", line: 70.5, round: 2, label: "Round Strokes · OVER 70.5 · R2" },
+  { player: "Ludvig Aberg",       type: "pos",     dir: "better", line: 20.5,           label: "Tourney Position · BETTER 20.5" },
+  { player: "Xander Schauffele",  type: "pos",     dir: "better", line: 10.5,           label: "Tourney Position · BETTER 10.5" },
+  { player: "Brooks Koepka",      type: "pos",     dir: "better", line: 20.5,           label: "Tourney Position · BETTER 20.5" },
+  { player: "Jordan Spieth",      type: "strokes", dir: "higher", line: 71.5, round: 2, label: "Round Strokes · OVER 71.5 · R2" },
+  { player: "Jon Rahm",           type: "strokes", dir: "higher", line: 70.5, round: 2, label: "Round Strokes · OVER 70.5 · R2" },
+  { player: "Hideki Matsuyama",   type: "winner",                                       label: "Tournament Winner" },
+];
+
+const ENDPOINT = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
+const REFRESH_MS = 30000;
+
+// ---- State ------------------------------------------------------------------
+let state = {
+  event: null,
+  competitors: [], // normalized
+  view: "tape",
+  timer: null,
+};
+
+// ---- Utils ------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const norm = (s) => (s || "")
+  .normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .toLowerCase().replace(/[^a-z\s]/g, "").trim();
+
+function fmtScore(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  if (n === 0) return "E";
+  return n > 0 ? `+${n}` : `${n}`;
+}
+function scoreClass(n) {
+  if (n === null || n === undefined || isNaN(n)) return "";
+  return n < 0 ? "pos" : n > 0 ? "neg" : "";
+}
+function timeStr(d) {
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+}
+
+// ---- ESPN fetch -------------------------------------------------------------
+async function fetchScoreboard() {
+  const url = `${ENDPOINT}?_=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`ESPN ${res.status}`);
+  return res.json();
+}
+
+// Pick an event matching "PGA Championship" if present, else first/active event.
+function pickEvent(json) {
+  const events = json && json.events ? json.events : [];
+  if (!events.length) return null;
+  const champ = events.find((e) => /pga\s*championship/i.test(e.name || e.shortName || ""));
+  if (champ) return champ;
+  const active = events.find((e) => e?.status?.type?.state === "in");
+  return active || events[0];
+}
+
+function normalizeCompetitors(event) {
+  const comp = event?.competitions?.[0];
+  if (!comp || !comp.competitors) return [];
+  return comp.competitors.map((c) => {
+    const ath = c.athlete || {};
+    const linescores = (c.linescores || []).map((l) => ({
+      period: l.period ?? null,
+      value: typeof l.value === "number" ? l.value : Number(l.value ?? NaN),
+      displayValue: l.displayValue ?? null,
+    }));
+    const posObj = c.status?.position || {};
+    const posDisplay = posObj.displayName || posObj.id || "";
+    // numeric position (handles "T5", "5", "CUT", "WD")
+    const m = String(posDisplay).match(/(\d+)/);
+    const posNum = m ? parseInt(m[1], 10) : null;
+    const totalScore = (typeof c.score === "number") ? c.score
+      : (c.score && !isNaN(Number(c.score))) ? Number(c.score)
+      : (typeof c.statistics?.[0]?.value === "number" ? c.statistics[0].value : null);
+    return {
+      id: ath.id || c.id,
+      name: ath.displayName || ath.shortName || "Unknown",
+      shortName: ath.shortName || "",
+      score: c.score ?? null,            // ESPN gives "+3", "-5", "E"
+      scoreNum: parseScore(c.score),
+      posDisplay,
+      posNum,
+      status: c.status?.type?.state || "",
+      thru: c.status?.thru ?? null,
+      period: c.status?.period ?? null,
+      linescores,
+      isCut: /cut|wd|withdrawn|dq/i.test(posDisplay),
+      raw: c,
+    };
+  });
+}
+function parseScore(s) {
+  if (s === null || s === undefined) return null;
+  if (typeof s === "number") return s;
+  if (s === "E" || s === "e") return 0;
+  const n = Number(String(s).replace("+", ""));
+  return isNaN(n) ? null : n;
+}
+
+function findCompetitor(name) {
+  const n = norm(name);
+  let best = null;
+  for (const c of state.competitors) {
+    if (norm(c.name) === n) return c;
+    if (!best && norm(c.shortName) === n) best = c;
+    if (!best && norm(c.name).includes(n)) best = c;
+  }
+  return best;
+}
+
+// ---- Bet evaluation ---------------------------------------------------------
+function evaluateBet(bet) {
+  const c = findCompetitor(bet.player);
+  const out = { bet, comp: c, status: "pending", actual: null, line: bet.line ?? null, note: "" };
+  if (!c) { out.note = "Player not found in field"; return out; }
+
+  const eventComplete = state.event?.status?.type?.state === "post";
+
+  if (bet.type === "strokes") {
+    const ls = c.linescores.find((l) => l.period === bet.round);
+    const v = ls && !isNaN(ls.value) ? ls.value : null;
+    out.actual = v;
+    const roundComplete = v !== null && (c.period > bet.round || (c.period === bet.round && c.thru >= 18) || eventComplete);
+    if (v === null) {
+      out.status = "live"; out.note = "Round not started";
+    } else if (!roundComplete) {
+      out.status = "live"; out.note = `Through ${c.thru ?? "?"}`;
+      // mid-round: not yet decidable — keep live
+    } else {
+      out.status = (bet.dir === "higher" ? v > bet.line : v < bet.line) ? "won" : "lost";
+    }
+    return out;
+  }
+
+  if (bet.type === "pos") {
+    out.actual = c.posDisplay || "—";
+    if (c.isCut) { out.status = "lost"; out.note = "Missed cut / withdrew"; return out; }
+    const p = c.posNum;
+    const meets = p !== null && (bet.dir === "better" ? p < bet.line : p > bet.line);
+    if (eventComplete) {
+      out.status = meets ? "won" : "lost";
+    } else {
+      out.status = "live";
+      out.note = meets ? `Currently in range (${c.posDisplay})` : `Currently ${c.posDisplay || "—"}`;
+    }
+    return out;
+  }
+
+  if (bet.type === "winner") {
+    out.actual = c.posDisplay || "—";
+    if (c.isCut) { out.status = "lost"; out.note = "Missed cut / withdrew"; return out; }
+    if (eventComplete) {
+      out.status = (c.posNum === 1 && !/T/i.test(c.posDisplay)) ? "won" : "lost";
+    } else {
+      out.status = "live";
+      out.note = `Currently ${c.posDisplay || "—"}`;
+    }
+    return out;
+  }
+
+  if (bet.type === "fh" || bet.type === "gir") {
+    // ESPN public scoreboard doesn't expose per-round fairways hit / GIR.
+    out.actual = null;
+    out.note = "Per-round FH/GIR not in ESPN feed — manual settle at round end";
+    out.status = "live";
+    return out;
+  }
+
+  return out;
+}
+
+// ---- Rendering --------------------------------------------------------------
+function statusPill(s) {
+  const map = { live: ["live", "LIVE"], won: ["won", "WON"], lost: ["lost", "LOST"], pending: ["pending", "PENDING"] };
+  const [cls, label] = map[s] || map.pending;
+  return `<span class="pill ${cls}"><span class="dot"></span>${label}</span>`;
+}
+
+function renderTape(evals) {
+  const rows = evals.map((e) => {
+    const c = e.comp;
+    const desc = e.bet.label + (e.note ? ` · <span style="color:var(--ink-mute)">${e.note}</span>` : "");
+    const actual = e.actual === null || e.actual === undefined
+      ? "—"
+      : (typeof e.actual === "number" ? e.actual : e.actual);
+    const line = e.line !== null && e.line !== undefined ? e.line : "—";
+    return `
+      <div class="row">
+        <div>
+          <div class="player">${e.bet.player}</div>
+          <div class="desc">${desc}</div>
+        </div>
+        <div class="num"><span class="k">Line</span><span class="v">${line}</span></div>
+        <div class="num"><span class="k">Actual</span><span class="v">${actual}</span></div>
+        <div>${statusPill(e.status)}</div>
+      </div>`;
+  }).join("");
+  $("tapeRows").innerHTML = rows;
+  $("tapeCount").textContent = `${evals.length} legs`;
+}
+
+function renderPulse(evals) {
+  const cards = evals.map((e) => {
+    const c = e.comp;
+    const pct = computeProgress(e);
+    const actual = e.actual === null || e.actual === undefined ? "—" : e.actual;
+    const pos = c?.posDisplay || "—";
+    const thru = c ? (c.thru ?? "—") : "—";
+    return `
+      <div class="pulse-card ${e.status}">
+        <div class="name">${e.bet.player}</div>
+        <div class="bet">${e.bet.label}</div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="stats">
+          <span>Line <b>${e.line ?? "—"}</b></span>
+          <span>Actual <b>${actual}</b></span>
+          <span>Pos <b>${pos}</b></span>
+          <span>Thru <b>${thru}</b></span>
+        </div>
+        <div class="foot">${statusPill(e.status)}
+          ${e.note ? `<span style="color:var(--ink-mute);font-size:11px;">${e.note}</span>` : ""}</div>
+      </div>`;
+  }).join("");
+  $("pulseCards").innerHTML = cards;
+  $("pulseCount").textContent = `${evals.length} legs`;
+}
+
+function computeProgress(e) {
+  if (e.status === "won")  return 100;
+  if (e.status === "lost") return 100;
+  if (e.bet.type === "strokes" && e.comp?.thru != null) {
+    return Math.max(4, Math.min(100, Math.round((e.comp.thru / 18) * 100)));
+  }
+  if (e.bet.type === "pos" || e.bet.type === "winner") {
+    const ev = state.event?.status?.type;
+    // approximate via round number
+    const round = e.comp?.period || 1;
+    return Math.min(100, round * 25);
+  }
+  return 8;
+}
+
+function renderLedger(evals) {
+  const rows = evals.map((e) => {
+    const c = e.comp;
+    const actual = e.actual === null || e.actual === undefined ? "—" : e.actual;
+    const pos = c?.posDisplay || "—";
+    const thru = c ? (c.thru ?? "—") : "—";
+    return `
+      <tr class="${e.status}">
+        <td><strong>${e.bet.player}</strong></td>
+        <td><div>${e.bet.label}</div>${e.note ? `<div style="color:var(--ink-mute);font-size:11px;">${e.note}</div>` : ""}</td>
+        <td class="num">${e.line ?? "—"}</td>
+        <td class="num">${actual}</td>
+        <td class="num">${pos}</td>
+        <td class="num">${thru}</td>
+        <td>${statusPill(e.status)}</td>
+      </tr>`;
+  }).join("");
+  $("ledgerRows").innerHTML = rows;
+  $("ledgerCount").textContent = `${evals.length} legs`;
+}
+
+function renderLeaderboard() {
+  const tracked = new Set(BETS.map((b) => norm(b.player)));
+  const list = [...state.competitors].sort((a, b) => {
+    if (a.isCut && !b.isCut) return 1;
+    if (b.isCut && !a.isCut) return -1;
+    const ap = a.posNum ?? 9999, bp = b.posNum ?? 9999;
+    return ap - bp;
+  });
+  // Show top 30 plus any tracked players outside the top 30.
+  const top = list.slice(0, 30);
+  for (const c of list.slice(30)) {
+    if (tracked.has(norm(c.name))) top.push(c);
+  }
+  $("lbRows").innerHTML = top.map((c) => {
+    const r2 = c.linescores.find((l) => l.period === 2);
+    const r2v = r2 && !isNaN(r2.value) ? r2.value : null;
+    const mine = tracked.has(norm(c.name));
+    return `
+      <div class="lb-row ${mine ? "me" : ""}">
+        <div class="pos">${c.posDisplay || "—"}</div>
+        <div class="name">${c.name}</div>
+        <div class="v ${scoreClass(c.scoreNum)}">${c.score ?? "—"}</div>
+        <div class="v">${r2v ?? "—"}</div>
+        <div class="v">${c.thru ?? "—"}</div>
+      </div>`;
+  }).join("");
+  $("lbName").textContent = state.event ? state.event.name : "";
+}
+
+function renderBadge(ok, statusText) {
+  const b = $("evtBadge");
+  b.classList.remove("idle", "warn", "err");
+  if (!ok) { b.classList.add("err"); b.textContent = statusText || "Error"; return; }
+  const st = state.event?.status?.type?.state;
+  if (st === "in")        { b.textContent = `LIVE · ${state.event.status?.type?.detail || "In progress"}`; }
+  else if (st === "post") { b.classList.add("warn"); b.textContent = "FINAL"; }
+  else if (st === "pre")  { b.classList.add("warn"); b.textContent = state.event.status?.type?.detail || "Pre-event"; }
+  else                    { b.classList.add("warn"); b.textContent = state.event?.name || "No data"; }
+}
+
+// ---- Refresh loop -----------------------------------------------------------
+async function refresh() {
+  try {
+    const json = await fetchScoreboard();
+    const event = pickEvent(json);
+    if (!event) throw new Error("No events in feed");
+    state.event = event;
+    state.competitors = normalizeCompetitors(event);
+    const evals = BETS.map(evaluateBet);
+    renderTape(evals);
+    renderPulse(evals);
+    renderLedger(evals);
+    renderLeaderboard();
+    renderBadge(true);
+    $("lastUpdated").textContent = `updated ${timeStr(new Date())}`;
+  } catch (err) {
+    console.error(err);
+    renderBadge(false, `Fetch failed: ${err.message}`);
+    $("lastUpdated").textContent = `failed at ${timeStr(new Date())}`;
+  }
+}
+
+function setView(v) {
+  state.view = v;
+  for (const t of document.querySelectorAll(".tab")) {
+    t.classList.toggle("active", t.dataset.view === v);
+  }
+  $("viewTape").classList.toggle("hidden",   v !== "tape");
+  $("viewPulse").classList.toggle("hidden",  v !== "pulse");
+  $("viewLedger").classList.toggle("hidden", v !== "ledger");
+}
+
+function setupTimer() {
+  if (state.timer) { clearInterval(state.timer); state.timer = null; }
+  if ($("autoRefresh").checked) {
+    state.timer = setInterval(refresh, REFRESH_MS);
+  }
+}
+
+// ---- Wire up ----------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", () => {
+  for (const t of document.querySelectorAll(".tab")) {
+    t.addEventListener("click", () => setView(t.dataset.view));
+  }
+  $("refreshBtn").addEventListener("click", refresh);
+  $("autoRefresh").addEventListener("change", setupTimer);
+  setView("tape");
+  refresh();
+  setupTimer();
+});
+</script>
+</body>
+</html>
