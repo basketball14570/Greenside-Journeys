@@ -237,6 +237,7 @@ const BETS = [
 ];
 
 const ENDPOINT = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
+const PGA_PROXY = "/api/pga-stats"; // Netlify Function (same-origin)
 const REFRESH_MS = 30000;
 
 // ---- State ------------------------------------------------------------------
@@ -244,6 +245,8 @@ let state = {
   event: null,
   competitors: [], // normalized
   coursePar: null,
+  pgaStats: null,   // {players:[{name,rounds:[{round,fairwaysHit,greensInRegulation,...}]}]}
+  pgaError: null,
   view: "tape",
   timer: null,
 };
@@ -278,6 +281,34 @@ async function fetchScoreboard() {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`ESPN ${res.status}`);
   return res.json();
+}
+
+// ---- PGA Tour stats (via same-origin Netlify Function) ---------------------
+async function fetchPgaStats() {
+  // Skip when running from file:// — no proxy available.
+  if (location.protocol !== "http:" && location.protocol !== "https:") return null;
+  try {
+    const res = await fetch(`${PGA_PROXY}?_=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`PGA proxy ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    state.pgaError = err.message;
+    console.warn("PGA proxy unavailable:", err.message);
+    return null;
+  }
+}
+
+function findPgaPlayer(name) {
+  const players = state.pgaStats?.players || [];
+  if (!players.length) return null;
+  const n = norm(name);
+  for (const p of players) {
+    if (norm(p.name) === n) return p;
+  }
+  for (const p of players) {
+    if (norm(p.name).includes(n) || n.includes(norm(p.name))) return p;
+  }
+  return null;
 }
 
 // Pick an event matching "PGA Championship" if present, else first/active event.
@@ -418,10 +449,42 @@ function evaluateBet(bet) {
   }
 
   if (bet.type === "fh" || bet.type === "gir") {
-    // ESPN public scoreboard doesn't expose per-round fairways hit / GIR.
-    out.actual = null;
-    out.note = "Per-round FH/GIR not in ESPN feed — manual settle at round end";
-    out.status = "live";
+    const pga = findPgaPlayer(bet.player);
+    if (!pga) {
+      out.note = state.pgaStats
+        ? "Not found in PGA Tour feed"
+        : (state.pgaError ? `PGA proxy: ${state.pgaError}` : "PGA proxy not configured (load via greensidejourneys.com)");
+      out.status = "live";
+      return out;
+    }
+    const rd = pga.rounds.find((r) => r.round === bet.round);
+    const val = bet.type === "fh" ? rd?.fairwaysHit : rd?.greensInRegulation;
+    const of  = bet.type === "fh" ? rd?.fairwaysOf  : rd?.girOf;
+    out.actual = (val !== null && val !== undefined)
+      ? (of ? `${val}/${of}` : String(val))
+      : null;
+    if (val === null || val === undefined) {
+      out.status = "live";
+      out.note = "Awaiting per-round stat";
+      return out;
+    }
+    const thruRound = (c.period > bet.round) ||
+      (c.period === bet.round && c.thru >= 18) ||
+      eventComplete;
+    // Early-settle: if it's already mathematically decided, mark Won/Lost mid-round.
+    const holesPlayed = rd?.thru ?? c.thru ?? null;
+    const cap = (bet.type === "fh") ? 14 : 18;
+    const remaining = (holesPlayed !== null) ? Math.max(0, cap - holesPlayed) : null;
+    if (bet.dir === "lower") {
+      if (val > bet.line)            { out.status = "lost"; return out; }
+      if (thruRound && val < bet.line){ out.status = "won";  return out; }
+      out.status = "live";
+      out.note = remaining !== null ? `Through ${holesPlayed} (${remaining} to go)` : "In progress";
+    } else { // higher (not used by current slip, but supported)
+      if (val > bet.line)            { out.status = "won";  return out; }
+      if (remaining !== null && val + remaining < bet.line) { out.status = "lost"; return out; }
+      out.status = "live";
+    }
     return out;
   }
 
@@ -572,12 +635,14 @@ function renderBadge(ok, statusText) {
 // ---- Refresh loop -----------------------------------------------------------
 async function refresh() {
   try {
-    const json = await fetchScoreboard();
-    const event = pickEvent(json);
+    const [scoreboard, pga] = await Promise.all([fetchScoreboard(), fetchPgaStats()]);
+    const event = pickEvent(scoreboard);
     if (!event) throw new Error("No events in feed");
     state.event = event;
     state.coursePar = coursePar(event);
     state.competitors = normalizeCompetitors(event);
+    state.pgaStats = pga;
+    if (pga) state.pgaError = null;
     const evals = BETS.map(evaluateBet);
     renderTape(evals);
     renderPulse(evals);

@@ -1,0 +1,15 @@
+[build]
+  publish    = "."
+  functions  = "netlify/functions"
+
+# Friendly path → function
+[[redirects]]
+  from   = "/api/pga-stats"
+  to     = "/.netlify/functions/pga-stats"
+  status = 200
+
+# Cache the function response briefly so we don't hammer pgatour.com
+[[headers]]
+  for = "/.netlify/functions/pga-stats"
+  [headers.values]
+    Cache-Control = "public, max-age=20, s-maxage=20"
