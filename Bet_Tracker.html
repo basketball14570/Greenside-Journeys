@@ -202,6 +202,7 @@ Xander Schauffele — GIR R1 — Higher 12.5"></textarea>
       <h2 class="font-semibold mb-2">Quick stats</h2>
       <div id="stats" class="grid grid-cols-2 gap-2 text-sm"></div>
       <div class="border-t border-c mt-3 pt-3 flex items-center gap-2 flex-wrap">
+        <button id="seedBtn" class="btn text-xs">⛳ Load PGA Championship slip</button>
         <button id="exportBtn" class="btn text-xs">Export JSON</button>
         <button id="importBtn" class="btn text-xs">Import</button>
         <button id="shareAllBtn" class="btn text-xs">🔗 Share link</button>
@@ -636,7 +637,10 @@ function evalBet(bet, player) {
     case 'tournament_position': {
       const pos = parseInt(String(sd.position||'').replace(/[^\d]/g,''));
       if (!pos) return 'live';
-      return compare(pos, bet.line, bet.direction === 'over' ? 'over' : 'under', officialDone);
+      // Position can change during play — only settle when tournament is official.
+      if (!officialDone) return 'live';
+      if (bet.direction === 'over') return pos > +bet.line ? 'won' : 'lost';
+      return pos < +bet.line ? 'won' : 'lost';
     }
     case 'tournament_winner': {
       const pos = parseInt(String(sd.position||'').replace(/[^\d]/g,''));
@@ -1020,6 +1024,8 @@ function bindEvents() {
     a.download = 'greenside-bets.json';
     a.click();
   };
+  $('#seedBtn').onclick = () => seedPGAChampionship(true);
+
   $('#shareAllBtn').onclick = () => {
     if (!state.bets.length) return toast('No bets to share yet.');
     openShareModal(state.bets, `Share all ${state.bets.length} bets`);
@@ -1066,11 +1072,40 @@ function startTimer() {
 }
 
 /* ===========================================================
+   PGA CHAMPIONSHIP — R2 seed slip
+=========================================================== */
+const PGA_CHAMPIONSHIP_SLIP = [
+  { player: 'Nicolai Hojgaard',   type: 'fairways_hit',        direction: 'under', line: 7.5,  round: 2 },
+  { player: 'Alex Noren',         type: 'greens_in_reg',       direction: 'under', line: 11.5, round: 2 },
+  { player: 'Bryson DeChambeau',  type: 'round_strokes',       direction: 'over',  line: 70.5, round: 2 },
+  { player: 'Ludvig Aberg',       type: 'tournament_position', direction: 'under', line: 20.5 },
+  { player: 'Xander Schauffele',  type: 'tournament_position', direction: 'under', line: 10.5 },
+  { player: 'Brooks Koepka',      type: 'tournament_position', direction: 'under', line: 20.5 },
+  { player: 'Jordan Spieth',      type: 'round_strokes',       direction: 'over',  line: 71.5, round: 2 },
+  { player: 'Jon Rahm',           type: 'round_strokes',       direction: 'over',  line: 70.5, round: 2 },
+  { player: 'Hideki Matsuyama',   type: 'tournament_winner',   direction: 'yes',   line: null }
+];
+function seedPGAChampionship(force=false) {
+  const sig = 'pgachamp-r2-2026';
+  if (!force && state.bets.some(b => b.tag === sig)) {
+    toast('PGA Championship slip already loaded.'); return;
+  }
+  const fresh = PGA_CHAMPIONSHIP_SLIP.map(b => ({
+    ...b, id: uid(), boost: null,
+    status: 'pending', addedAt: Date.now(), source: 'seed', tag: sig
+  }));
+  state.bets.push(...fresh); save();
+  toast(`Loaded ${fresh.length} PGA Championship bets.`);
+  evaluateBets();
+}
+
+/* ===========================================================
    BOOT
 =========================================================== */
 buildSwatches();
 applyPrefs();
 bindEvents();
+if (!state.bets.length) seedPGAChampionship(true);
 render();
 handleImportFromHash();
 fetchLeaderboard();
