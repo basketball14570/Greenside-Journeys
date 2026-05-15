@@ -164,6 +164,7 @@
     <span id="evtBadge" class="badge idle">No data</span>
     <span id="lastUpdated" class="meta">never updated</span>
     <button id="refreshBtn" class="btn primary">↻ Refresh</button>
+    <button id="debugBtn" class="btn" title="Copy raw ESPN JSON for the first 3 competitors to clipboard">Debug</button>
     <label class="meta" style="display:flex;align-items:center;gap:6px;">
       <input type="checkbox" id="autoRefresh" checked />
       Auto 30s
@@ -324,24 +325,42 @@ function pickEvent(json) {
 function coursePar(event) {
   const comp = event?.competitions?.[0];
   if (!comp) return null;
-  const candidates = [
-    comp.course?.par,
-    comp.par,
-    Array.isArray(comp.courses) && comp.courses[0]?.totalPar,
-    Array.isArray(comp.courses) && comp.courses[0]?.par,
-    event?.course?.par,
-  ];
-  for (const v of candidates) {
-    const n = Number(v);
-    if (!isNaN(n) && n > 50 && n < 80) return n;
-  }
-  // Fallback: sum hole pars if present
+  // Deep-search the event for any field whose name contains "par"
+  // and whose value is a plausible course par (60–80).
+  const found = deepSearch(event, (k, v) => {
+    if (typeof v !== "number") return false;
+    if (v < 60 || v > 80) return false;
+    return /par/i.test(k);
+  });
+  if (found !== undefined) return found;
+  // Last-resort: sum hole pars if exposed
   const holes = comp.course?.holes || comp.courses?.[0]?.holes;
   if (Array.isArray(holes) && holes.length === 18) {
     const sum = holes.reduce((a, h) => a + (Number(h.par) || 0), 0);
-    if (sum > 50 && sum < 80) return sum;
+    if (sum > 60 && sum < 80) return sum;
   }
   return null;
+}
+
+// Generic deep search: returns first value where predicate(key, value) is true.
+function deepSearch(obj, predicate, depth = 0) {
+  if (depth > 10 || obj === null || obj === undefined) return undefined;
+  if (typeof obj !== "object") return undefined;
+  if (Array.isArray(obj)) {
+    for (const v of obj) {
+      const r = deepSearch(v, predicate, depth + 1);
+      if (r !== undefined) return r;
+    }
+    return undefined;
+  }
+  for (const k of Object.keys(obj)) {
+    if (predicate(k, obj[k])) return obj[k];
+  }
+  for (const k of Object.keys(obj)) {
+    const r = deepSearch(obj[k], predicate, depth + 1);
+    if (r !== undefined) return r;
+  }
+  return undefined;
 }
 
 function normalizeCompetitors(event) {
@@ -354,14 +373,11 @@ function normalizeCompetitors(event) {
       value: typeof l.value === "number" ? l.value : Number(l.value ?? NaN),
       displayValue: l.displayValue ?? null,
     }));
-    const posObj = c.status?.position || {};
-    const posDisplay = posObj.displayName || posObj.id || "";
-    // numeric position (handles "T5", "5", "CUT", "WD")
+    const posDisplay = extractPosition(c);
     const m = String(posDisplay).match(/(\d+)/);
     const posNum = m ? parseInt(m[1], 10) : null;
-    const totalScore = (typeof c.score === "number") ? c.score
-      : (c.score && !isNaN(Number(c.score))) ? Number(c.score)
-      : (typeof c.statistics?.[0]?.value === "number" ? c.statistics[0].value : null);
+    const thru = extractThru(c);
+    const period = extractPeriod(c);
     return {
       id: ath.id || c.id,
       name: ath.displayName || ath.shortName || "Unknown",
@@ -371,8 +387,8 @@ function normalizeCompetitors(event) {
       posDisplay,
       posNum,
       status: c.status?.type?.state || "",
-      thru: c.status?.thru ?? null,
-      period: c.status?.period ?? null,
+      thru,
+      period,
       linescores,
       isCut: /cut|wd|withdrawn|dq/i.test(posDisplay),
       raw: c,
@@ -385,6 +401,62 @@ function parseScore(s) {
   if (s === "E" || s === "e") return 0;
   const n = Number(String(s).replace("+", ""));
   return isNaN(n) ? null : n;
+}
+
+// Tries every shape ESPN's golf scoreboard has used: status.position.{displayName|id},
+// top-level position, status.rank, or a statistics entry named/abbreviated "position".
+function extractPosition(c) {
+  const tries = [
+    c?.status?.position?.displayName,
+    c?.status?.position?.id,
+    c?.status?.position,
+    c?.position?.displayName,
+    c?.position?.id,
+    c?.position,
+    c?.status?.rank,
+    c?.rank,
+  ];
+  for (const v of tries) {
+    if (v && typeof v !== "object") return String(v);
+  }
+  const stats = c?.statistics || c?.status?.statistics || [];
+  if (Array.isArray(stats)) {
+    for (const s of stats) {
+      const key = (s?.name || s?.abbreviation || "").toLowerCase();
+      if (key === "position" || key === "pos") {
+        return String(s.displayValue ?? s.value ?? "");
+      }
+    }
+  }
+  return "";
+}
+
+function extractThru(c) {
+  const tries = [
+    c?.status?.thru,
+    c?.status?.position?.thru,
+    c?.thru,
+    c?.holesPlayed,
+    c?.status?.holesPlayed,
+    c?.status?.holes,
+  ];
+  for (const v of tries) {
+    if (v !== null && v !== undefined && v !== "") {
+      const n = Number(v);
+      if (!isNaN(n)) return n;
+      return v;
+    }
+  }
+  return null;
+}
+
+function extractPeriod(c) {
+  const tries = [c?.status?.period, c?.period, c?.currentRound, c?.status?.currentRound];
+  for (const v of tries) {
+    const n = Number(v);
+    if (!isNaN(n) && n > 0) return n;
+  }
+  return null;
 }
 
 function findCompetitor(name) {
@@ -501,6 +573,15 @@ function statusPill(s) {
 function actualDisplay(e) {
   if (e.actual === null || e.actual === undefined) return "—";
   if (e.bet.type === "strokes" && typeof e.actual === "number") {
+    // Heuristic: a "real" round score for one of these guys is roughly 60-90.
+    // If the linescore value is way below that (e.g. 16), the round is still
+    // in progress — display it as a running stroke count + holes thru.
+    const c = e.comp;
+    const inProgress = c && c.period === e.bet.round && (c.thru ?? 18) < 18;
+    if (inProgress) {
+      const thruStr = c.thru !== null && c.thru !== undefined ? `thru ${c.thru}` : "in progress";
+      return `${e.actual} (${thruStr})`;
+    }
     return fmtStrokesAndPar(e.actual, state.coursePar);
   }
   return e.actual;
@@ -681,6 +762,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   $("refreshBtn").addEventListener("click", refresh);
   $("autoRefresh").addEventListener("change", setupTimer);
+  $("debugBtn").addEventListener("click", async () => {
+    const comp = state.event?.competitions?.[0];
+    if (!comp) { alert("No data loaded yet — click Refresh first."); return; }
+    const payload = {
+      event_name: state.event.name,
+      event_status: state.event?.status?.type,
+      detected_course_par: state.coursePar,
+      competition_top_keys: Object.keys(comp),
+      course: comp.course || comp.courses || null,
+      sample_competitors: (comp.competitors || []).slice(0, 3),
+    };
+    const text = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copied raw ESPN data for 3 competitors to clipboard.\nPaste it back to Claude.");
+    } catch {
+      const w = window.open("", "_blank");
+      w.document.body.innerText = text;
+    }
+  });
   setView("tape");
   refresh();
   setupTimer();
