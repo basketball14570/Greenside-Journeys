@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --green-deep: #0a3d2e;
+    --green-mid: #0f5c3f;
+    --green-bright: #1a7a4a;
+    --gold: #c9a84c;
+    --cream: #f5f0e8;
+    --paper: #fefcf8;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans text-ink bg-paper antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+  }
+
+  .card {
+    @apply bg-white rounded-card shadow-card border border-cream-dark/60;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .num {
+    @apply font-mono tabular-nums;
+  }
+}

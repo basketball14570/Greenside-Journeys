@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Greenside Journeys — The Insider's Guide to Tournament Golf Travel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); }
+    :root {
+      --green-deep: #0a3d2e;
+      --green-mid: #0f5c3f;
+      --green-bright: #1a7a4a;
+      --green-light: #2a9960;
+      --gold: #c9a84c;
+      --gold-light: #e8c96e;
+      --cream: #f5f0e8;
+      --cream-dark: #e8e0d0;
+      --white: #fefcf8;
+      --text-dark: #1a1a1a;
+      --text-mid: #4a4a4a;
+      --text-light: #8a8a8a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--white);
+      color: var(--text-dark);
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 60px;
+      background: transparent;
+      transition: all 0.4s ease;
+    }
+    nav.scrolled {
+      background: rgba(10, 61, 46, 0.97);
+      backdrop-filter: blur(12px);
+      padding: 14px 60px;
+      box-shadow: 0 2px 30px rgba(0,0,0,0.3);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .nav-logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: 0.02em;
+    }
+    .nav-links {
+      display: flex;
+      gap: 36px;
+      list-style: none;
+      align-items: center;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-cta {
+      background: var(--gold) !important;
+      color: var(--green-deep) !important;
+      padding: 10px 22px;
+      border-radius: 4px;
+      font-weight: 600 !important;
+      transition: background 0.2s !important;
+    }
+    .nav-cta:hover { background: var(--gold-light) !important; }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(165deg, var(--green-deep) 0%, #0d4d35 40%, #1a6040 100%);
+      position: relative;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    .hero-bg-pattern {
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(201,168,76,0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(26,122,74,0.2) 0%, transparent 50%),
+        radial-gradient(circle at 60% 80%, rgba(10,61,46,0.4) 0%, transparent 40%);
+    }
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 120px 60px 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+      width: 100%;
+    }
+    .hero-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(201,168,76,0.15);
+      border: 1px solid rgba(201,168,76,0.4);
+      color: var(--gold-light);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      border-radius: 100px;
+      margin-bottom: 28px;
+    }
+    .hero-label::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--gold);
+      border-radius: 50%;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(44px, 5vw, 72px);
+      font-weight: 700;
+      line-height: 1.08;
+      color: white;
+      margin-bottom: 24px;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--gold-light);
+    }
+    .hero p {
+      font-size: 17px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.7);
+      max-width: 460px;
+      margin-bottom: 40px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .btn-primary {
+      background: var(--gold);
+      color: var(--green-deep);
+      padding: 14px 32px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 15px;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      background: var(--gold-light);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(201,168,76,0.4);
+    }
+    .btn-ghost {
+      color: rgba(255,255,255,0.85);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+    }
+    .btn-ghost:hover { color: var(--gold-light); }
+    .btn-ghost svg { transition: transform 0.2s; }
+    .btn-ghost:hover svg { transform: translateX(4px); }
+
+    /* Hero Stats */
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      margin-top: 56px;
+      padding-top: 40px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .hero-stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--gold-light);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .hero-stat-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Hero right panel */
+    .hero-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 32px;
+      backdrop-filter: blur(10px);
+    }
+    .hero-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      color: white;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hero-card-title span {
+      background: var(--gold);
+      color: var(--green-deep);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .event-list { display: flex; flex-direction: column; gap: 12px; }
+    .event-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .event-item:hover {
+      background: rgba(201,168,76,0.1);
+      border-color: rgba(201,168,76,0.3);
+    }
+    .event-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 3px;
+    }
+    .event-date {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .event-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 100px;
+    }
+    .badge-hot { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    .badge-open { background: rgba(201,168,76,0.2); color: var(--gold-light); }
+    .badge-sold { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); }
+    .hero-card-footer {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hero-card-footer span { font-size: 12px; color: rgba(255,255,255,0.4); }
+    .hero-card-footer a {
+      font-size: 12px;
+      color: var(--gold-light);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    /* TRUST BAR */
+    .trust-bar {
+      background: var(--cream);
+      border-top: 1px solid var(--cream-dark);
+      border-bottom: 1px solid var(--cream-dark);
+      padding: 20px 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 60px;
+      overflow: hidden;
+    }
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-mid);
+      white-space: nowrap;
+    }
+    .trust-item strong { color: var(--green-deep); font-weight: 600; }
+    .trust-divider { width: 1px; height: 24px; background: var(--cream-dark); }
+
+    /* SECTIONS */
+    .section { padding: 100px 60px; max-width: 1200px; margin: 0 auto; }
+    .section-full { padding: 100px 0; width: 100%; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--green-bright);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-label::before {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 2px;
+      background: var(--green-bright);
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 700;
+      line-height: 1.12;
+      color: var(--green-deep);
+      margin-bottom: 20px;
+    }
+    .section-title em {
+      font-style: italic;
+      color: var(--green-bright);
+    }
+    .section-sub {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--text-mid);
+      max-width: 560px;
+    }
+
+    /* FEATURES */
+    .features-bg {
+      background: var(--green-deep);
+      width: 100%;
+    }
+    .features-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 60px;
+    }
+    .features-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: end;
+      margin-bottom: 64px;
+    }
+    .features-header .section-label { color: var(--gold-light); }
+    .features-header .section-label::before { background: var(--gold); }
+    .features-header .section-title { color: white; }
+    .features-header .section-sub { color: rgba(255,255,255,0.6); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 32px;
+      transition: all 0.3s;
+      cursor: default;
+    }
+    .feature-card:hover {
+      background: rgba(201,168,76,0.08);
+      border-color: rgba(201,168,76,0.3);
+      transform: translateY(-4px);
+    }
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(201,168,76,0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 12px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      line-height: 1.65;
+      color: rgba(255,255,255,0.55);
+    }
+
+    /* EVENTS SECTION */
+    .events-section {
+      background: var(--cream);
+      width: 100%;
+    }
+    .events-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 60px;
+    }
+    .events-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 48px;
+    }
+    .events-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 20px;
+    }
+    .event-card {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .event-card:hover { transform: translateY(-4px); }
+    .event-card-img {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      display: block;
+    }
+    .event-card.tall .event-card-img { height: 400px; }
+    .event-card-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(10,61,46,0.95) 0%, rgba(10,61,46,0.3) 60%, transparent 100%);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .event-card-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+      margin-bottom: 6px;
+    }
+    .event-card-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+    .event-card.tall .event-card-name { font-size: 28px; }
+    .event-card-meta {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .event-card-meta::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+    }
+    .event-card-btn {
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--gold);
+      color: var(--green-deep);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: background 0.2s;
+      width: fit-content;
+    }
+    .event-card-btn:hover { background: var(--gold-light); }
+
+    /* Tee Time Section */
+    .teetime-section {
+      background: white;
+      width: 100%;
+    }
+    .teetime-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 60px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+    .teetime-search-card {
+      background: white;
+      border: 2px solid var(--cream-dark);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.1);
+    }
+    .teetime-card-header {
+      background: var(--green-deep);
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .teetime-card-header h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      color: white;
+      font-weight: 600;
+    }
+    .teetime-card-header span {
+      font-size: 11px;
+      color: var(--gold-light);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .teetime-form {
+      padding: 24px;
+      border-bottom: 1px solid var(--cream-dark);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .tt-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-light);
+      margin-bottom: 6px;
+    }
+    .tt-field select, .tt-field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 6px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text-dark);
+      background: var(--cream);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .tt-field select:focus, .tt-field input:focus {
+      border-color: var(--green-mid);
+    }
+    .tt-field.full { grid-column: 1 / -1; }
+    .tt-search-btn {
+      grid-column: 1 / -1;
+      background: var(--green-mid);
+      color: white;
+      border: none;
+      padding: 13px;
+      border-radius: 6px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .tt-search-btn:hover { background: var(--green-bright); }
+    .teetime-results { padding: 16px 24px 24px; }
+    .tt-result-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--cream);
+    }
+    .tt-result-row:last-child { border-bottom: none; }
+    .tt-course-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 2px;
+    }
+    .tt-course-meta {
+      font-size: 11px;
+      color: var(--text-light);
+    }
+    .tt-time-chips {
+      display: flex;
+      gap: 6px;
+    }
+    .tt-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 4px;
+      background: var(--cream);
+      color: var(--green-mid);
+      border: 1.5px solid var(--cream-dark);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tt-chip:hover {
+      background: var(--green-mid);
+      color: white;
+      border-color: var(--green-mid);
+    }
+
+    /* HOW IT WORKS */
+    .how-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 60px;
+    }
+    .how-header {
+      text-align: center;
+      margin-bottom: 72px;
+    }
+    .how-header .section-label {
+      justify-content: center;
+    }
+    .how-header .section-label::before { display: none; }
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      position: relative;
+    }
+    .how-steps::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: calc(12.5% + 20px);
+      right: calc(12.5% + 20px);
+      height: 1px;
+      background: linear-gradient(90deg, var(--green-light), var(--green-light));
+      border-top: 2px dashed var(--cream-dark);
+    }
+    .how-step {
+      text-align: center;
+      padding: 0 20px;
+      position: relative;
+    }
+    .how-step-num {
+      width: 72px;
+      height: 72px;
+      background: var(--green-deep);
+      border: 4px solid var(--cream);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--gold-light);
+      margin: 0 auto 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .how-step h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--green-deep);
+      margin-bottom: 10px;
+    }
+    .how-step p {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text-mid);
+    }
+
+    /* TESTIMONIALS */
+    .testimonials-bg {
+      background: linear-gradient(135deg, var(--green-deep) 0%, #0e4d37 100%);
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+    .testimonials-bg::before {
+      content: '"';
+      position: absolute;
+      top: -40px;
+      right: 60px;
+      font-family: 'Playfair Display', serif;
+      font-size: 300px;
+      color: rgba(255,255,255,0.03);
+      line-height: 1;
+    }
+    .testimonials-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 60px;
+      position: relative;
+    }
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+    .testimonial-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 32px;
+    }
+    .testimonial-stars {
+      color: var(--gold);
+      font-size: 14px;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+    .testimonial-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.8);
+      font-style: italic;
+      margin-bottom: 24px;
+    }
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .testimonial-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--green-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 16px;
+      color: white;
+      font-weight: 700;
+    }
+    .testimonial-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+    }
+    .testimonial-title {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* CTA */
+    .cta-section {
+      background: var(--cream);
+      width: 100%;
+    }
+    .cta-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 100px 60px;
+      text-align: center;
+    }
+    .cta-inner .section-label { justify-content: center; }
+    .cta-inner .section-label::before { display: none; }
+    .cta-inner .section-title { margin: 0 auto 20px; }
+    .cta-inner p {
+      font-size: 17px;
+      color: var(--text-mid);
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+    .cta-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .btn-outline {
+      padding: 14px 32px;
+      border: 2px solid var(--green-deep);
+      color: var(--green-deep);
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 15px;
+      text-decoration: none;
+      transition: all 0.2s;
+      background: transparent;
+      cursor: pointer;
+    }
+    .btn-outline:hover {
+      background: var(--green-deep);
+      color: white;
+    }
+
+    /* FOOTER */
+    footer {
+      background: var(--green-deep);
+      color: rgba(255,255,255,0.55);
+      padding: 60px;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 60px;
+    }
+    .footer-brand .nav-logo { margin-bottom: 16px; }
+    .footer-brand p {
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 280px;
+    }
+    .footer-col h4 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 20px;
+    }
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .footer-col ul a {
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-col ul a:hover { color: var(--gold-light); }
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 48px auto 0;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .footer-bottom span { color: rgba(255,255,255,0.3); }
+    .footer-bottom a {
+      color: var(--gold-light);
+      text-decoration: none;
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hero-content > * {
+      animation: fadeUp 0.8s ease forwards;
+    }
+    .hero-content > *:nth-child(2) { animation-delay: 0.1s; }
+
+    /* Mobile */
+    @media (max-width: 900px) {
+      nav { padding: 16px 24px; }
+      nav.scrolled { padding: 12px 24px; }
+      .nav-links { display: none; }
+      .hero-content { grid-template-columns: 1fr; padding: 100px 24px 60px; }
+      .hero-card { display: none; }
+      .section, .teetime-inner, .events-inner, .features-inner, .testimonials-inner, .how-section { padding: 60px 24px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .events-grid { grid-template-columns: 1fr; }
+      .teetime-inner { grid-template-columns: 1fr; }
+      .how-steps { grid-template-columns: 1fr 1fr; }
+      .how-steps::before { display: none; }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; gap: 40px; }
+      .trust-bar { gap: 24px; padding: 16px 24px; flex-wrap: wrap; }
+      .features-header { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="mainNav">
+    <a class="nav-logo" href="#">
+      <div class="nav-logo-icon">⛳</div>
+      <span class="nav-logo-text">Greenside Journeys</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#events">Events</a></li>
+      <li><a href="#tee-times">Tee Times</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#testimonials">Reviews</a></li>
+      <li><a href="#" onclick="openPlanner(); return false;" class="nav-cta">Plan My Trip</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg-pattern"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+      <div>
+        <div class="hero-label">Exclusive Tournament Access</div>
+        <h1>Play Where the<br><em>Legends Compete.</em></h1>
+        <p>The only golf travel platform built around major championships. Get insider access to premier courses, exclusive tee times, and tournament packages — all in one place.</p>
+        <div class="hero-actions">
+          <a href="#" onclick="openPlanner(); return false;" class="btn-primary">Start Planning →</a>
+          <a href="#how-it-works" class="btn-ghost">
+            See How It Works
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div>
+            <div class="hero-stat-num">12+</div>
+            <div class="hero-stat-label">Major Events</div>
+          </div>
+          <div>
+            <div class="hero-stat-num">300+</div>
+            <div class="hero-stat-label">Partner Courses</div>
+          </div>
+          <div>
+            <div class="hero-stat-num">4.9★</div>
+            <div class="hero-stat-label">Avg Rating</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <div class="hero-card-title">
+          <span>🏆</span>
+          2026 Tournament Calendar
+        </div>
+        <div class="event-list">
+          <div class="event-item">
+            <div>
+              <div class="event-name">WM Phoenix Open</div>
+              <div class="event-date">Feb 3–8 · Scottsdale, AZ</div>
+            </div>
+            <span class="event-badge badge-hot">Hot</span>
+          </div>
+          <div class="event-item">
+            <div>
+              <div class="event-name">The Players Championship</div>
+              <div class="event-date">Mar 10–15 · Ponte Vedra, FL</div>
+            </div>
+            <span class="event-badge badge-open">Open</span>
+          </div>
+          <div class="event-item">
+            <div>
+              <div class="event-name">The Masters Tournament</div>
+              <div class="event-date">Apr 7–13 · Augusta, GA</div>
+            </div>
+            <span class="event-badge badge-hot">Hot</span>
+          </div>
+          <div class="event-item">
+            <div>
+              <div class="event-name">U.S. Open Championship</div>
+              <div class="event-date">Jun · TBD</div>
+            </div>
+            <span class="event-badge badge-open">Open</span>
+          </div>
+          <div class="event-item">
+            <div>
+              <div class="event-name">NCAA Final Four</div>
+              <div class="event-date">Apr 3–6 · Indianapolis, IN</div>
+            </div>
+            <span class="event-badge badge-open">Open</span>
+          </div>
+        </div>
+        <div class="hero-card-footer">
+          <span>Packages from $1,200/person</span>
+          <a href="#" onclick="openPlanner(); return false;">View All Events →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BAR -->
+  <div class="trust-bar">
+    <div class="trust-item"><strong>⛳ 300+</strong> Partner Courses</div>
+    <div class="trust-divider"></div>
+    <div class="trust-item"><strong>🏆 12</strong> Major Tournaments Covered</div>
+    <div class="trust-divider"></div>
+    <div class="trust-item"><strong>💳 No</strong> Booking Fees</div>
+    <div class="trust-divider"></div>
+    <div class="trust-item"><strong>⚡ Instant</strong> Tee Time Confirmation</div>
+    <div class="trust-divider"></div>
+    <div class="trust-item"><strong>🔒 Secure</strong> Payment Processing</div>
+  </div>
+
+  <!-- FEATURES -->
+  <div class="features-bg">
+    <div class="features-inner">
+      <div class="features-header">
+        <div>
+          <div class="section-label">Why Greenside Journeys</div>
+          <h2 class="section-title">Built for Golfers<br>Who Demand <em>More.</em></h2>
+        </div>
+        <p class="section-sub" style="color: rgba(255,255,255,0.55);">We've been to every major championship and built the platform we always wished existed. Deep insider knowledge meets seamless booking technology.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <h3>Tournament Intelligence</h3>
+          <p>Fixed-date optimization means every element of your trip — lodging, tee times, transfers — is built around your event schedule, not the other way around.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⛳</div>
+          <h3>Live Tee Time Search</h3>
+          <p>Real-time availability across hundreds of partner courses. Filter by date, time, and group size. Book in seconds with instant confirmation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏨</div>
+          <h3>Strategic Lodging</h3>
+          <p>Hotels and private rentals chosen for proximity, price surge analysis, and commute optimization. No more traffic surprises on championship morning.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💰</div>
+          <h3>Budget Transparency</h3>
+          <p>Watch your package cost build in real time. Tickets, lodging, golf, and transport all tracked against your budget with clear per-person breakdowns.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💡</div>
+          <h3>Insider Intelligence</h3>
+          <p>Traffic strategies, parking secrets, dress codes, must-try food, and the viewing spots the crowds haven't found yet. Tournament veterans sharing what they know.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h3>Day-by-Day Itinerary</h3>
+          <p>A complete daily schedule showing your tee times, championship attendance, and free days — optimized so you never feel rushed or miss a moment.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVENTS -->
+  <div class="events-section" id="events">
+    <div class="events-inner">
+      <div class="events-header">
+        <div>
+          <div class="section-label">Tournament Calendar</div>
+          <h2 class="section-title">Choose Your<br><em>Championship.</em></h2>
+        </div>
+        <a href="#" onclick="openPlanner(); return false;" class="btn-primary" style="font-size:14px; padding: 12px 24px;">See All Events →</a>
+      </div>
+      <div class="events-grid">
+        <div class="event-card tall">
+          <img src="https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" class="event-card-img" alt="The Masters">
+          <div class="event-card-overlay">
+            <div class="event-card-label">⛳ Golf · Augusta, GA</div>
+            <div class="event-card-name">The Masters Tournament</div>
+            <div class="event-card-meta">April 7–13, 2026 · Augusta National</div>
+            <a href="#" onclick="openPlanner(); return false;" class="event-card-btn">Plan This Trip →</a>
+          </div>
+        </div>
+        <div>
+          <div class="event-card" style="margin-bottom: 20px;">
+            <img src="https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" class="event-card-img" alt="Players Championship">
+            <div class="event-card-overlay">
+              <div class="event-card-label">⛳ Golf · Ponte Vedra, FL</div>
+              <div class="event-card-name">The Players Championship</div>
+              <div class="event-card-meta">March 10–15, 2026</div>
+              <a href="#" onclick="openPlanner(); return false;" class="event-card-btn">Plan This Trip →</a>
+            </div>
+          </div>
+          <div class="event-card">
+            <img src="https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" class="event-card-img" alt="WM Phoenix Open">
+            <div class="event-card-overlay">
+              <div class="event-card-label">⛳ Golf · Scottsdale, AZ</div>
+              <div class="event-card-name">WM Phoenix Open</div>
+              <div class="event-card-meta">Feb 3–8, 2026</div>
+              <a href="#" onclick="openPlanner(); return false;" class="event-card-btn">Plan This Trip →</a>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="event-card" style="margin-bottom: 20px;">
+            <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80" class="event-card-img" alt="Super Bowl">
+            <div class="event-card-overlay">
+              <div class="event-card-label">🏈 Football · Los Angeles, CA</div>
+              <div class="event-card-name">Super Bowl LXI</div>
+              <div class="event-card-meta">February 2027</div>
+              <a href="#" onclick="openPlanner(); return false;" class="event-card-btn">Plan This Trip →</a>
+            </div>
+          </div>
+          <div class="event-card">
+            <img src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80" class="event-card-img" alt="Final Four">
+            <div class="event-card-overlay">
+              <div class="event-card-label">🏀 Basketball · Indianapolis, IN</div>
+              <div class="event-card-name">NCAA Final Four</div>
+              <div class="event-card-meta">April 3–6, 2026</div>
+              <a href="#" onclick="openPlanner(); return false;" class="event-card-btn">Plan This Trip →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEE TIME BOOKING -->
+  <div class="teetime-section" id="tee-times">
+    <div class="teetime-inner">
+      <div>
+        <div class="section-label">Live Tee Time Booking</div>
+        <h2 class="section-title">Book Your<br>Round in <em>Seconds.</em></h2>
+        <p class="section-sub">Search real-time availability across our entire network of partner courses. Filter by date, players, and time of day. Every time slot shows full pricing before you commit.</p>
+        <div style="margin-top: 32px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 36px; height: 36px; background: var(--green-deep); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold-light); font-size: 14px; font-weight: 700; flex-shrink: 0;">1</div>
+            <div style="font-size: 14px; color: var(--text-mid);">Select your event destination and travel dates</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 36px; height: 36px; background: var(--green-deep); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold-light); font-size: 14px; font-weight: 700; flex-shrink: 0;">2</div>
+            <div style="font-size: 14px; color: var(--text-mid);">Search available tee times across all local courses</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 36px; height: 36px; background: var(--green-deep); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold-light); font-size: 14px; font-weight: 700; flex-shrink: 0;">3</div>
+            <div style="font-size: 14px; color: var(--text-mid);">Click any slot to add it to your trip itinerary</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="teetime-search-card">
+        <div class="teetime-card-header">
+          <h3>Find Tee Times</h3>
+          <span>Real-Time Availability</span>
+        </div>
+        <div class="teetime-form">
+          <div class="tt-field">
+            <label>Play Date</label>
+            <input type="date">
+          </div>
+          <div class="tt-field">
+            <label>Players</label>
+            <select>
+              <option>2 Players</option>
+              <option>3 Players</option>
+              <option selected>4 Players</option>
+            </select>
+          </div>
+          <div class="tt-field">
+            <label>Destination</label>
+            <select>
+              <option>Ponte Vedra, FL</option>
+              <option>Augusta, GA</option>
+              <option>Scottsdale, AZ</option>
+            </select>
+          </div>
+          <div class="tt-field">
+            <label>Time Range</label>
+            <select>
+              <option>Morning (6am–12pm)</option>
+              <option>Afternoon (12pm–6pm)</option>
+              <option>All Day</option>
+            </select>
+          </div>
+          <button class="tt-search-btn">Search Available Tee Times</button>
+        </div>
+        <div class="teetime-results">
+          <div class="tt-result-row">
+            <div>
+              <div class="tt-course-name">TPC Sawgrass (Stadium)</div>
+              <div class="tt-course-meta">⭐ 5.0 · 0 min · $295/player</div>
+            </div>
+            <div class="tt-time-chips">
+              <div class="tt-chip">7:10</div>
+              <div class="tt-chip">8:20</div>
+              <div class="tt-chip">9:40</div>
+            </div>
+          </div>
+          <div class="tt-result-row">
+            <div>
+              <div class="tt-course-name">Ponte Vedra Inn & Club</div>
+              <div class="tt-course-meta">⭐ 4.7 · 3 min · $275/player</div>
+            </div>
+            <div class="tt-time-chips">
+              <div class="tt-chip">7:30</div>
+              <div class="tt-chip">8:50</div>
+              <div class="tt-chip">10:10</div>
+            </div>
+          </div>
+          <div class="tt-result-row">
+            <div>
+              <div class="tt-course-name">Sawgrass Country Club</div>
+              <div class="tt-course-meta">⭐ 4.5 · 5 min · $185/player</div>
+            </div>
+            <div class="tt-time-chips">
+              <div class="tt-chip">7:00</div>
+              <div class="tt-chip">9:00</div>
+              <div class="tt-chip">11:20</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div id="how-it-works">
+    <div class="how-section">
+      <div class="how-header">
+        <div class="section-label">The Process</div>
+        <h2 class="section-title" style="margin: 0 auto; max-width: 480px; text-align: center;">From First Click to<br><em>First Tee.</em></h2>
+      </div>
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="how-step-num">1</div>
+          <h3>Choose Your Championship</h3>
+          <p>Select from our calendar of major golf tournaments, sporting events, and special occasions.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">2</div>
+          <h3>Set Dates & Budget</h3>
+          <p>Enter your arrival and departure, party size, and total budget. We'll keep you on track in real time.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">3</div>
+          <h3>Select Your Package</h3>
+          <p>Pick courses, book tee times, choose your hotel or private rental — with photos and full pricing shown.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">4</div>
+          <h3>Get Your Insider Guide</h3>
+          <p>Receive a complete day-by-day itinerary with traffic tips, insider dining, and can't-miss moments.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TESTIMONIALS -->
+  <div class="testimonials-bg" id="testimonials">
+    <div class="testimonials-inner">
+      <div class="section-label" style="color: var(--gold-light);">
+        <span style="display: block; width: 24px; height: 2px; background: var(--gold);"></span>
+        What Our Members Say
+      </div>
+      <h2 class="section-title" style="color: white; max-width: 500px;">Real Trips. <em style="color: var(--gold-light);">Real Reviews.</em></h2>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-text">"Booked our Masters trip through Greenside Journeys and it was flawless. They found us lodging 8 minutes from Augusta National — didn't know that was possible during tournament week."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">MK</div>
+            <div>
+              <div class="testimonial-name">Michael K.</div>
+              <div class="testimonial-title">Annual Masters Trip · Group of 6</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-text">"The tee time booking is incredibly easy. Played TPC Sawgrass the morning before the Players final round — the course was in perfect shape and we had the place to ourselves."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">TR</div>
+            <div>
+              <div class="testimonial-name">Tom R.</div>
+              <div class="testimonial-title">Players Championship · Group of 4</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-text">"The insider tips alone are worth it. Knew exactly when to arrive, where to stand, when to avoid the crowds. First time at the Phoenix Open felt like my tenth."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">JD</div>
+            <div>
+              <div class="testimonial-name">James D.</div>
+              <div class="testimonial-title">WM Phoenix Open · Group of 8</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <div class="cta-inner">
+      <div class="section-label">Ready to Play?</div>
+      <h2 class="section-title">Your Next Championship<br>Trip <em>Starts Here.</em></h2>
+      <p>Join thousands of golfers who've made the switch to planned, optimized tournament travel. Your best golf trip is one click away.</p>
+      <div class="cta-actions">
+        <a href="#" onclick="openPlanner(); return false;" class="btn-primary">Plan My Trip →</a>
+        <button class="btn-outline">Browse Events</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a class="nav-logo" href="#">
+          <div class="nav-logo-icon">⛳</div>
+          <span class="nav-logo-text">Greenside Journeys</span>
+        </a>
+        <p>The insider's guide to tournament golf travel. Built by golfers, for golfers who demand the best.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Events</h4>
+        <ul>
+          <li><a href="#">WM Phoenix Open</a></li>
+          <li><a href="#">The Players</a></li>
+          <li><a href="#">The Masters</a></li>
+          <li><a href="#">U.S. Open</a></li>
+          <li><a href="#">Super Bowl</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Destinations</h4>
+        <ul>
+          <li><a href="#">Scottsdale, AZ</a></li>
+          <li><a href="#">Ponte Vedra, FL</a></li>
+          <li><a href="#">Augusta, GA</a></li>
+          <li><a href="#">Las Vegas, NV</a></li>
+          <li><a href="#">Pebble Beach, CA</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">How It Works</a></li>
+          <li><a href="#">Partner Courses</a></li>
+          <li><a href="#">Contact</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Greenside Journeys. All rights reserved.</span>
+      <a href="#">Made for golfers who demand more.</a>
+    </div>
+  </footer>
+
+  <script>
+    // Nav scroll behavior
+    const nav = document.getElementById('mainNav');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 60) nav.classList.add('scrolled');
+      else nav.classList.remove('scrolled');
+    });
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('.tt-field input[type="date"]').value = today;
+
+    // Planner overlay controls
+    function openPlanner() {
+      document.getElementById('plannerOverlay').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+    function closePlanner() {
+      document.getElementById('plannerOverlay').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+  </script>
+
+  <!-- PLANNER OVERLAY -->
+  <div id="plannerOverlay" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(10,61,46,0.97); overflow-y:auto;">
+    <div style="background:#f9fafb; min-height:100vh;">
+
+      <!-- Planner Header -->
+      <div style="background:linear-gradient(135deg,#0f766e,#15803d); color:white; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="background:#c9a84c; border-radius:50%; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:20px;">⛳</div>
+          <div>
+            <div style="font-family:'Playfair Display',serif; font-size:20px; font-weight:700;">Greenside Journeys</div>
+            <div style="font-size:12px; opacity:0.75;">Build Your Championship Experience</div>
+          </div>
+        </div>
+        <button onclick="closePlanner()" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:white; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+          ✕ Back to Site
+        </button>
+      </div>
+
+      <!-- Planner Body (Tailwind-powered) -->
+      <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Event & Trip Setup -->
+        <div class="glass rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Build Your Championship Experience</h2>
+            <p class="text-gray-600 mb-6">Select your major championship and we'll unlock insider access to the best courses, accommodations, and tournament packages.</p>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Major Championship</label>
+                    <select id="tournament" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none text-lg">
+                        <option value="">Select your event...</option>
+                        <option value="players">The Players Championship - March 2026</option>
+                        <option value="masters">The Masters Tournament - April 2026</option>
+                        <option value="wmpo">WM Phoenix Open - February 2026</option>
+                        <option value="usopen">U.S. Open Championship - June 2026</option>
+                        <option value="superbowl">Super Bowl LXI - February 2027</option>
+                        <option value="finalfour">NCAA Final Four - April 2026</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Party Size</label>
+                    <input type="number" id="groupSize" value="4" min="1" max="20" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none text-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Arrival Date</label>
+                    <input type="date" id="arrivalDate" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none text-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Departure Date</label>
+                    <input type="date" id="departureDate" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none text-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Trip Budget ($)</label>
+                    <input type="number" id="budget" placeholder="8000" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none text-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Maximum Commute to Venue</label>
+                    <select id="driveRadius" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none text-lg">
+                        <option value="15">15 minutes (Premium proximity)</option>
+                        <option value="30" selected>30 minutes (Optimal balance)</option>
+                        <option value="45">45 minutes (Value options)</option>
+                        <option value="60">60 minutes (Budget friendly)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-6" id="tripSummaryBox" style="display:none;">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-gray-700">Trip Duration:</span>
+                        <span id="tripDuration" class="font-bold text-green-700">0 nights</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Tournament Days Attending</label>
+                <div id="daysSelection" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+            </div>
+            <button id="continueToSelection" class="w-full mt-6 bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-lg font-bold text-lg hover:from-green-700 hover:to-green-800 transition shadow-lg">
+                Access Insider Courses & Lodging →
+            </button>
+        </div>
+
+        <!-- Budget Tracker -->
+        <div id="budgetTracker" class="glass rounded-xl shadow-lg p-6 mb-6 hidden border-l-4 border-green-600">
+            <h2 class="text-2xl font-bold text-gray-800 mb-1">Investment Tracker</h2>
+            <p class="text-sm text-gray-600 mb-4">Your all-inclusive championship package breakdown</p>
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-semibold text-gray-700">Package Investment</span>
+                <span class="text-lg font-bold" id="budgetText">$0 / $0</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div id="budgetBar" class="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between mt-2 text-sm">
+                <span id="remainingBudget" class="text-green-600 font-semibold">Available: $0</span>
+                <span id="budgetStatus" class="text-gray-500"></span>
+            </div>
+        </div>
+
+        <!-- Golf Courses -->
+        <div id="coursesSection" class="glass rounded-xl shadow-lg p-6 mb-6 hidden border-l-4 border-green-600">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">🏌️ Championship-Caliber Tee Times</h2>
+            <p class="text-gray-600 mb-4">Curated access to the finest courses in the area. Green fees shown for your <span id="courseGroupSize" class="font-semibold text-green-700">4</span>-person group.</p>
+            <div class="flex gap-4 mb-6 border-b border-gray-200">
+                <button id="coursesTab" class="px-6 py-3 font-semibold border-b-2 border-green-600 text-green-700">Featured Courses</button>
+                <button id="teeTimeTab" class="px-6 py-3 font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700">Live Tee Time Search</button>
+            </div>
+            <div id="coursesList" class="grid md:grid-cols-2 gap-4"></div>
+            <div id="teeTimeBooking" class="hidden">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+                    <div class="flex items-start gap-3">
+                        <div class="text-blue-600 text-xl">💡</div>
+                        <div>
+                            <h4 class="font-semibold text-blue-800 mb-1">Live Tee Time Booking</h4>
+                            <p class="text-sm text-blue-700">Search real-time availability across all courses. Select your preferred date and time, then book instantly.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+                    <h3 class="font-bold text-gray-800 mb-4">Search Available Tee Times</h3>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">Play Date</label><input type="date" id="teeTimeDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-green-600 focus:outline-none"></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">Players</label><select id="teeTimePlayers" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-green-600 focus:outline-none"><option value="1">1 Player</option><option value="2">2 Players</option><option value="3">3 Players</option><option value="4" selected>4 Players</option></select></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">Time Range</label><select id="teeTimeRange" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-green-600 focus:outline-none"><option value="all">All Times</option><option value="morning">Morning (6am-12pm)</option><option value="afternoon">Afternoon (12pm-6pm)</option></select></div>
+                    </div>
+                    <button id="searchTeeTimes" class="w-full mt-4 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">Search Available Times</button>
+                </div>
+                <div id="teeTimeResults"></div>
+            </div>
+        </div>
+
+        <!-- Accommodations -->
+        <div id="accommodationsSection" class="glass rounded-xl shadow-lg p-6 mb-6 hidden border-l-4 border-green-600">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">🏨 Premium Tournament Lodging</h2>
+            <p class="text-gray-600 mb-4">Strategic locations vetted for quality and proximity.</p>
+            <div class="flex gap-4 mb-4">
+                <button id="hotelTab" class="flex-1 py-3 rounded-lg font-semibold transition bg-green-600 text-white">Resort & Hotels</button>
+                <button id="airbnbTab" class="flex-1 py-3 rounded-lg font-semibold transition bg-gray-200 text-gray-700">Private Rentals</button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Tournament pricing for <span id="accomNights" class="font-semibold text-green-700">3</span> nights (event surge rates included)</p>
+            <div id="accommodationsList" class="grid md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- Generate Button -->
+        <div id="generateSection" class="hidden mb-6">
+            <button id="generateItineraryBtn" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-lg font-bold text-lg hover:from-green-700 hover:to-green-800 transition shadow-lg">
+                Generate Complete Itinerary & Insider Guide →
+            </button>
+        </div>
+
+        <!-- Itinerary Results -->
+        <div id="itinerarySection" class="hidden">
+            <div class="glass rounded-xl shadow-lg p-6 mb-6 border-l-4 border-green-600">
+                <h2 class="text-2xl font-bold text-gray-800 mb-1">Championship Package Breakdown</h2>
+                <p class="text-sm text-gray-600 mb-4">Your complete tournament experience investment</p>
+                <div id="tripSummary"></div>
+            </div>
+            <div class="glass rounded-xl shadow-lg p-6 mb-6 border-l-4 border-green-600">
+                <h2 class="text-2xl font-bold text-gray-800 mb-1">Daily Tournament Itinerary</h2>
+                <p class="text-sm text-gray-600 mb-4">Optimized schedule for maximum golf and championship access</p>
+                <div id="scheduleContent"></div>
+            </div>
+            <div class="glass rounded-xl shadow-lg p-6 mb-6 border-l-4 border-green-600">
+                <h2 class="text-2xl font-bold text-gray-800 mb-1">VIP Insider Intelligence</h2>
+                <p class="text-sm text-gray-600 mb-4">Pro tips from tournament veterans who know every angle</p>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div><h3 class="font-bold text-lg text-gray-800 mb-3"><span class="text-2xl">🚗</span> Traffic & Access Strategy</h3><div id="trafficTips" class="bg-blue-50 p-4 rounded-lg space-y-2 text-sm"></div></div>
+                    <div><h3 class="font-bold text-lg text-gray-800 mb-3"><span class="text-2xl">👔</span> Tournament Dress Code</h3><div id="dressTips" class="bg-purple-50 p-4 rounded-lg space-y-2 text-sm"></div></div>
+                    <div><h3 class="font-bold text-lg text-gray-800 mb-3"><span class="text-2xl">🍽️</span> Dining Intelligence</h3><div id="foodTips" class="bg-green-50 p-4 rounded-lg space-y-2 text-sm"></div></div>
+                    <div><h3 class="font-bold text-lg text-gray-800 mb-3"><span class="text-2xl">⭐</span> Can't-Miss Moments</h3><div id="experienceTips" class="bg-yellow-50 p-4 rounded-lg space-y-2 text-sm"></div></div>
+                </div>
+            </div>
+            <button id="bookTrip" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-lg font-bold text-lg hover:from-green-700 hover:to-green-800 transition shadow-lg">
+                Lock In Your Championship Experience →
+            </button>
+        </div>
+      </div><!-- end planner body -->
+    </div>
+  </div><!-- end plannerOverlay -->
+
+  <script>
+        const tournaments = {
+            players: {
+                name: "The Players Championship",
+                location: "Ponte Vedra Beach, FL",
+                venue: "TPC Sawgrass",
+                dates: { start: "2026-03-10", end: "2026-03-15" },
+                days: [
+                    { id: "tue", name: "Tuesday (Practice)", date: "Mar 10" },
+                    { id: "wed", name: "Wednesday (Practice)", date: "Mar 11" },
+                    { id: "thu", name: "Thursday (Round 1)", date: "Mar 12" },
+                    { id: "fri", name: "Friday (Round 2)", date: "Mar 13" },
+                    { id: "sat", name: "Saturday (Round 3)", date: "Mar 14" },
+                    { id: "sun", name: "Sunday (Final)", date: "Mar 15" }
+                ],
+                tickets: { tue: 90, wed: 90, thu: 185, fri: 185, sat: 235, sun: 285 },
+                courses: [
+                    { name: "TPC Sawgrass (Dye's Valley)", distance: 0, price: 275, available: ["tue", "wed"], rating: 4.6, image: "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" },
+                    { name: "Ponte Vedra Inn & Club", distance: 3, price: 295, available: ["tue", "wed", "thu", "fri"], rating: 4.7, image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" },
+                    { name: "Sawgrass Country Club", distance: 5, price: 185, available: ["tue", "wed", "thu", "fri", "sat"], rating: 4.5, image: "https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" },
+                    { name: "World Golf Village", distance: 25, price: 165, available: ["all"], rating: 4.4, image: "https://images.unsplash.com/photo-1591491718006-1c92e4676b42?w=800&q=80" }
+                ],
+                hotels: [
+                    { name: "Ponte Vedra Inn & Club", distance: 3, price: 650, surge: 2.1, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type: "Luxury Resort" },
+                    { name: "Sawgrass Marriott", distance: 1, price: 450, surge: 2.3, image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type: "Golf Resort" },
+                    { name: "Hampton Inn Ponte Vedra", distance: 8, price: 280, surge: 1.8, image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "Hotel" },
+                    { name: "Courtyard Jacksonville Beach", distance: 12, price: 240, surge: 1.6, image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", type: "Hotel" },
+                    { name: "Holiday Inn Jacksonville", distance: 25, price: 160, surge: 1.3, image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80", type: "Hotel" }
+                ],
+                airbnbs: [
+                    { name: "Beachfront Estate (5BR)", distance: 5, price: 700, surge: 2.0, image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80", guests: 10 },
+                    { name: "TPC Area Luxury Villa (4BR)", distance: 2, price: 500, surge: 2.2, image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80", guests: 8 },
+                    { name: "Coastal Condo (3BR)", distance: 10, price: 350, surge: 1.7, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", guests: 6 },
+                    { name: "Beach House (4BR)", distance: 12, price: 400, surge: 1.8, image: "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=800&q=80", guests: 8 },
+                    { name: "Jax Beach Apartment (2BR)", distance: 20, price: 200, surge: 1.4, image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", guests: 4 }
+                ],
+                insiderTips: {
+                    traffic: ["Arrive before 7am for easy parking - lots fill by 8:30am on weekends","Use A1A Scenic Route instead of I-95 during peak hours","Park at overflow lots and take free shuttle","Leave before 4pm Sunday to avoid the exodus"],
+                    dress: ["Layers essential - mornings 50s, afternoons 75°F","Comfortable walking shoes - expect 5+ miles daily","Soft-spike golf shoes allowed","Bring rain gear - March weather unpredictable"],
+                    food: ["Eat breakfast before arriving - venue lines long until 10am","Hole-in-One sandwich near 17th green is legendary","Matthew's in San Marco (20 min) - best upscale dining","Beach bars in Jax Beach (15 min) for post-round"],
+                    experiences: ["Walk the 17th hole 'Island Green' early","Watch from 18th green grandstands","Tuesday practice rounds - best value","Visit St. Augustine (30 min) - oldest US city"]
+                }
+            },
+            masters: {
+                name: "The Masters",
+                location: "Augusta, GA",
+                venue: "Augusta National Golf Club",
+                dates: { start: "2026-04-07", end: "2026-04-13" },
+                days: [
+                    { id: "mon", name: "Monday (Practice)", date: "Apr 7" },
+                    { id: "tue", name: "Tuesday (Practice)", date: "Apr 8" },
+                    { id: "wed", name: "Wednesday (Par 3)", date: "Apr 9" },
+                    { id: "thu", name: "Thursday (Round 1)", date: "Apr 10" },
+                    { id: "fri", name: "Friday (Round 2)", date: "Apr 11" },
+                    { id: "sat", name: "Saturday (Round 3)", date: "Apr 12" },
+                    { id: "sun", name: "Sunday (Final)", date: "Apr 13" }
+                ],
+                tickets: { mon: 125, tue: 125, wed: 125, thu: 375, fri: 375, sat: 425, sun: 475 },
+                courses: [
+                    { name: "Forest Hills Golf Club", distance: 8, price: 85, available: ["all"], rating: 4.5, image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" },
+                    { name: "Goshen Plantation", distance: 15, price: 120, available: ["mon","tue","wed","thu","fri"], rating: 4.4, image: "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" },
+                    { name: "Champions Retreat", distance: 25, price: 275, available: ["mon","tue","wed"], rating: 4.7, image: "https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" }
+                ],
+                hotels: [
+                    { name: "The Partridge Inn", distance: 2, price: 850, surge: 3.5, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type: "Historic Hotel" },
+                    { name: "Augusta Marriott", distance: 3, price: 650, surge: 3.2, image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type: "Hotel" },
+                    { name: "Hampton Inn Augusta", distance: 8, price: 380, surge: 2.4, image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "Hotel" },
+                    { name: "Courtyard Augusta", distance: 10, price: 340, surge: 2.2, image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", type: "Hotel" }
+                ],
+                airbnbs: [
+                    { name: "Masters Week Home (4BR)", distance: 5, price: 800, surge: 3.5, image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80", guests: 8 },
+                    { name: "Downtown Condo (2BR)", distance: 3, price: 300, surge: 2.5, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", guests: 4 },
+                    { name: "Charming Cottage (3BR)", distance: 8, price: 400, surge: 2.8, image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80", guests: 6 }
+                ],
+                insiderTips: {
+                    traffic: ["Arrive by 6:30am - gates open 8am, parking fills immediately","Washington Road becomes parking lot 7-9am","Take shuttles from park-and-ride lots","Sunday traffic brutal 3-6pm"],
+                    dress: ["Business casual required - no jeans, no athletic wear","Comfortable dress shoes - 6+ miles on hills","Layers - mornings 50s, afternoons 75-80°F","No phones allowed on grounds"],
+                    food: ["Pimento cheese sandwich tradition - $1.50","Masters Club sandwich and peach ice cream","Shockingly reasonable prices","Frog Hollow Tavern downtown for upscale Southern"],
+                    experiences: ["Amen Corner (holes 11-13) - most iconic","Par 3 Contest Wednesday - arrive early","Merchandise shop at 7am - 2+ hour lines later","Walk Magnolia Lane - pure tradition"]
+                }
+            },
+            wmpo: {
+                name: "WM Phoenix Open",
+                location: "Scottsdale, AZ",
+                venue: "TPC Scottsdale",
+                dates: { start: "2026-02-03", end: "2026-02-08" },
+                days: [
+                    { id: "tue", name: "Tuesday (Practice)", date: "Feb 3" },
+                    { id: "wed", name: "Wednesday (Pro-Am)", date: "Feb 4" },
+                    { id: "thu", name: "Thursday (Round 1)", date: "Feb 5" },
+                    { id: "fri", name: "Friday (Round 2)", date: "Feb 6" },
+                    { id: "sat", name: "Saturday (Round 3)", date: "Feb 7" },
+                    { id: "sun", name: "Sunday (Final)", date: "Feb 8" }
+                ],
+                tickets: { tue: 65, wed: 75, thu: 145, fri: 155, sat: 185, sun: 195 },
+                courses: [
+                    { name: "TPC Scottsdale (Champions)", distance: 0, price: 295, available: ["mon","tue"], rating: 4.8, image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" },
+                    { name: "Troon North Monument", distance: 12, price: 295, available: ["mon","tue","wed"], rating: 4.8, image: "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" },
+                    { name: "We-Ko-Pa Golf Club", distance: 18, price: 225, available: ["all"], rating: 4.7, image: "https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" },
+                    { name: "Grayhawk Golf Club", distance: 8, price: 185, available: ["thu","fri","sat","sun"], rating: 4.6, image: "https://images.unsplash.com/photo-1591491718006-1c92e4676b42?w=800&q=80" }
+                ],
+                hotels: [
+                    { name: "The Phoenician", distance: 6, price: 650, surge: 2.0, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type: "Luxury Resort" },
+                    { name: "Fairmont Scottsdale", distance: 5, price: 480, surge: 1.9, image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type: "Resort" },
+                    { name: "Marriott Camelback Inn", distance: 10, price: 380, surge: 1.6, image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "Resort" },
+                    { name: "DoubleTree Paradise Valley", distance: 12, price: 280, surge: 1.5, image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", type: "Hotel" }
+                ],
+                airbnbs: [
+                    { name: "Luxury Desert Villa (5BR)", distance: 8, price: 600, surge: 2.0, image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80", guests: 10 },
+                    { name: "Modern Scottsdale Home (4BR)", distance: 10, price: 400, surge: 1.8, image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80", guests: 8 },
+                    { name: "Golf Course Condo (2BR)", distance: 12, price: 250, surge: 1.6, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", guests: 6 }
+                ],
+                insiderTips: {
+                    traffic: ["Use Uber/Lyft - parking nightmare","Loop 101 backed up 2-4pm","Saturday 16th hole chaos - arrive 9am","Scottsdale Road faster than Hayden afternoon"],
+                    dress: ["Casual golf attire - party tournament","Sunscreen and hat essential","Layers for morning (50s) shorts afternoon (75°F)","16th hole = concert vibe"],
+                    food: ["Tons of vendors - BBQ to sushi","16th hole beer garden - concert prices","Birds Nest premium food options","Old Town Scottsdale (10 min) amazing restaurants"],
+                    experiences: ["16th hole stadium - 20k fans, concert atmosphere","Birds Nest concert series - major acts","Wednesday Pro-Am relaxed, great photos","Old Town nightlife world-class"]
+                }
+            },
+            usopen: {
+                name: "U.S. Open Championship",
+                location: "TBD",
+                venue: "TBD",
+                dates: { start: "2026-06-15", end: "2026-06-21" },
+                days: [
+                    { id: "mon", name: "Monday (Practice)", date: "Jun 15" },
+                    { id: "tue", name: "Tuesday (Practice)", date: "Jun 16" },
+                    { id: "wed", name: "Wednesday (Practice)", date: "Jun 17" },
+                    { id: "thu", name: "Thursday (Round 1)", date: "Jun 18" },
+                    { id: "fri", name: "Friday (Round 2)", date: "Jun 19" },
+                    { id: "sat", name: "Saturday (Round 3)", date: "Jun 20" },
+                    { id: "sun", name: "Sunday (Final)", date: "Jun 21" }
+                ],
+                tickets: { mon: 75, tue: 75, wed: 75, thu: 225, fri: 225, sat: 275, sun: 325 },
+                courses: [
+                    { name: "Pinehurst No. 2", distance: 0, price: 500, available: ["mon","tue","wed"], rating: 5.0, image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" },
+                    { name: "Pinehurst No. 4", distance: 0, price: 350, available: ["all"], rating: 4.8, image: "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" },
+                    { name: "Mid Pines Inn & Golf", distance: 5, price: 185, available: ["all"], rating: 4.6, image: "https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" }
+                ],
+                hotels: [
+                    { name: "The Carolina Hotel", distance: 0, price: 750, surge: 3.0, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type: "Historic Resort" },
+                    { name: "The Holly Inn", distance: 1, price: 550, surge: 2.8, image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type: "Boutique Hotel" },
+                    { name: "Courtyard Pinehurst", distance: 5, price: 280, surge: 2.0, image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "Hotel" }
+                ],
+                airbnbs: [
+                    { name: "Village of Pinehurst Home (4BR)", distance: 2, price: 600, surge: 2.5, image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80", guests: 8 },
+                    { name: "Southern Pines Cottage (3BR)", distance: 8, price: 350, surge: 2.0, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", guests: 6 }
+                ],
+                insiderTips: {
+                    traffic: ["Village of Pinehurst walkable - park once, walk everywhere","US-1 and Hwy 15-501 main arteries - plan 30 min extra","Free shuttles from remote lots","Sunday final round - leave by 2pm or wait until 7pm"],
+                    dress: ["Smart casual - collared shirts recommended","Walking shoes mandatory - hilly terrain","Sunscreen essential - open greensides, full sun","Rain gear always - NC summer storms unpredictable"],
+                    food: ["The Tavern at Pine Crest Inn - legendary local spot","Pinehurst Brewing Co for post-round","Village Deli for quick lunches","Dinner reservation needed at resort restaurants"],
+                    experiences: ["18th green grandstands - spectacular finish views","Walk all 18 holes of No. 2 on practice day","Donald Ross statue photo opportunity","Village of Pinehurst shops and dining"]
+                }
+            },
+            superbowl: {
+                name: "Super Bowl LXI",
+                location: "Los Angeles, CA",
+                venue: "SoFi Stadium",
+                dates: { start: "2027-02-07", end: "2027-02-07" },
+                days: [
+                    { id: "sun", name: "Super Bowl Sunday", date: "Feb 7" }
+                ],
+                tickets: { sun: 1200 },
+                courses: [
+                    { name: "Riviera Country Club", distance: 15, price: 450, available: ["all"], rating: 4.9, image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" },
+                    { name: "Bel-Air Country Club", distance: 12, price: 350, available: ["all"], rating: 4.7, image: "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" },
+                    { name: "Trump National LA", distance: 25, price: 295, available: ["all"], rating: 4.6, image: "https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" }
+                ],
+                hotels: [
+                    { name: "The Ritz-Carlton Marina del Rey", distance: 2, price: 850, surge: 2.5, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type: "Luxury Hotel" },
+                    { name: "Marriott Manhattan Beach", distance: 3, price: 550, surge: 2.2, image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type: "Hotel" },
+                    { name: "Residence Inn El Segundo", distance: 5, price: 380, surge: 1.9, image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "Extended Stay" }
+                ],
+                airbnbs: [
+                    { name: "Manhattan Beach House (5BR)", distance: 3, price: 1200, surge: 2.5, image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80", guests: 10 },
+                    { name: "Playa Vista Condo (3BR)", distance: 5, price: 600, surge: 2.0, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", guests: 6 }
+                ],
+                insiderTips: {
+                    traffic: ["Leave 3+ hours early - LA traffic + event chaos","Metro Crenshaw line stops near stadium","Rideshare surge pricing $80-150 after game","Pre-book return rideshare before kickoff"],
+                    dress: ["Team gear encouraged","LA evenings cool - bring layer","Comfortable shoes for tailgate","Stadium bag policy strict - clear bags only"],
+                    food: ["Inglewood pregame tailgate scene is incredible","Local LA food trucks around stadium","Hawthorne restaurants less crowded than Manhattan Beach","Book dinner reservation 2+ weeks ahead"],
+                    experiences: ["Super Bowl radio row open to public Thurs-Sat","NFL Experience fan festival","Hollywood/Beverly Hills day trips","Santa Monica Pier on off days"]
+                }
+            },
+            finalfour: {
+                name: "NCAA Final Four",
+                location: "Indianapolis, IN",
+                venue: "Lucas Oil Stadium",
+                dates: { start: "2026-04-03", end: "2026-04-06" },
+                days: [
+                    { id: "fri", name: "Friday (Arrival/Fanfest)", date: "Apr 3" },
+                    { id: "sat", name: "Saturday (Semifinals)", date: "Apr 4" },
+                    { id: "sun", name: "Sunday (Off Day)", date: "Apr 5" },
+                    { id: "mon", name: "Monday (Championship)", date: "Apr 6" }
+                ],
+                tickets: { fri: 0, sat: 275, sun: 0, mon: 350 },
+                courses: [
+                    { name: "Crooked Stick Golf Club", distance: 25, price: 185, available: ["all"], rating: 4.7, image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80" },
+                    { name: "Eagle Creek Golf Club", distance: 12, price: 95, available: ["all"], rating: 4.4, image: "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=800&q=80" },
+                    { name: "Brickyard Crossing", distance: 10, price: 125, available: ["all"], rating: 4.5, image: "https://images.unsplash.com/photo-1592919505780-303950717480?w=800&q=80" }
+                ],
+                hotels: [
+                    { name: "JW Marriott Indianapolis", distance: 1, price: 450, surge: 2.8, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", type: "Luxury Hotel" },
+                    { name: "Conrad Indianapolis", distance: 1, price: 380, surge: 2.5, image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80", type: "Luxury Hotel" },
+                    { name: "Hyatt Regency Indianapolis", distance: 0, price: 320, surge: 2.6, image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", type: "Connected Hotel" }
+                ],
+                airbnbs: [
+                    { name: "Mass Ave District Home (4BR)", distance: 8, price: 400, surge: 2.2, image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80", guests: 8 },
+                    { name: "Fountain Square Condo (2BR)", distance: 5, price: 220, surge: 1.9, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", guests: 4 }
+                ],
+                insiderTips: {
+                    traffic: ["Downtown Indy walkable from most hotels","Circle Centre parking connected via skyway","Avoid Capitol Ave during game days","Uber/Lyft pickup at designated zones only"],
+                    dress: ["Team colors highly encouraged","April Indy weather unpredictable - layers","Comfortable shoes - lots of walking","Dress code relaxed - fan gear welcome everywhere"],
+                    food: ["St. Elmo Steak House - Indy institution, book NOW","Mass Ave restaurant corridor - 20+ great options","Shapiro's Delicatessen for casual lunch","Slippery Noodle Inn - oldest bar in Indiana"],
+                    experiences: ["NCAA March Madness Music Festival free concerts","Final Four Fan Fest - interactive exhibits","Indiana Pacers game if schedule aligns","Children's Museum of Indianapolis (best in world)"]
+                }
+            }
+        };
+
+        let tripData = {
+            tournament: null, groupSize: 4, budget: 0, driveRadius: 30,
+            arrivalDate: null, departureDate: null, nights: 0,
+            selectedDays: [], selectedCourses: [], golfDays: {},
+            selectedAccommodation: null, accommodationType: 'hotel', spent: 0
+        };
+
+        document.getElementById('groupSize').addEventListener('input', (e) => {
+            tripData.groupSize = parseInt(e.target.value) || 4;
+            document.getElementById('courseGroupSize').textContent = tripData.groupSize;
+        });
+
+        function calculateTripDuration() {
+            const arrival = document.getElementById('arrivalDate').value;
+            const departure = document.getElementById('departureDate').value;
+            if (arrival && departure) {
+                const nights = Math.ceil((new Date(departure) - new Date(arrival)) / (1000*60*60*24));
+                if (nights > 0) {
+                    tripData.nights = nights; tripData.arrivalDate = arrival; tripData.departureDate = departure;
+                    document.getElementById('tripDuration').textContent = `${nights} night${nights > 1 ? 's' : ''}`;
+                    document.getElementById('tripSummaryBox').style.display = 'block';
+                    document.getElementById('accomNights').textContent = nights;
+                } else { document.getElementById('tripSummaryBox').style.display = 'none'; tripData.nights = 0; }
+            } else { document.getElementById('tripSummaryBox').style.display = 'none'; tripData.nights = 0; }
+        }
+        document.getElementById('arrivalDate').addEventListener('change', calculateTripDuration);
+        document.getElementById('departureDate').addEventListener('change', calculateTripDuration);
+        document.getElementById('budget').addEventListener('input', (e) => { tripData.budget = parseInt(e.target.value) || 0; updateBudgetDisplay(); });
+
+        document.getElementById('tournament').addEventListener('change', (e) => {
+            tripData.tournament = e.target.value;
+            if (!tripData.tournament) return;
+            const tournament = tournaments[tripData.tournament];
+            const daysContainer = document.getElementById('daysSelection');
+            daysContainer.innerHTML = '';
+            tournament.days.forEach(day => {
+                const div = document.createElement('div');
+                div.className = 'border-2 border-gray-300 rounded-lg p-3 cursor-pointer hover:border-green-500 transition';
+                div.innerHTML = `<input type="checkbox" id="day_${day.id}" class="mr-2" value="${day.id}"><label for="day_${day.id}" class="cursor-pointer"><div class="font-semibold text-sm">${day.name}</div><div class="text-xs text-gray-500">${day.date}</div></label>`;
+                const checkbox = div.querySelector('input');
+                div.addEventListener('click', (e) => { if (e.target !== checkbox) { checkbox.checked = !checkbox.checked; updateSelectedDays(); } });
+                checkbox.addEventListener('change', updateSelectedDays);
+                daysContainer.appendChild(div);
+            });
+        });
+
+        function updateSelectedDays() {
+            tripData.selectedDays = Array.from(document.querySelectorAll('#daysSelection input[type="checkbox"]')).filter(cb => cb.checked).map(cb => cb.value);
+            document.getElementById('accomNights').textContent = tripData.nights;
+        }
+
+        document.getElementById('continueToSelection').addEventListener('click', () => {
+            if (!tripData.tournament || tripData.selectedDays.length === 0 || !tripData.budget || !tripData.arrivalDate || !tripData.departureDate || tripData.nights === 0) {
+                alert('Please complete all fields: championship, dates, tournament days, and budget'); return;
+            }
+            loadCourses(); loadAccommodations('hotel');
+            if (tripData.arrivalDate) {
+                const arrival = new Date(tripData.arrivalDate); arrival.setDate(arrival.getDate() + 1);
+                document.getElementById('teeTimeDate').value = arrival.toISOString().split('T')[0];
+                document.getElementById('teeTimeDate').min = tripData.arrivalDate;
+                document.getElementById('teeTimeDate').max = tripData.departureDate;
+            }
+            document.getElementById('teeTimePlayers').value = Math.min(tripData.groupSize, 4);
+            document.getElementById('budgetTracker').classList.remove('hidden');
+            document.getElementById('coursesSection').classList.remove('hidden');
+            document.getElementById('accommodationsSection').classList.remove('hidden');
+            document.getElementById('generateSection').classList.remove('hidden');
+            document.getElementById('budgetTracker').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        function loadCourses() {
+            const tournament = tournaments[tripData.tournament];
+            const coursesList = document.getElementById('coursesList');
+            coursesList.innerHTML = '';
+            const arrival = new Date(tripData.arrivalDate), departure = new Date(tripData.departureDate);
+            const tournamentDays = tripData.selectedDays;
+            const allTripDays = [];
+            for (let d = new Date(arrival); d < departure; d.setDate(d.getDate() + 1)) {
+                const dayName = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+                allTripDays.push({ date: new Date(d), dayName, dateStr: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
+            }
+            const availableCourses = tournament.courses.filter(c => c.distance <= tripData.driveRadius);
+            availableCourses.forEach((course, index) => {
+                const totalPrice = course.price * tripData.groupSize;
+                const courseId = `course_${index}`;
+                const bookedEntry = Object.entries(tripData.golfDays).find(([id, data]) => data.course.name === course.name && data.bookedViaSearch);
+                const playableDays = allTripDays.filter(day => (course.available.includes('all') || course.available.includes(day.dayName)) && !tournamentDays.includes(day.dayName));
+                const div = document.createElement('div');
+                div.className = `border-2 ${bookedEntry ? 'border-green-500 bg-green-50' : 'border-gray-200'} rounded-lg overflow-hidden`;
+                div.innerHTML = `
+                    <div class="relative"><img src="${course.image}" alt="${course.name}" class="w-full h-48 object-cover">
+                        ${course.rating >= 4.7 ? '<div class="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">INSIDER PICK</div>' : ''}
+                        ${bookedEntry ? '<div class="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">✓ BOOKED</div>' : ''}</div>
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex-1"><div class="font-bold text-gray-800 text-lg">${course.name}</div><div class="text-sm text-gray-500">⭐ ${course.rating} • ${course.distance} min commute</div></div>
+                            <div class="text-right"><div class="text-xl font-bold text-green-700">$${totalPrice.toLocaleString()}</div><div class="text-xs text-gray-500">${tripData.groupSize} players</div></div>
+                        </div>
+                        ${bookedEntry ? `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3"><div class="text-sm font-semibold text-blue-800">✓ Tee Time Reserved</div><div class="text-xs text-blue-700">${new Date(bookedEntry[1].date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} at ${bookedEntry[1].teeTime}</div></div>`
+                        : playableDays.length > 0 ? `<div class="border-t pt-3 mt-3">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Select Golf Day:</label>
+                            <select id="${courseId}_day" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3"><option value="">Choose day...</option>${playableDays.map(d=>`<option value="${d.dayName}">${d.dateStr} (${d.dayName.charAt(0).toUpperCase()+d.dayName.slice(1)})</option>`).join('')}</select>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Preferred Tee Time:</label>
+                            <select id="${courseId}_time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3">
+                                <option value="7:00 AM">7:00 AM (Early Bird)</option><option value="7:30 AM" selected>7:30 AM</option><option value="8:00 AM">8:00 AM</option><option value="8:30 AM">8:30 AM</option><option value="9:00 AM">9:00 AM</option><option value="10:00 AM">10:00 AM</option><option value="11:00 AM">11:00 AM</option><option value="12:00 PM">12:00 PM (Noon)</option><option value="1:00 PM">1:00 PM</option><option value="2:00 PM">2:00 PM</option>
+                            </select>
+                            <button class="add-course-btn w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition">Add to Itinerary</button>
+                        </div>` : `<div class="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800">No available days for this course during your trip</div>`}
+                    </div>`;
+                if (playableDays.length > 0) {
+                    const addBtn = div.querySelector('.add-course-btn');
+                    if (addBtn && !bookedEntry) {
+                        const daySelect = div.querySelector(`#${courseId}_day`), timeSelect = div.querySelector(`#${courseId}_time`);
+                        addBtn.addEventListener('click', () => {
+                            const selectedDay = daySelect.value, selectedTime = timeSelect.value;
+                            if (!selectedDay) { alert('Please select a day to play golf'); return; }
+                            if (tripData.golfDays[courseId]) { alert('Course already added.'); return; }
+                            tripData.golfDays[courseId] = { course, day: selectedDay, teeTime: selectedTime };
+                            tripData.selectedCourses.push(course); tripData.spent += totalPrice;
+                            addBtn.textContent = '✓ Added to Itinerary';
+                            addBtn.classList.remove('bg-green-600','hover:bg-green-700'); addBtn.classList.add('bg-gray-400','cursor-not-allowed'); addBtn.disabled = true;
+                            daySelect.disabled = true; timeSelect.disabled = true; div.classList.add('border-green-500');
+                            updateBudgetDisplay();
+                        });
+                    }
+                }
+                coursesList.appendChild(div);
+            });
+        }
+
+        function loadAccommodations(type) {
+            const tournament = tournaments[tripData.tournament];
+            const list = document.getElementById('accommodationsList'); list.innerHTML = '';
+            const accommodations = type === 'hotel' ? tournament.hotels : tournament.airbnbs;
+            const nights = tripData.nights;
+            if (nights === 0) { list.innerHTML = '<p class="text-gray-500 col-span-2">Please set your arrival and departure dates first.</p>'; return; }
+            const filtered = accommodations.filter(a => a.distance <= tripData.driveRadius);
+            filtered.forEach((accom, index) => {
+                const totalPrice = accom.price * nights * accom.surge;
+                const isPremium = accom.distance <= 10 && (accom.surge >= 2.0 || accom.price >= 400);
+                const div = document.createElement('div');
+                div.className = 'border-2 border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-green-500';
+                div.innerHTML = `
+                    <div class="relative"><img src="${accom.image}" alt="${accom.name}" class="w-full h-48 object-cover">
+                        ${isPremium ? '<div class="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">PRIME LOCATION</div>' : ''}
+                        ${accom.distance <= 5 ? '<div class="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">WALK TO VENUE</div>' : ''}</div>
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-start gap-3 flex-1">
+                                <input type="radio" name="accommodation" id="accom${index}" class="w-5 h-5 text-green-600 focus:ring-green-500 mt-1">
+                                <div class="flex-1"><div class="font-bold text-gray-800">${accom.name}</div><div class="text-sm text-gray-500">${type==='hotel'?accom.type:accom.guests+' guests'} • ${accom.distance} min commute</div><div class="text-xs text-gray-500 mt-1">$${accom.price}/night × ${nights} nights × ${accom.surge}x surge</div></div>
+                            </div>
+                            <div class="text-right"><div class="text-xl font-bold text-green-700">$${totalPrice.toFixed(0).toLocaleString()}</div></div>
+                        </div>
+                    </div>`;
+                const radio = div.querySelector('input');
+                radio.addEventListener('change', () => {
+                    if (tripData.selectedAccommodation) tripData.spent -= tripData.selectedAccommodation.price * tripData.nights * tripData.selectedAccommodation.surge;
+                    tripData.selectedAccommodation = accom; tripData.accommodationType = type; tripData.spent += totalPrice; updateBudgetDisplay();
+                });
+                div.addEventListener('click', (e) => { if (e.target !== radio) { radio.checked = true; radio.dispatchEvent(new Event('change')); } });
+                list.appendChild(div);
+            });
+        }
+
+        document.getElementById('hotelTab').addEventListener('click', () => {
+            document.getElementById('hotelTab').classList.add('bg-green-600','text-white'); document.getElementById('hotelTab').classList.remove('bg-gray-200','text-gray-700');
+            document.getElementById('airbnbTab').classList.remove('bg-green-600','text-white'); document.getElementById('airbnbTab').classList.add('bg-gray-200','text-gray-700');
+            loadAccommodations('hotel');
+        });
+        document.getElementById('airbnbTab').addEventListener('click', () => {
+            document.getElementById('airbnbTab').classList.add('bg-green-600','text-white'); document.getElementById('airbnbTab').classList.remove('bg-gray-200','text-gray-700');
+            document.getElementById('hotelTab').classList.remove('bg-green-600','text-white'); document.getElementById('hotelTab').classList.add('bg-gray-200','text-gray-700');
+            loadAccommodations('airbnb');
+        });
+        document.getElementById('coursesTab').addEventListener('click', () => {
+            document.getElementById('coursesTab').classList.add('border-green-600','text-green-700'); document.getElementById('coursesTab').classList.remove('border-transparent','text-gray-500');
+            document.getElementById('teeTimeTab').classList.remove('border-green-600','text-green-700'); document.getElementById('teeTimeTab').classList.add('border-transparent','text-gray-500');
+            document.getElementById('coursesList').classList.remove('hidden'); document.getElementById('teeTimeBooking').classList.add('hidden');
+        });
+        document.getElementById('teeTimeTab').addEventListener('click', () => {
+            document.getElementById('teeTimeTab').classList.add('border-green-600','text-green-700'); document.getElementById('teeTimeTab').classList.remove('border-transparent','text-gray-500');
+            document.getElementById('coursesTab').classList.remove('border-green-600','text-green-700'); document.getElementById('coursesTab').classList.add('border-transparent','text-gray-500');
+            document.getElementById('coursesList').classList.add('hidden'); document.getElementById('teeTimeBooking').classList.remove('hidden');
+        });
+
+        document.getElementById('searchTeeTimes').addEventListener('click', searchAvailableTeeTimes);
+
+        function searchAvailableTeeTimes() {
+            const searchDate = document.getElementById('teeTimeDate').value, players = document.getElementById('teeTimePlayers').value, timeRange = document.getElementById('teeTimeRange').value;
+            if (!searchDate) { alert('Please select a date'); return; }
+            const tournament = tournaments[tripData.tournament], resultsDiv = document.getElementById('teeTimeResults');
+            resultsDiv.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div><p class="text-gray-600 mt-4">Searching premium tee times...</p></div>`;
+            setTimeout(() => {
+                const availableCourses = tournament.courses.filter(c => c.distance <= tripData.driveRadius);
+                if (!availableCourses.length) { resultsDiv.innerHTML = `<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center"><h3 class="font-bold">No Courses Found</h3><p class="text-gray-600">Adjust your commute radius.</p></div>`; return; }
+                let html = `<div class="mb-4 flex justify-between"><span class="text-sm text-gray-600"><span class="font-semibold text-green-700">${availableCourses.length}</span> courses available</span><span class="text-xs text-gray-500">${new Date(searchDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</span></div><div class="space-y-6">`;
+                availableCourses.forEach(course => {
+                    const teeTimes = generateTeeTimes(timeRange);
+                    html += `<div class="border-2 border-gray-200 rounded-lg overflow-hidden hover:border-green-500 transition">
+                        <div class="bg-gradient-to-r from-green-600 to-green-700 text-white p-4 flex justify-between items-start">
+                            <div><h3 class="text-xl font-bold">${course.name}</h3><p class="text-green-100 text-sm mt-1">⭐ ${course.rating} • ${course.distance} min commute</p></div>
+                            <div class="text-right"><div class="text-2xl font-bold">$${course.price}</div><div class="text-xs text-green-100">per player</div></div>
+                        </div>
+                        <div class="p-5 bg-white">
+                            <div class="flex justify-between mb-3 pb-3 border-b border-gray-200 text-sm"><span class="font-semibold text-gray-700">${teeTimes.length} Available Times</span><span class="text-gray-500">${players} players • $${course.price*parseInt(players)} total</span></div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">${teeTimes.map(time=>`<button class="tee-time-slot border-2 border-gray-300 rounded-lg p-3 hover:border-green-600 hover:bg-green-50 transition text-center" data-course="${course.name}" data-time="${time}" data-price="${course.price}" data-date="${searchDate}"><div class="font-bold text-gray-800">${time}</div><div class="text-xs text-gray-500 mt-1">${players} players</div><div class="text-sm font-semibold text-green-700 mt-2 bg-green-50 rounded px-2 py-1">$${course.price*parseInt(players)}</div></button>`).join('')}</div>
+                        </div></div>`;
+                });
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                document.querySelectorAll('.tee-time-slot').forEach(slot => {
+                    slot.addEventListener('click', (e) => {
+                        const b = e.currentTarget;
+                        bookTeeTime(b.dataset.course, b.dataset.date, b.dataset.time, b.dataset.price, document.getElementById('teeTimePlayers').value);
+                    });
+                });
+            }, 800);
+        }
+
+        function generateTeeTimes(range) {
+            const times = [], startHour = range==='afternoon'?12:6, endHour = range==='morning'?12:18;
+            for (let h = startHour; h < endHour; h++) for (let m of [0,10,20,30,40,50]) times.push(formatTime(h,m));
+            return times.sort(()=>0.5-Math.random()).slice(0,8);
+        }
+        function formatTime(h,m) { const p=h>=12?'PM':'AM', dh=h>12?h-12:(h===0?12:h); return `${dh}:${m.toString().padStart(2,'0')} ${p}`; }
+
+        function bookTeeTime(courseName, date, time, pricePerPlayer, players) {
+            const totalPrice = pricePerPlayer * parseInt(players);
+            const formattedDate = new Date(date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `<div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                <div class="bg-gradient-to-r from-green-600 to-green-700 text-white p-6"><h3 class="text-2xl font-bold">Confirm Tee Time</h3></div>
+                <div class="p-6 space-y-4">
+                    <div class="flex gap-3"><div class="text-2xl">🏌️</div><div><div class="font-bold text-lg text-gray-800">${courseName}</div><div class="text-sm text-gray-600">${formattedDate}</div></div></div>
+                    <div class="border-t pt-4 space-y-2">
+                        <div class="flex justify-between"><span class="text-gray-600">Tee Time:</span><span class="font-semibold">${time}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-600">Players:</span><span class="font-semibold">${players}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-600">Per Player:</span><span class="font-semibold">$${pricePerPlayer}</span></div>
+                    </div>
+                    <div class="border-t pt-4 flex justify-between items-center bg-green-50 p-4 rounded-lg"><span class="font-bold text-lg">Total:</span><span class="font-bold text-2xl text-green-700">$${totalPrice.toLocaleString()}</span></div>
+                </div>
+                <div class="bg-gray-50 px-6 py-4 flex gap-3">
+                    <button id="cancelBooking" class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition">Cancel</button>
+                    <button id="confirmBooking" class="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">Add to Trip</button>
+                </div></div>`;
+            document.body.appendChild(modal);
+            document.getElementById('cancelBooking').addEventListener('click', () => document.body.removeChild(modal));
+            document.getElementById('confirmBooking').addEventListener('click', () => {
+                const tournament = tournaments[tripData.tournament];
+                const course = tournament.courses.find(c => c.name === courseName);
+                const courseId = `teetime_${Date.now()}`;
+                tripData.golfDays[courseId] = { course, day: new Date(date).toLocaleDateString('en-US',{weekday:'short'}).toLowerCase(), teeTime: time, date, bookedViaSearch: true };
+                if (!tripData.selectedCourses.find(c => c.name === courseName)) tripData.selectedCourses.push(course);
+                tripData.spent += totalPrice; updateBudgetDisplay();
+                document.body.removeChild(modal);
+                alert(`✅ Tee time added!\n\n${courseName}\n${formattedDate} at ${time}\n${players} players — $${totalPrice.toLocaleString()}`);
+                document.getElementById('coursesTab').click(); loadCourses();
+            });
+        }
+
+        function updateBudgetDisplay() {
+            if (tripData.budget === 0) return;
+            const tournament = tournaments[tripData.tournament];
+            let ticketCost = 0;
+            tripData.selectedDays.forEach(day => { ticketCost += (tournament.tickets[day] || 0) * tripData.groupSize; });
+            const totalSpent = tripData.spent + ticketCost, percentage = Math.min((totalSpent/tripData.budget)*100,100), remaining = tripData.budget - totalSpent;
+            document.getElementById('budgetBar').style.width = percentage + '%';
+            document.getElementById('budgetText').textContent = `$${totalSpent.toLocaleString()} / $${tripData.budget.toLocaleString()}`;
+            document.getElementById('remainingBudget').textContent = `Available: $${remaining.toLocaleString()}`;
+            const bar = document.getElementById('budgetBar'), status = document.getElementById('budgetStatus');
+            if (percentage > 100) { bar.className='h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500'; status.textContent='Over budget!'; status.className='text-red-600 font-semibold text-sm'; }
+            else if (percentage > 90) { bar.className='h-full bg-gradient-to-r from-yellow-500 to-yellow-600 transition-all duration-500'; status.textContent='Almost at limit'; status.className='text-yellow-600 text-sm'; }
+            else { bar.className='h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500'; status.textContent=`${(100-percentage).toFixed(1)}% available`; status.className='text-gray-500 text-sm'; }
+        }
+
+        document.getElementById('generateItineraryBtn').addEventListener('click', () => {
+            if (!tripData.selectedAccommodation) { alert('Please select your tournament lodging to continue'); return; }
+            generateItinerary();
+            document.getElementById('itinerarySection').classList.remove('hidden');
+            document.getElementById('itinerarySection').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        function generateItinerary() {
+            const tournament = tournaments[tripData.tournament];
+            let ticketCost = 0;
+            tripData.selectedDays.forEach(day => { ticketCost += (tournament.tickets[day]||0) * tripData.groupSize; });
+            const nights = tripData.nights, lodgingCost = tripData.selectedAccommodation.price * nights * tripData.selectedAccommodation.surge;
+            let golfCost = 0; tripData.selectedCourses.forEach(c => { golfCost += c.price * tripData.groupSize; });
+            const transportEstimate = 200, totalCost = ticketCost + lodgingCost + golfCost + transportEstimate, perPersonCost = totalCost / tripData.groupSize;
+            document.getElementById('tripSummary').innerHTML = `<div class="space-y-3">
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded"><span class="font-medium">Championship Tickets (${tripData.selectedDays.length} days × ${tripData.groupSize} guests)</span><span class="font-bold">$${ticketCost.toLocaleString()}</span></div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded"><span class="font-medium">${tripData.selectedAccommodation.name} (${nights} nights)</span><span class="font-bold">$${lodgingCost.toFixed(0).toLocaleString()}</span></div>
+                ${golfCost > 0 ? `<div class="p-3 bg-gray-50 rounded"><div class="flex justify-between mb-2"><span class="font-medium">Premium Tee Times (${Object.keys(tripData.golfDays).length} rounds)</span><span class="font-bold">$${golfCost.toLocaleString()}</span></div><div class="text-xs text-gray-600 space-y-1">${Object.values(tripData.golfDays).map(g=>`<div>• ${g.course.name} — ${g.day.charAt(0).toUpperCase()+g.day.slice(1)} at ${g.teeTime}</div>`).join('')}</div></div>` : ''}
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded"><span class="font-medium">Ground Transportation</span><span class="font-bold">$${transportEstimate}</span></div>
+                <div class="border-t-2 pt-3"><div class="flex justify-between text-xl font-bold"><span>Total Package Investment</span><span class="${totalCost>tripData.budget?'text-red-600':'text-green-600'}">$${totalCost.toFixed(0).toLocaleString()}</span></div><div class="flex justify-between text-sm text-gray-600 mt-1"><span>Per Guest</span><span>$${perPersonCost.toFixed(0).toLocaleString()}</span></div></div>
+            </div>`;
+            displaySchedule();
+            const tips = tournament.insiderTips;
+            ['traffic','dress','food','experiences'].forEach((key, i) => {
+                const ids = ['trafficTips','dressTips','foodTips','experienceTips'];
+                document.getElementById(ids[i]).innerHTML = tips[key].map(t=>`<div class="text-sm text-gray-700">• ${t}</div>`).join('');
+            });
+        }
+
+        function displaySchedule() {
+            const tournament = tournaments[tripData.tournament];
+            const arrival = new Date(tripData.arrivalDate), departure = new Date(tripData.departureDate), allDays = [];
+            for (let d = new Date(arrival); d < departure; d.setDate(d.getDate()+1)) {
+                const dayName = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+                allDays.push({ date: new Date(d), dayName, dateStr: d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) });
+            }
+            let html = '<div class="space-y-4">';
+            allDays.forEach(day => {
+                const isEventDay = tripData.selectedDays.includes(day.dayName);
+                const golfThisDay = Object.values(tripData.golfDays).find(g => g.day === day.dayName);
+                html += `<div class="border-2 border-green-200 rounded-lg p-4 bg-green-50"><h3 class="text-lg font-bold text-gray-800 mb-3">${day.dateStr}</h3><div class="space-y-3 text-sm">`;
+                if (golfThisDay) html += `<div class="flex items-start gap-2 bg-white p-3 rounded-lg"><span class="text-green-600 text-xl">⛳</span><div class="flex-1"><div class="font-semibold text-green-800">${golfThisDay.teeTime} — Premium Tee Time</div><div class="text-gray-700 font-medium">${golfThisDay.course.name}</div><div class="text-gray-500 text-xs mt-1">${golfThisDay.course.distance} min commute • ~4.5 hr round</div></div></div>`;
+                if (isEventDay) { const td = tournament.days.find(d=>d.id===day.dayName), at = ['sat','sun'].includes(day.dayName)?'8:00 AM':'9:30 AM'; html += `<div class="flex items-start gap-2 bg-white p-3 rounded-lg"><span class="text-blue-600 text-xl">🏆</span><div class="flex-1"><div class="font-semibold text-blue-800">${at} — Championship Grounds Access</div><div class="text-gray-700 font-medium">${tournament.venue}</div><div class="text-gray-500 text-xs mt-1">${td?td.name:'Tournament Day'} • ${tripData.selectedAccommodation.distance} min from lodging</div></div></div>`; }
+                if (!golfThisDay && !isEventDay) html += `<div class="text-gray-500 italic">Free day — explore the local area or relax</div>`;
+                html += `</div></div>`;
+            });
+            html += '</div>';
+            document.getElementById('scheduleContent').innerHTML = html;
+        }
+
+        document.getElementById('bookTrip').addEventListener('click', () => {
+            alert('🏆 Championship package secured! A Greenside Journeys concierge will contact you shortly with final details.');
+        });
+  </script>
+</body>
+</html>
