@@ -122,7 +122,7 @@
     <div class="flex items-center gap-2">
       <div class="w-9 h-9 rounded-lg accent-bg flex items-center justify-center text-lg font-bold">⛳</div>
       <div>
-        <div class="font-bold leading-tight">Greenside Bet Tracker <span class="text-xs text-dim font-normal">v6</span></div>
+        <div class="font-bold leading-tight">Greenside Bet Tracker <span class="text-xs accent-text font-bold">v7</span></div>
         <div class="text-xs text-dim">PrizePicks × ESPN live</div>
       </div>
     </div>
@@ -136,7 +136,7 @@
   </div>
   <div class="border-t border-c surface-2 overflow-hidden">
     <div id="tickerWrap" class="py-2 px-4 text-xs text-mid scrollbar-thin overflow-hidden">
-      <div id="ticker" class="ticker">Loading PGA Tour live data…</div>
+      <div id="ticker" class="ticker">Loading live data from ESPN…</div>
     </div>
   </div>
 </header>
@@ -462,9 +462,12 @@ function buildSwatches() {
      - /apis/site/v2/sports/golf/pga/leaderboard            (current event)
      - /apis/site/v2/sports/golf/pga/leaderboard?event=ID   (specific event)
 =========================================================== */
-const FEED = {
-  leaderboard: 'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard'
-};
+const FEED_URLS = [
+  'https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard',
+  'https://site.web.api.espn.com/apis/v2/sports/golf/leaderboard?league=pga',
+  'https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga',
+  'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard'
+];
 
 const PROXIES = [
   url => url,
@@ -545,27 +548,36 @@ function normalizeESPN(json) {
   };
 }
 
+function buildUrls() {
+  return FEED_URLS.map(base => {
+    if (!state.prefs.tid) return base;
+    const sep = base.includes('?') ? '&' : '?';
+    return base + sep + 'event=' + encodeURIComponent(state.prefs.tid);
+  });
+}
+
 async function fetchLeaderboard() {
   $('#lastUpdate').textContent = 'fetching…';
-  const url = state.prefs.tid
-    ? `${FEED.leaderboard}?event=${encodeURIComponent(state.prefs.tid)}`
-    : FEED.leaderboard;
-  // Try JSONP first — bypasses CORS via <script> tag, works from file://.
-  // Fall back to direct fetch + proxy chain if ESPN doesn't return a JSONP payload.
-  const attempts = [
-    { label: 'jsonp', run: () => jsonp(url) },
-    ...PROXIES.map((fn, i) => ({
-      label: i === 0 ? 'direct' : `proxy ${i}`,
-      run: () => jsonGet(url, fn)
-    }))
-  ];
+  const urls = buildUrls();
+  // Build attempt matrix: for each candidate URL, try JSONP, then direct, then proxies.
+  // First successful response wins.
+  const attempts = [];
+  for (const url of urls) {
+    attempts.push({ label: `jsonp ${urls.indexOf(url)+1}`, run: () => jsonp(url) });
+    attempts.push({ label: `direct ${urls.indexOf(url)+1}`, run: () => jsonGet(url, PROXIES[0]) });
+  }
+  // After JSONP+direct on each URL, fall back to proxies on the first URL.
+  for (let p = 1; p < PROXIES.length; p++) {
+    attempts.push({ label: `proxy ${p}`, run: () => jsonGet(urls[0], PROXIES[p]) });
+  }
+
   let lastErr;
   for (const a of attempts) {
     try {
       $('#lastUpdate').textContent = `fetching (${a.label})…`;
       const json = await a.run();
       const norm = normalizeESPN(json);
-      if (!norm || !norm.players?.length) throw new Error('No players in feed');
+      if (!norm || !norm.players?.length) throw new Error('Empty feed');
       state.leaderboard = norm;
       state.tournament = { id: norm.eventId, tournamentName: norm.tournamentName };
       state.lastFetch = Date.now();
@@ -583,7 +595,7 @@ async function fetchLeaderboard() {
     }
   }
   console.error('All attempts failed', lastErr);
-  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — every method blocked (${lastErr?.message||'unknown'})</span>`;
+  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — ${lastErr?.message||'unknown'}</span>`;
   if (state.leaderboard) { buildTicker(); evaluateBets(); render(); }
 }
 
