@@ -157,8 +157,26 @@
         <input id="fileInput" type="file" accept="image/*" multiple class="hidden">
       </div>
       <details class="mt-3">
-        <summary class="text-xs text-dim hover:underline">Add a bet manually instead</summary>
-        <div id="manualForm" class="grid sm:grid-cols-2 gap-2 mt-3 text-sm">
+        <summary class="text-xs text-dim hover:underline">Paste a parlay or add a bet manually</summary>
+
+        <div class="mt-3">
+          <div class="text-xs text-mid mb-1">Paste parlay text (multi-leg supported — copy straight from PrizePicks / Underdog / sportsbook)</div>
+          <textarea id="m_paste" rows="5" class="w-full text-sm" placeholder="e.g.
+Scottie Scheffler — Round 1 Strokes — Less than 68.5
+Rory McIlroy — Fairways Hit R1 — More than 9.5
+Xander Schauffele — GIR R1 — Higher 12.5"></textarea>
+          <div class="flex gap-2 mt-2">
+            <button id="m_parse" class="btn btn-primary text-sm">Parse parlay</button>
+            <button id="m_addParsed" class="btn text-sm" disabled>Add 0 bets</button>
+            <span id="m_parseStatus" class="text-xs text-dim self-center"></span>
+          </div>
+          <div id="m_preview" class="mt-2 text-xs space-y-1"></div>
+        </div>
+
+        <div class="border-t border-c my-3"></div>
+
+        <div class="text-xs text-mid mb-1">Or fill out a single bet:</div>
+        <div id="manualForm" class="grid sm:grid-cols-2 gap-2 text-sm">
           <input id="m_player" placeholder="Player name (e.g. Scottie Scheffler)">
           <select id="m_type">
             <option value="round_strokes">Round strokes</option>
@@ -168,14 +186,14 @@
             <option value="tournament_winner">Tournament winner</option>
           </select>
           <select id="m_dir">
-            <option value="over">Over</option>
-            <option value="under">Under</option>
-            <option value="yes">Yes</option>
+            <option value="over">Over / Higher / More</option>
+            <option value="under">Under / Lower / Less</option>
+            <option value="yes">Yes (winner)</option>
           </select>
           <input id="m_line" type="number" step="0.5" placeholder="Line (e.g. 70.5)">
           <input id="m_round" type="number" min="1" max="4" placeholder="Round # (optional)">
           <input id="m_boost" placeholder="Boost / payout (optional)">
-          <button id="m_add" class="btn btn-primary sm:col-span-2">Add bet</button>
+          <button id="m_add" class="btn btn-primary sm:col-span-2">Add single bet</button>
         </div>
       </details>
     </div>
@@ -248,21 +266,21 @@
       <input id="refreshInterval" type="number" min="10" max="600" class="w-full">
     </div>
     <div>
-      <div class="text-mid mb-1">Tournament ID override</div>
-      <input id="tidOverride" placeholder="e.g. R2026005" class="w-full">
-      <div class="text-xs text-dim mt-1">Blank = auto-detect current PGA Tour event.</div>
+      <div class="text-mid mb-1">ESPN event ID override</div>
+      <input id="tidOverride" placeholder="e.g. 401580351" class="w-full">
+      <div class="text-xs text-dim mt-1">Blank = auto-detect current PGA event. Find IDs at espn.com/golf URL.</div>
     </div>
     <div>
-      <div class="text-mid mb-1">CORS proxy</div>
+      <div class="text-mid mb-1">CORS proxy fallback</div>
       <select id="proxySel" class="w-full">
         <option value="direct">Direct (no proxy)</option>
         <option value="corsproxy.io">corsproxy.io</option>
         <option value="allorigins">allorigins.win</option>
       </select>
-      <div class="text-xs text-dim mt-1">Browsers block pgatour.com directly. Use a proxy if requests fail.</div>
+      <div class="text-xs text-dim mt-1">Direct works for ESPN's API. Proxy is only used if the direct call fails.</div>
     </div>
     <div class="pt-2 border-t border-c text-xs text-dim">
-      Live data is fetched from PGA Tour's public orchestrator. Coverage varies between rounds and tournaments.
+      Live data: ESPN public PGA leaderboard (mirrors PGA Tour event data). Round scores, position, and winner are tracked automatically. FIR/GIR bets must be settled manually — that data isn't in the public feed.
     </div>
   </div>
 </div>
@@ -284,7 +302,7 @@ const DEFAULT_PREFS = {
   density: 'cozy',
   view: 'tape',
   refresh: 30,
-  proxy: 'corsproxy.io',
+  proxy: 'direct',
   tid: ''
 };
 const ACCENTS = ['#1a7a4a','#0b6efd','#c0392b','#7e57c2','#d39e00','#0f766e','#db2777'];
@@ -437,42 +455,14 @@ function buildSwatches() {
 }
 
 /* ===========================================================
-   PGA TOUR LIVE FETCH
-   We use the public orchestrator GraphQL endpoint that pgatour.com's
-   own web app calls. The public site embeds an API key in client JS.
-   CORS is restrictive, so we offer proxy fallbacks.
+   LIVE FEED — ESPN public PGA leaderboard
+   ESPN's site.api.espn.com is open-CORS, no key, and mirrors PGA Tour
+   tournament data. Endpoints:
+     - /apis/site/v2/sports/golf/pga/leaderboard            (current event)
+     - /apis/site/v2/sports/golf/pga/leaderboard?event=ID   (specific event)
 =========================================================== */
-const PGA = {
-  endpoint: 'https://orchestrator.pgatour.com/graphql',
-  apiKey:   'da2-gsrx5bibzbb4njvhl7t37wqyl4',
-  schedule: `query Schedule($tour:TourCode!, $year:Int) {
-    schedule(tourCode:$tour, year:$year) {
-      completed { tournaments { id tournamentName startDate endDate status } }
-      upcoming  { tournaments { id tournamentName startDate endDate status } }
-    }
-  }`,
-  leaderboard: `query Leaderboard($id:String!) {
-    leaderboardV3(id:$id) {
-      tournamentName roundDisplay roundStatus
-      players {
-        ... on PlayerRowV3 {
-          id leaderboardSortOrder
-          player { firstName lastName }
-          score scoringData { position total rounds today thru }
-        }
-      }
-    }
-  }`,
-  scorecard: `query Scorecard($tid:String!, $pid:String!) {
-    scorecardV2(tournamentId:$tid, playerId:$pid) {
-      tournamentName
-      roundScores {
-        roundNumber score parRelativeScore
-        firstNine { holes { holeNumber yards par score parRelativeScore fairwayShotResult greenShotResult } }
-        secondNine { holes { holeNumber yards par score parRelativeScore fairwayShotResult greenShotResult } }
-      }
-    }
-  }`
+const FEED = {
+  leaderboard: 'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard'
 };
 
 function proxify(url) {
@@ -483,61 +473,89 @@ function proxify(url) {
   }
 }
 
-async function gql(query, variables) {
-  const body = JSON.stringify({ query, variables });
-  const url = proxify(PGA.endpoint);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', 'X-Api-Key': PGA.apiKey },
-    body
-  });
+async function jsonGet(url, useProxy=false) {
+  const finalUrl = useProxy ? proxify(url) : url;
+  const res = await fetch(finalUrl, { headers: { 'Accept':'application/json' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.errors) throw new Error(json.errors[0]?.message || 'GraphQL error');
-  return json.data;
+  return await res.json();
 }
 
-async function detectCurrentTournament() {
-  if (state.prefs.tid) return { id: state.prefs.tid, tournamentName: 'Custom event' };
-  const year = new Date().getFullYear();
-  const data = await gql(PGA.schedule, { tour: 'R', year });
-  const all = [
-    ...(data.schedule?.upcoming?.tournaments || []),
-    ...(data.schedule?.completed?.tournaments || [])
-  ];
-  const now = Date.now();
-  const live = all.find(t => {
-    const s = new Date(t.startDate).getTime();
-    const e = new Date(t.endDate).getTime() + 86400000;
-    return now >= s && now <= e;
+function normalizeESPN(json) {
+  const event = json?.events?.[0];
+  if (!event) return null;
+  const comp = event.competitions?.[0];
+  const competitors = comp?.competitors || [];
+  const roundDisplay = event.status?.type?.shortDetail
+    || comp?.status?.type?.shortDetail
+    || event.status?.type?.description
+    || '';
+  const roundStatus = (event.status?.type?.completed || comp?.status?.type?.completed)
+    ? 'OFFICIAL' : (event.status?.type?.state || '');
+
+  const players = competitors.map(c => {
+    const ath = c.athlete || {};
+    const status = c.status || {};
+    const pos = status.position?.displayName || c.statistics?.find?.(s=>s.name==='position')?.displayValue || '';
+    const today = status.value ?? c.statistics?.find?.(s=>/today/i.test(s.name))?.displayValue ?? '';
+    const thru = status.thru != null ? String(status.thru) : (status.position?.id === '1' && status.type?.completed ? 'F' : '');
+    const rounds = (c.linescores || []).map(ls => ls.value ?? parseInt(ls.displayValue));
+    const fullName = ath.displayName || `${ath.firstName||''} ${ath.lastName||''}`.trim();
+    const parts = fullName.split(/\s+/);
+    return {
+      id: ath.id || c.id,
+      player: {
+        firstName: ath.firstName || parts.slice(0,-1).join(' ') || fullName,
+        lastName:  ath.lastName  || parts.slice(-1)[0] || ''
+      },
+      scoringData: {
+        position: pos,
+        total: c.score ?? '',
+        today: today === '' ? '' : (typeof today === 'number' ? (today>0?`+${today}`:String(today)) : today),
+        thru: thru || (status.type?.completed ? 'F' : ''),
+        rounds
+      }
+    };
   });
-  if (live) return live;
-  const upcoming = (data.schedule?.upcoming?.tournaments || []).sort(
-    (a,b)=> new Date(a.startDate)-new Date(b.startDate)
-  )[0];
-  return upcoming || all[0] || null;
+
+  return {
+    tournamentName: event.name || event.shortName || 'Tournament',
+    eventId: event.id,
+    roundDisplay,
+    roundStatus,
+    players
+  };
 }
 
 async function fetchLeaderboard() {
   $('#lastUpdate').textContent = 'fetching…';
-  try {
-    if (!state.tournament) state.tournament = await detectCurrentTournament();
-    if (!state.tournament) throw new Error('No tournament found');
-    const data = await gql(PGA.leaderboard, { id: state.tournament.id });
-    state.leaderboard = data.leaderboardV3;
-    state.lastFetch = Date.now();
-    save();
-    $('#tournamentBadge').textContent = (state.leaderboard.tournamentName || state.tournament.tournamentName || 'Tournament')
-      + (state.leaderboard.roundDisplay ? ` • ${state.leaderboard.roundDisplay}` : '');
-    $('#lastUpdate').textContent = 'Updated ' + fmtTime(state.lastFetch);
-    buildTicker();
-    evaluateBets();
-    render();
-  } catch (err) {
-    console.error(err);
-    $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — ${err.message}</span>`;
-    if (state.leaderboard) { buildTicker(); evaluateBets(); render(); }
+  const url = state.prefs.tid
+    ? `${FEED.leaderboard}?event=${encodeURIComponent(state.prefs.tid)}`
+    : FEED.leaderboard;
+  const attempts = [
+    () => jsonGet(url, false),
+    () => jsonGet(url, true)   // proxy fallback
+  ];
+  let lastErr;
+  for (const attempt of attempts) {
+    try {
+      const json = await attempt();
+      const norm = normalizeESPN(json);
+      if (!norm || !norm.players?.length) throw new Error('No players in feed');
+      state.leaderboard = norm;
+      state.tournament = { id: norm.eventId, tournamentName: norm.tournamentName };
+      state.lastFetch = Date.now();
+      save();
+      $('#tournamentBadge').textContent = norm.tournamentName + (norm.roundDisplay ? ` • ${norm.roundDisplay}` : '');
+      $('#lastUpdate').textContent = 'Updated ' + fmtTime(state.lastFetch);
+      buildTicker();
+      evaluateBets();
+      render();
+      return;
+    } catch (err) { lastErr = err; }
   }
+  console.error(lastErr);
+  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — ${lastErr?.message||'unknown error'}</span>`;
+  if (state.leaderboard) { buildTicker(); evaluateBets(); render(); }
 }
 
 function buildTicker() {
@@ -578,82 +596,51 @@ function findPlayer(name) {
   return bestScore >= 40 ? best : null;
 }
 
-async function fetchScorecard(playerId) {
-  if (!state.tournament) return null;
-  try {
-    const data = await gql(PGA.scorecard, { tid: state.tournament.id, pid: playerId });
-    return data.scorecardV2;
-  } catch (e) { return null; }
-}
-
-const scorecardCache = new Map();
-
 async function evaluateBets() {
   const lb = state.leaderboard;
   if (!lb) { render(); return; }
   let dirty = false;
   for (const bet of state.bets) {
     const player = findPlayer(bet.player);
-    if (!player) { bet.status = bet.status === 'won' || bet.status === 'lost' ? bet.status : 'pending'; continue; }
+    if (!player) { if (bet.status !== 'won' && bet.status !== 'lost') bet.status = 'pending'; continue; }
     bet.matchedPlayerId = player.id;
     const sd = player.scoringData || {};
     bet.position = sd.position;
     bet.total = sd.total;
     bet.today = sd.today;
     bet.thru = sd.thru;
-    const newStatus = await evalBet(bet, player);
+    const newStatus = evalBet(bet, player);
     if (newStatus && newStatus !== bet.status) { bet.status = newStatus; dirty = true; }
   }
   if (dirty) save();
   render();
 }
 
-async function evalBet(bet, player) {
+function evalBet(bet, player) {
   const sd = player.scoringData || {};
+  const officialDone = (state.leaderboard.roundStatus||'').toUpperCase().includes('OFFICIAL');
   switch (bet.type) {
     case 'round_strokes': {
       const round = bet.round || 1;
-      let score = null;
-      if (sd.rounds && Array.isArray(sd.rounds) && sd.rounds[round-1] != null) score = +sd.rounds[round-1];
-      if (score == null) {
-        let card = scorecardCache.get(player.id);
-        if (!card) { card = await fetchScorecard(player.id); if (card) scorecardCache.set(player.id, card); }
-        const rr = card?.roundScores?.find(r => r.roundNumber === round);
-        if (rr?.score != null) score = +rr.score;
-      }
+      const score = sd.rounds && sd.rounds[round-1] != null ? +sd.rounds[round-1] : null;
       if (score == null) return 'live';
-      const done = sd.thru === 'F' || sd.thru === '18';
+      const done = sd.thru === 'F' || sd.thru === '18' || officialDone;
       return compare(score, bet.line, bet.direction, done);
     }
     case 'fairways_hit':
     case 'greens_in_reg': {
-      const round = bet.round || 1;
-      let card = scorecardCache.get(player.id);
-      if (!card) { card = await fetchScorecard(player.id); if (card) scorecardCache.set(player.id, card); }
-      const rr = card?.roundScores?.find(r => r.roundNumber === round);
-      if (!rr) return 'live';
-      const holes = [...(rr.firstNine?.holes||[]), ...(rr.secondNine?.holes||[])];
-      const played = holes.filter(h => h.score != null && h.score !== '').length;
-      let hits = 0;
-      if (bet.type === 'fairways_hit') {
-        hits = holes.filter(h => /HIT|FAIRWAY/i.test(h.fairwayShotResult||'')).length;
-      } else {
-        hits = holes.filter(h => /HIT|GREEN/i.test(h.greenShotResult||'')).length;
-      }
-      bet.progress = `${hits} thru ${played}`;
-      const done = played >= 18;
-      return compare(hits, bet.line, bet.direction, done);
+      // ESPN's public feed doesn't expose per-shot FIR/GIR results.
+      bet.progress = 'manual settle';
+      return bet.status === 'won' || bet.status === 'lost' ? bet.status : 'live';
     }
     case 'tournament_position': {
       const pos = parseInt(String(sd.position||'').replace(/[^\d]/g,''));
       if (!pos) return 'live';
-      const done = (state.leaderboard.roundStatus||'').toUpperCase().includes('OFFICIAL');
-      return compare(pos, bet.line, bet.direction === 'under' ? 'under' : bet.direction === 'over' ? 'over' : 'under', done);
+      return compare(pos, bet.line, bet.direction === 'over' ? 'over' : 'under', officialDone);
     }
     case 'tournament_winner': {
-      const done = (state.leaderboard.roundStatus||'').toUpperCase().includes('OFFICIAL');
       const pos = parseInt(String(sd.position||'').replace(/[^\d]/g,''));
-      if (done) return pos === 1 ? 'won' : 'lost';
+      if (officialDone) return pos === 1 ? 'won' : 'lost';
       return 'live';
     }
   }
@@ -707,41 +694,66 @@ async function handleFiles(files) {
   }
 }
 
-function parsePrizePicks(text) {
+function parseSlipText(text, source='paste') {
   const out = [];
-  const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  // Split into "legs" — most slip text uses newlines or em-dashes between legs.
+  // Heuristic: each line containing both a player-looking name and a stat keyword is its own leg.
+  const rawLines = text.split(/\r?\n|(?:\s*[—–-]\s*){2,}/).map(s=>s.trim()).filter(Boolean);
+  // Coalesce lines that don't yet have a number+stat (Underdog often wraps onto 2-3 lines)
+  const lines = [];
+  let buf = '';
+  for (const L of rawLines) {
+    buf = buf ? buf + ' · ' + L : L;
+    const has = /(fairway|green|gir|fir|strok|score|position|finish|winner|to win)/i.test(buf)
+             && /\d/.test(buf);
+    if (has) { lines.push(buf); buf = ''; }
+  }
+  if (buf) lines.push(buf);
+
   const typeMap = [
-    [/fairway/i,            'fairways_hit'],
-    [/green.*regulation|gir/i, 'greens_in_reg'],
-    [/strokes|round score|score/i, 'round_strokes'],
-    [/position|finish/i,    'tournament_position'],
-    [/winner|to win/i,      'tournament_winner']
+    [/fairway|\bfir\b/i,             'fairways_hit'],
+    [/green.*regulation|\bgir\b/i,   'greens_in_reg'],
+    [/strok|round\s*score|\bscore\b/i,'round_strokes'],
+    [/position|finish/i,             'tournament_position'],
+    [/winner|to\s*win/i,             'tournament_winner']
   ];
-  for (let i = 0; i < lines.length; i++) {
-    const L = lines[i];
-    const m = L.match(/([A-Z][a-zA-Z'’.-]+(?:\s+[A-Z][a-zA-Z'’.-]+){1,3})/);
-    if (!m) continue;
-    const name = m[1];
-    const ctx = (L + ' ' + (lines[i+1]||'') + ' ' + (lines[i+2]||'')).toLowerCase();
-    if (!/(fairway|green|strokes|position|winner|gir|fir|score)/.test(ctx)) continue;
+
+  for (const L of lines) {
+    const ctx = L.toLowerCase();
+    if (!/(fairway|green|strok|score|position|winner|gir|fir|finish)/.test(ctx)) continue;
+    // Player: take the first multi-word capitalized run on the line
+    const nameMatch = L.match(/([A-Z][a-zA-Z'’.\-]+(?:\s+[A-Z][a-zA-Z'’.\-]+){1,3})/);
+    if (!nameMatch) continue;
+    const name = nameMatch[1];
+
     let type = 'round_strokes';
     for (const [re,t] of typeMap) if (re.test(ctx)) { type = t; break; }
-    const lineMatch = ctx.match(/(\d+(?:\.\d+)?)/);
-    const line = lineMatch ? parseFloat(lineMatch[1]) : null;
-    let direction = /under|less/.test(ctx) ? 'under' : 'over';
+
+    let direction = 'over';
+    if (/\b(under|lower|less|fewer|below)\b/.test(ctx)) direction = 'under';
+    else if (/\b(over|higher|more|greater|above)\b/.test(ctx)) direction = 'over';
     if (type === 'tournament_winner') direction = 'yes';
-    const roundMatch = ctx.match(/round\s*(\d)/i) || ctx.match(/r(\d)/i);
+
+    // Line: first number that comes after the stat keyword if possible
+    let line = null;
+    const after = ctx.split(/(fairway|green|gir|fir|strok|score|position|finish|winner)/).slice(2).join(' ');
+    const nm = (after.match(/(\d+(?:\.\d+)?)/) || ctx.match(/(\d+(?:\.\d+)?)/));
+    if (nm) line = parseFloat(nm[1]);
+
+    const roundMatch = ctx.match(/round\s*(\d)/) || ctx.match(/\br([1-4])\b/);
     const round = roundMatch ? parseInt(roundMatch[1]) : null;
-    const boostMatch = ctx.match(/(\d+(?:\.\d+)?)x|boost\s*(\d+)%/);
+    const boostMatch = ctx.match(/(\d+(?:\.\d+)?)\s*x\b/) || ctx.match(/boost\s*(\d+)\s*%/);
     const boost = boostMatch ? boostMatch[0] : null;
+
     if (line == null && type !== 'tournament_winner') continue;
     out.push({
       id: uid(), player: name, type, direction, line, round, boost,
-      status: 'pending', addedAt: Date.now(), source: 'ocr'
+      status: 'pending', addedAt: Date.now(), source
     });
   }
   return out;
 }
+const parsePrizePicks = (text) => parseSlipText(text, 'ocr');
 
 /* ===========================================================
    RENDER
@@ -928,6 +940,43 @@ function bindEvents() {
   dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag'); };
   dz.ondragleave = () => dz.classList.remove('drag');
   dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles([...e.dataTransfer.files]); };
+
+  let pendingParlay = [];
+  const renderParsedPreview = () => {
+    const wrap = $('#m_preview');
+    if (!pendingParlay.length) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = pendingParlay.map((b, i) => `
+      <div class="surface-2 rounded px-2 py-1 flex justify-between items-center">
+        <span><b>${b.player}</b> · ${TYPE_LABEL[b.type]||b.type} ${b.direction.toUpperCase()} ${b.line ?? ''}${b.round?` · R${b.round}`:''}</span>
+        <button data-drop="${i}" class="btn-ghost btn text-xs">✕</button>
+      </div>`).join('');
+    $$('#m_preview [data-drop]').forEach(btn => btn.onclick = () => {
+      pendingParlay.splice(+btn.dataset.drop, 1);
+      $('#m_addParsed').disabled = !pendingParlay.length;
+      $('#m_addParsed').textContent = `Add ${pendingParlay.length} bet${pendingParlay.length===1?'':'s'}`;
+      renderParsedPreview();
+    });
+  };
+  $('#m_parse').onclick = () => {
+    const txt = $('#m_paste').value.trim();
+    if (!txt) { $('#m_parseStatus').textContent = 'Paste some slip text first.'; return; }
+    pendingParlay = parseSlipText(txt, 'paste');
+    $('#m_parseStatus').textContent = pendingParlay.length
+      ? `Recognized ${pendingParlay.length} leg${pendingParlay.length===1?'':'s'} — review below`
+      : 'No legs recognized — try one leg per line with player + stat + line';
+    $('#m_addParsed').disabled = !pendingParlay.length;
+    $('#m_addParsed').textContent = `Add ${pendingParlay.length} bet${pendingParlay.length===1?'':'s'}`;
+    renderParsedPreview();
+  };
+  $('#m_addParsed').onclick = () => {
+    if (!pendingParlay.length) return;
+    state.bets.push(...pendingParlay); save();
+    toast(`Added ${pendingParlay.length} leg(s) to tracker.`);
+    pendingParlay = []; $('#m_paste').value = ''; $('#m_parseStatus').textContent = '';
+    $('#m_addParsed').disabled = true; $('#m_addParsed').textContent = 'Add 0 bets';
+    renderParsedPreview();
+    evaluateBets();
+  };
 
   $('#m_add').onclick = () => {
     const player = $('#m_player').value.trim();
