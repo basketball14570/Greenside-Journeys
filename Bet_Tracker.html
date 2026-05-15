@@ -186,6 +186,7 @@
       <div class="border-t border-c mt-3 pt-3 flex items-center gap-2 flex-wrap">
         <button id="exportBtn" class="btn text-xs">Export JSON</button>
         <button id="importBtn" class="btn text-xs">Import</button>
+        <button id="shareAllBtn" class="btn text-xs">🔗 Share link</button>
         <button id="clearBtn" class="btn text-xs">Clear all</button>
         <input id="importFile" type="file" accept="application/json" class="hidden">
       </div>
@@ -314,6 +315,94 @@ function toast(msg, ms=2800) {
   el.textContent = msg;
   $('#toastWrap').appendChild(el);
   setTimeout(()=> el.remove(), ms);
+}
+
+/* ===========================================================
+   SHARE LINKS — self-contained, base64url-encoded JSON in hash
+=========================================================== */
+function b64urlEncode(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecode(str) {
+  str = str.replace(/-/g,'+').replace(/_/g,'/');
+  while (str.length % 4) str += '=';
+  return decodeURIComponent(escape(atob(str)));
+}
+function shareLinkFor(bets) {
+  const slim = bets.map(b => ({
+    p: b.player, t: b.type, d: b.direction, l: b.line,
+    r: b.round || undefined, b: b.boost || undefined
+  }));
+  const payload = b64urlEncode(JSON.stringify(slim));
+  const base = location.href.split('#')[0].split('?')[0];
+  return `${base}#bet=${payload}`;
+}
+function decodeShared(payload) {
+  try {
+    const arr = JSON.parse(b64urlDecode(payload));
+    if (!Array.isArray(arr)) return [];
+    return arr.map(s => ({
+      id: uid(),
+      player: s.p, type: s.t, direction: s.d, line: s.l,
+      round: s.r || null, boost: s.b || null,
+      status: 'pending', addedAt: Date.now(), source: 'shared'
+    }));
+  } catch (e) { return []; }
+}
+async function copyToClipboard(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); document.body.removeChild(ta); return true; }
+    catch { document.body.removeChild(ta); return false; }
+  }
+}
+function openShareModal(bets, title) {
+  const url = shareLinkFor(bets);
+  const existing = $('#shareModal'); if (existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'shareModal';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  wrap.innerHTML = `
+    <div class="surface rounded-xl p-5 max-w-lg w-full">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">${title}</h3>
+        <button class="btn btn-ghost" id="shareClose">✕</button>
+      </div>
+      <div class="text-xs text-mid mb-2">Anyone who opens this link in their Bet Tracker will be prompted to import ${bets.length} bet${bets.length===1?'':'s'}.</div>
+      <textarea id="shareUrl" readonly rows="4" style="width:100%;font-family:ui-monospace,monospace;font-size:.78rem;word-break:break-all;">${url}</textarea>
+      <div class="flex gap-2 mt-3">
+        <button id="shareCopy" class="btn btn-primary flex-1">📋 Copy link</button>
+        <button id="shareOpen" class="btn flex-1">↗ Open in new tab</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+  $('#shareClose').onclick = () => wrap.remove();
+  $('#shareOpen').onclick = () => window.open(url, '_blank');
+  $('#shareCopy').onclick = async () => {
+    const ok = await copyToClipboard(url);
+    $('#shareCopy').textContent = ok ? '✓ Copied!' : 'Press Ctrl+C';
+    setTimeout(()=> { const b = $('#shareCopy'); if (b) b.textContent='📋 Copy link'; }, 1800);
+  };
+  $('#shareUrl').onclick = e => e.target.select();
+}
+function handleImportFromHash() {
+  const m = location.hash.match(/[#&]bet=([A-Za-z0-9_-]+)/);
+  if (!m) return;
+  const incoming = decodeShared(m[1]);
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!incoming.length) { toast('Share link is malformed.'); return; }
+  const label = incoming.length === 1
+    ? `${incoming[0].player} — ${TYPE_LABEL[incoming[0].type]||incoming[0].type} ${(incoming[0].direction||'').toUpperCase()} ${incoming[0].line ?? ''}`
+    : `${incoming.length} bets`;
+  if (confirm(`Import shared bet?\n\n${label}`)) {
+    state.bets.push(...incoming); save(); evaluateBets();
+    toast(`Imported ${incoming.length} bet(s) from link.`);
+  }
 }
 
 /* ===========================================================
@@ -692,6 +781,10 @@ function render() {
   $$('[data-del]').forEach(b => b.onclick = () => {
     state.bets = state.bets.filter(x => x.id !== b.dataset.del); save(); render();
   });
+  $$('[data-share]').forEach(b => b.onclick = () => {
+    const bet = state.bets.find(x => x.id === b.dataset.share);
+    if (bet) openShareModal([bet], `Share ${bet.player}`);
+  });
 }
 
 function renderStats() {
@@ -727,7 +820,8 @@ function viewTape(list) {
       <div class="font-mono">${b.thru||'—'}</div>
       <div class="text-right flex items-center justify-end gap-2">
         ${statusChip(b.status)}
-        <button data-del="${b.id}" class="btn-ghost btn text-xs">✕</button>
+        <button data-share="${b.id}" class="btn-ghost btn text-xs" title="Share link">🔗</button>
+        <button data-del="${b.id}" class="btn-ghost btn text-xs" title="Remove">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -762,7 +856,10 @@ function viewPulse(list) {
         </div>
         <div class="flex items-center justify-between mt-3 text-xs text-dim">
           <span>${b.round?`Round ${b.round}`:''} ${b.boost?'· '+b.boost:''}</span>
-          <button data-del="${b.id}" class="btn-ghost btn">Remove</button>
+          <div class="flex gap-1">
+            <button data-share="${b.id}" class="btn-ghost btn">🔗 Share</button>
+            <button data-del="${b.id}" class="btn-ghost btn">Remove</button>
+          </div>
         </div>
       </div>`).join('')
   }</div>`;
@@ -787,7 +884,10 @@ function viewLedger(list) {
         <div class="font-mono">${displayActual(b)}</div>
         <div class="font-mono">${b.position||'—'}</div>
         <div>${statusChip(b.status)}</div>
-        <div class="text-right"><button data-del="${b.id}" class="btn-ghost btn text-xs">✕</button></div>
+        <div class="text-right">
+          <button data-share="${b.id}" class="btn-ghost btn text-xs" title="Share link">🔗</button>
+          <button data-del="${b.id}" class="btn-ghost btn text-xs" title="Remove">✕</button>
+        </div>
       </div>`).join('');
   return `<div class="surface rounded-xl overflow-hidden">${header}${rows}</div>`;
 }
@@ -871,7 +971,32 @@ function bindEvents() {
     a.download = 'greenside-bets.json';
     a.click();
   };
-  $('#importBtn').onclick = () => $('#importFile').click();
+  $('#shareAllBtn').onclick = () => {
+    if (!state.bets.length) return toast('No bets to share yet.');
+    openShareModal(state.bets, `Share all ${state.bets.length} bets`);
+  };
+  $('#importBtn').onclick = () => {
+    const txt = prompt('Paste a shared link or JSON array of bets:');
+    if (txt == null) return;
+    const trimmed = txt.trim();
+    if (!trimmed) return;
+    const m = trimmed.match(/[#&?]bet=([A-Za-z0-9_-]+)/);
+    if (m) {
+      const arr = decodeShared(m[1]);
+      if (!arr.length) return toast('Link did not contain valid bets.');
+      state.bets.push(...arr); save(); evaluateBets();
+      return toast(`Imported ${arr.length} bet(s) from link.`);
+    }
+    try {
+      const arr = JSON.parse(trimmed);
+      if (!Array.isArray(arr)) throw new Error('Expected an array');
+      arr.forEach(b => { if (!b.id) b.id = uid(); if (!b.status) b.status = 'pending'; if (!b.addedAt) b.addedAt = Date.now(); });
+      state.bets.push(...arr); save(); evaluateBets();
+      toast(`Imported ${arr.length} bet(s).`);
+    } catch (err) {
+      if (confirm('Not a link or JSON. Import from a file instead?')) $('#importFile').click();
+    }
+  };
   $('#importFile').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try {
@@ -898,8 +1023,10 @@ buildSwatches();
 applyPrefs();
 bindEvents();
 render();
+handleImportFromHash();
 fetchLeaderboard();
 startTimer();
+window.addEventListener('hashchange', handleImportFromHash);
 </script>
 </body>
 </html>
