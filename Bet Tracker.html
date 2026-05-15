@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Greenside Bet Tracker — PGA Championship</title>
+<title>Greenside Bet Tracker - PGA Championship</title>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #0b1410;
@@ -22,23 +23,33 @@
     --blue: #58a6ff;
   }
   * { box-sizing: border-box; }
-  html, body { background: var(--bg); color: var(--ink); margin: 0;
+  html, body { background: var(--bg); color: var(--ink); margin: 0; min-height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 14px; line-height: 1.45; }
+  body {
+    background:
+      linear-gradient(180deg, rgba(4, 15, 10, 0.24), rgba(4, 15, 10, 0.88) 58%, var(--bg)),
+      url("assets/tpc-17.jpg") center top / cover fixed no-repeat;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+    background: linear-gradient(90deg, rgba(7, 18, 13, 0.78), rgba(7, 18, 13, 0.34) 48%, rgba(7, 18, 13, 0.78));
+  }
   a { color: var(--blue); text-decoration: none; }
   button { font: inherit; color: inherit; }
 
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 18px 48px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 18px 48px; }
 
   header.app {
     display: flex; align-items: center; gap: 14px; padding: 12px 14px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    margin-bottom: 16px;
+    background: rgba(17, 28, 23, 0.9); border: 1px solid rgba(181, 217, 195, 0.18); border-radius: 12px;
+    margin-bottom: 16px; flex-wrap: wrap;
+    backdrop-filter: blur(14px);
   }
-  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 250px; }
   .pin { width: 30px; height: 30px; border-radius: 8px;
     background: linear-gradient(135deg, #1c4d2e, #3fb950);
-    display: grid; place-items: center; font-size: 16px; }
+    display: grid; place-items: center; font-size: 15px; font-weight: 900; }
   .brand h1 { font-size: 16px; margin: 0; letter-spacing: 0.2px; }
   .brand .sub { color: var(--ink-dim); font-size: 12px; }
   .spacer { flex: 1; }
@@ -53,24 +64,25 @@
   .btn:hover { border-color: #2c4a3a; }
   .btn.primary { background: linear-gradient(180deg, #2a6b3e, #1f5230); border-color: #2e7a45; }
 
-  .tabs { display: inline-flex; background: var(--panel); border: 1px solid var(--line);
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs { display: inline-flex; background: rgba(17, 28, 23, 0.9); border: 1px solid rgba(181, 217, 195, 0.18);
     border-radius: 10px; padding: 4px; gap: 4px; }
   .tab { background: transparent; border: 0; color: var(--ink-dim);
     padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; }
   .tab.active { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 
   .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
-  @media (min-width: 980px) { .grid { grid-template-columns: 1.4fr 1fr; } }
+  @media (min-width: 980px) { .grid { grid-template-columns: 1.55fr 1fr; } }
 
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .card { background: rgba(17, 28, 23, 0.92); border: 1px solid rgba(181, 217, 195, 0.16); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.26); backdrop-filter: blur(14px); }
   .card h2 { margin: 0; padding: 12px 14px; font-size: 13px; font-weight: 700;
     letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-dim);
     border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
   .card h2 .count { margin-left: auto; color: var(--ink-mute); font-weight: 500; }
 
-  /* ===== TAPE view ===== */
   .tape { padding: 4px 0; }
-  .tape .row { display: grid; grid-template-columns: 1fr 90px 110px 110px;
+  .tape .row { display: grid; grid-template-columns: minmax(190px, 1fr) 68px 82px 82px 90px 104px;
     gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
   .tape .row:last-child { border-bottom: 0; }
   .tape .player { font-weight: 700; font-size: 15px; }
@@ -78,9 +90,13 @@
   .tape .num    { text-align: right; font-variant-numeric: tabular-nums; }
   .tape .num .k { color: var(--ink-mute); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; display:block; }
   .tape .num .v { font-size: 16px; font-weight: 700; }
+  @media (max-width: 760px) {
+    .tape .row { grid-template-columns: 1fr 1fr 1fr; }
+    .tape .row > div:first-child { grid-column: 1 / -1; }
+  }
   .pill { display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px;
-    border: 1px solid transparent; justify-content: center; }
+    border: 1px solid transparent; justify-content: center; white-space: nowrap; }
   .pill .dot { width: 7px; height: 7px; border-radius: 50%; }
   .pill.live { background: var(--amber-soft); color: var(--amber); border-color: rgba(210,153,34,0.3); }
   .pill.live .dot { background: var(--amber); box-shadow: 0 0 0 0 rgba(210,153,34,0.6);
@@ -97,7 +113,6 @@
     100% { box-shadow: 0 0 0 0 rgba(210,153,34,0); }
   }
 
-  /* ===== PULSE view ===== */
   .pulse-grid { display: grid; gap: 12px; padding: 12px;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   .pulse-card { background: var(--panel-2); border: 1px solid var(--line);
@@ -116,32 +131,62 @@
   .pulse-card.lost .bar > i { background: var(--red); }
   .pulse-card .stats { display: flex; gap: 10px; flex-wrap: wrap; color: var(--ink-dim); font-size: 12px; }
   .pulse-card .stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
-  .pulse-card .foot { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+  .pulse-card .foot { margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-  /* ===== LEDGER view ===== */
   table.ledger { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   table.ledger th, table.ledger td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
   table.ledger th { color: var(--ink-dim); font-weight: 600; font-size: 11px;
-    letter-spacing: 0.6px; text-transform: uppercase; background: var(--panel-2); }
+    letter-spacing: 0.6px; text-transform: uppercase; background: var(--panel-2); white-space: nowrap; }
   table.ledger td.num { text-align: right; }
   table.ledger tr.lost td:first-child { box-shadow: inset 3px 0 0 var(--red); }
   table.ledger tr.won  td:first-child { box-shadow: inset 3px 0 0 var(--green); }
   table.ledger tr.live td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+  .table-wrap { overflow-x: auto; }
 
-  /* ===== Leaderboard ===== */
+  .import-card { margin-bottom: 16px; }
+  .import-body { display: grid; gap: 12px; padding: 14px; }
+  .import-tools { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 840px) { .import-tools { grid-template-columns: 1.25fr 0.75fr; } }
+  textarea.slip-input {
+    width: 100%; min-height: 150px; resize: vertical; background: rgba(9, 20, 14, 0.82);
+    color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 11px;
+    font: inherit; line-height: 1.45;
+  }
+  .upload-box {
+    border: 1px dashed rgba(146, 168, 154, 0.42); border-radius: 8px; padding: 12px;
+    background: rgba(9, 20, 14, 0.45); display: grid; gap: 10px; align-content: start;
+  }
+  .import-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .preview-list { display: grid; gap: 6px; color: var(--ink-dim); font-size: 12px; }
+  .preview-list b { color: var(--ink); }
+  .slip-preview-img { width: 100%; max-height: 190px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: none; }
+  .import-status { color: var(--ink-mute); font-size: 12px; }
+  .auth-card { margin-bottom: 16px; }
+  .auth-body { display: grid; gap: 10px; padding: 14px; }
+  .auth-grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .auth-grid { grid-template-columns: 1fr 1fr auto auto; align-items: end; } }
+  .field { display: grid; gap: 5px; color: var(--ink-dim); font-size: 12px; }
+  .field input {
+    min-height: 38px; background: rgba(9, 20, 14, 0.82); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit;
+  }
+  .user-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px;
+    border: 1px solid rgba(181, 217, 195, 0.18); border-radius: 999px;
+    background: rgba(17, 28, 23, 0.82); color: var(--ink-dim); font-size: 12px; }
+
   .lb { padding: 4px 0; max-height: 640px; overflow: auto; }
-  .lb-row { display: grid; grid-template-columns: 36px 1fr 56px 56px 56px;
+  .lb-row { display: grid; grid-template-columns: 42px 1fr 56px 58px 58px;
     gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line);
     align-items: center; font-size: 13px; }
   .lb-row.head { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.5px;
     text-transform: uppercase; background: var(--panel-2); position: sticky; top: 0; }
-  .lb-row .pos  { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .lb-row .rank  { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
   .lb-row .name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .lb-row .v    { text-align: right; font-variant-numeric: tabular-nums; }
   .lb-row.me    { background: rgba(63,185,80,0.08); }
   .lb-row.me .name { color: var(--green); font-weight: 700; }
   .neg { color: var(--red); }
-  .pos { color: var(--green); }
+  .pos-score { color: var(--green); }
 
   footer.foot { color: var(--ink-mute); font-size: 11px; text-align: center; margin-top: 18px; }
   .hidden { display: none !important; }
@@ -154,28 +199,76 @@
 
   <header class="app">
     <div class="brand">
-      <div class="pin">⛳</div>
+      <div class="pin">G</div>
       <div>
         <h1>Greenside Bet Tracker</h1>
-        <div class="sub">PGA Championship · Underdog parlay (9 legs)</div>
+        <div class="sub" id="betSub">PGA Championship - Underdog parlay (9 legs)</div>
       </div>
     </div>
     <span class="spacer"></span>
+    <span id="userChip" class="user-chip">Guest</span>
     <span id="evtBadge" class="badge idle">No data</span>
     <span id="lastUpdated" class="meta">never updated</span>
-    <button id="refreshBtn" class="btn primary">↻ Refresh</button>
-    <button id="debugBtn" class="btn" title="Copy raw ESPN JSON for the first 3 competitors to clipboard">Debug</button>
+    <button id="accountBtn" class="btn">Account</button>
+    <button id="importBtn" class="btn">Import Slip</button>
+    <button id="refreshBtn" class="btn primary">Refresh</button>
     <label class="meta" style="display:flex;align-items:center;gap:6px;">
       <input type="checkbox" id="autoRefresh" checked />
       Auto 30s
     </label>
   </header>
 
-  <div style="margin-bottom: 14px;">
+  <div class="topbar">
     <div class="tabs" id="tabs" role="tablist">
       <button class="tab active" data-view="tape">Tape</button>
       <button class="tab" data-view="pulse">Pulse</button>
       <button class="tab" data-view="ledger">Ledger</button>
+    </div>
+  </div>
+
+  <div class="card auth-card hidden" id="authPanel">
+    <h2>Account <span class="count" id="authMode">local beta mode</span></h2>
+    <div class="auth-body">
+      <div class="auth-grid">
+        <label class="field">Email
+          <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+        </label>
+        <label class="field">Password
+          <input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimum 6 characters" />
+        </label>
+        <button id="signInBtn" class="btn primary" type="button">Sign In</button>
+        <button id="signUpBtn" class="btn" type="button">Sign Up</button>
+      </div>
+      <div class="import-actions">
+        <button id="signOutBtn" class="btn" type="button">Sign Out</button>
+        <span class="import-status" id="authStatus">Sign in to keep each user's slips separate.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card import-card hidden" id="importPanel">
+    <h2>Import Bet Slip <span class="count" id="importCount">paste text or upload screenshot</span></h2>
+    <div class="import-body">
+      <div class="import-tools">
+        <div>
+          <textarea class="slip-input" id="slipText" spellcheck="false" placeholder="Paste slip text here, for example:
+Nicolai Hojgaard Fairways Hit Under 7.5 Round 2
+Alex Noren Greens in Regulation Under 11.5 Round 2
+Xander Schauffele Tournament Position Better 10.5"></textarea>
+        </div>
+        <div class="upload-box">
+          <input type="file" id="slipImage" accept="image/png,image/jpeg,image/webp" />
+          <img id="slipImagePreview" class="slip-preview-img" alt="Bet slip screenshot preview" />
+          <button id="readScreenshotBtn" class="btn" type="button">Read Screenshot</button>
+          <div class="import-status" id="imageStatus">Screenshot parsing uses the Netlify vision function when configured.</div>
+        </div>
+      </div>
+      <div class="preview-list" id="slipPreview"></div>
+      <div class="import-actions">
+        <button id="parseSlipBtn" class="btn primary" type="button">Use Parsed Slip</button>
+        <button id="resetSlipBtn" class="btn" type="button">Restore Default Slip</button>
+        <span class="import-status" id="importStatus">No imported slip yet.</span>
+      </div>
     </div>
   </div>
 
@@ -191,13 +284,15 @@
       </div>
       <div class="card hidden" id="viewLedger">
         <h2>Ledger <span class="count" id="ledgerCount"></span></h2>
-        <table class="ledger">
-          <thead><tr>
-            <th>Player</th><th>Bet</th><th>Line</th><th>Actual</th>
-            <th>Pos</th><th>Thru</th><th>Status</th>
-          </tr></thead>
-          <tbody id="ledgerRows"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table class="ledger">
+            <thead><tr>
+              <th>Player</th><th>Bet</th><th>Line</th><th>Actual</th>
+              <th>Pos</th><th>Thru</th><th>Round</th><th>Status</th>
+            </tr></thead>
+            <tbody id="ledgerRows"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -205,7 +300,7 @@
       <h2>Leaderboard <span class="count" id="lbName"></span></h2>
       <div class="lb" id="leaderboard">
         <div class="lb-row head">
-          <div class="pos">POS</div>
+          <div class="rank">POS</div>
           <div class="name">PLAYER</div>
           <div class="v">TOT</div>
           <div class="v">R2</div>
@@ -217,66 +312,378 @@
   </div>
 
   <footer class="foot">
-    Data: ESPN public scoreboard API · Per-round Fairways Hit & GIR are not exposed in the public feed, so those legs stay <code class="kbd">Live</code> until the round closes. Refresh manually or toggle <code class="kbd">Auto 30s</code>.
+    Data: ESPN public scoreboard API. Optional GIR/Fairways legs use a same-origin Netlify function that queries PGA TOUR GraphQL when available.
   </footer>
 </div>
 
 <script>
 "use strict";
 
-// ---- Bet slip ---------------------------------------------------------------
-const BETS = [
-  { player: "Nicolai Hojgaard",   type: "fh",      dir: "lower",  line: 7.5,  round: 2, label: "Fairways Hit · UNDER 7.5 · R2" },
-  { player: "Alex Noren",         type: "gir",     dir: "lower",  line: 11.5, round: 2, label: "Greens in Reg · UNDER 11.5 · R2" },
-  { player: "Bryson DeChambeau",  type: "strokes", dir: "higher", line: 70.5, round: 2, label: "Round Strokes · OVER 70.5 · R2" },
-  { player: "Ludvig Aberg",       type: "pos",     dir: "better", line: 20.5,           label: "Tourney Position · BETTER 20.5" },
-  { player: "Xander Schauffele",  type: "pos",     dir: "better", line: 10.5,           label: "Tourney Position · BETTER 10.5" },
-  { player: "Brooks Koepka",      type: "pos",     dir: "better", line: 20.5,           label: "Tourney Position · BETTER 20.5" },
-  { player: "Jordan Spieth",      type: "strokes", dir: "higher", line: 71.5, round: 2, label: "Round Strokes · OVER 71.5 · R2" },
-  { player: "Jon Rahm",           type: "strokes", dir: "higher", line: 70.5, round: 2, label: "Round Strokes · OVER 70.5 · R2" },
+let authState = {
+  mode: "local",
+  user: null,
+  supabase: null,
+};
+
+const DEFAULT_BETS = [
+  { player: "Nicolai Hojgaard",   aliases: ["Nicolai Hojgaard", "Nicolai Hojgaard"], type: "fh",      dir: "lower",  line: 7.5,  round: 2, label: "Fairways Hit - UNDER 7.5 - R2" },
+  { player: "Alex Noren",         type: "gir",     dir: "lower",  line: 11.5, round: 2, label: "Greens in Reg - UNDER 11.5 - R2" },
+  { player: "Bryson DeChambeau",  type: "strokes", dir: "higher", line: 70.5, round: 2, label: "Round Strokes - OVER 70.5 - R2" },
+  { player: "Ludvig Aberg",       aliases: ["Ludvig Aberg", "Ludvig Åberg"], type: "pos", dir: "better", line: 20.5, label: "Tourney Position - BETTER 20.5" },
+  { player: "Xander Schauffele",  type: "pos",     dir: "better", line: 10.5,           label: "Tourney Position - BETTER 10.5" },
+  { player: "Brooks Koepka",      type: "pos",     dir: "better", line: 20.5,           label: "Tourney Position - BETTER 20.5" },
+  { player: "Jordan Spieth",      type: "strokes", dir: "higher", line: 71.5, round: 2, label: "Round Strokes - OVER 71.5 - R2" },
+  { player: "Jon Rahm",           type: "strokes", dir: "higher", line: 70.5, round: 2, label: "Round Strokes - OVER 70.5 - R2" },
   { player: "Hideki Matsuyama",   type: "winner",                                       label: "Tournament Winner" },
 ];
 
+let BETS = loadSavedBets() || [...DEFAULT_BETS];
+
 const ENDPOINT = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
-const PGA_PROXY = "/api/pga-stats"; // Netlify Function (same-origin)
+const PGA_PROXY = "/api/pga-stats";
 const REFRESH_MS = 30000;
 
-// ---- State ------------------------------------------------------------------
 let state = {
   event: null,
-  competitors: [], // normalized
+  competitors: [],
   coursePar: null,
-  pgaStats: null,   // {players:[{name,rounds:[{round,fairwaysHit,greensInRegulation,...}]}]}
+  pgaStats: null,
   pgaError: null,
   view: "tape",
   timer: null,
 };
 
-// ---- Utils ------------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 const norm = (s) => (s || "")
   .normalize("NFD").replace(/[̀-ͯ]/g, "")
-  .toLowerCase().replace(/[^a-z\s]/g, "").trim();
+  .toLowerCase().replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
+
+function loadSavedBets() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey("bets")) || localStorage.getItem("greenside:bets") || "null");
+    return Array.isArray(saved) && saved.length ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBets(bets) {
+  localStorage.setItem(storageKey("bets"), JSON.stringify(bets));
+  updateBetSub();
+  saveCloudBets(bets);
+}
+
+function storageKey(name) {
+  const email = authState?.user?.email || "guest";
+  return `greenside:${email}:${name}`;
+}
+
+function updateBetSub() {
+  const sub = $("betSub");
+  if (sub) sub.textContent = `PGA Championship - bet slip (${BETS.length} legs)`;
+}
+
+function buildLabel(bet) {
+  const line = bet.line !== null && bet.line !== undefined ? ` ${bet.line}` : "";
+  const round = bet.round ? ` - R${bet.round}` : "";
+  const dir = (bet.dir || "").toUpperCase();
+  const typeLabels = {
+    fh: "Fairways Hit",
+    gir: "Greens in Reg",
+    strokes: "Round Strokes",
+    pos: "Tourney Position",
+    winner: "Tournament Winner",
+    "3ball": "3-Ball Matchup",
+  };
+  if (bet.type === "winner") return "Tournament Winner";
+  if (bet.type === "3ball") return `3-Ball - ${bet.players?.join(" / ") || bet.player}${round}`;
+  return `${typeLabels[bet.type] || bet.type} - ${dir}${line}${round}`;
+}
+
+function normalizeImportedBet(raw) {
+  const bet = {
+    player: String(raw.player || "").trim(),
+    type: raw.type,
+    dir: raw.dir,
+    line: raw.line !== undefined && raw.line !== null && raw.line !== "" ? Number(raw.line) : null,
+    round: raw.round ? Number(raw.round) : undefined,
+    players: Array.isArray(raw.players) ? raw.players.map((p) => String(p).trim()).filter(Boolean) : undefined,
+    label: raw.label || "",
+  };
+  if (!bet.player || !bet.type) return null;
+  if (!["fh", "gir", "strokes", "pos", "winner", "3ball"].includes(bet.type)) return null;
+  if (bet.type === "3ball" && (!bet.players || bet.players.length < 2)) bet.players = [bet.player];
+  if (bet.line !== null && isNaN(bet.line)) bet.line = null;
+  if (!bet.dir) bet.dir = bet.type === "winner" ? "win" : "higher";
+  if (!bet.label) bet.label = buildLabel(bet);
+  return bet;
+}
+
+function parseSlipText(text) {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const chunks = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (marketType(line)) {
+      chunks.push(line);
+    } else if (lines[i + 1] && marketType(lines[i + 1])) {
+      chunks.push(`${line} ${lines[i + 1]}`);
+      i += 1;
+    } else {
+      chunks.push(line);
+    }
+  }
+  return chunks.map(parseSlipLine).filter(Boolean);
+}
+
+function marketType(text) {
+  const t = text.toLowerCase();
+  if (/\b3\s*ball\b|three\s*ball/.test(t)) return "3ball";
+  if (/fairways?|driving accuracy/.test(t)) return "fh";
+  if (/greens?|gir|regulation/.test(t)) return "gir";
+  if (/strokes?|score|round/.test(t)) return "strokes";
+  if (/position|finish|top\s*\d+/.test(t)) return "pos";
+  if (/winner|outright|to win/.test(t)) return "winner";
+  return null;
+}
+
+function parseSlipLine(line) {
+  const type = marketType(line);
+  if (!type) return null;
+  if (type === "3ball") return parseThreeBallLine(line);
+  const dir = parseDirection(line, type);
+  const roundMatch = line.match(/\b(?:r|round)\s*([1-4])\b/i);
+  const round = roundMatch ? Number(roundMatch[1]) : (type === "strokes" || type === "fh" || type === "gir" ? 2 : undefined);
+  const numbers = [...line.matchAll(/(?:over|under|higher|lower|better|than|top)?\s*(\d+(?:\.\d+)?)/gi)]
+    .map((m) => Number(m[1]))
+    .filter((n) => round === undefined || n !== round || /\.\d/.test(String(n)));
+  const lineValue = type === "winner" ? null : numbers.find((n) => n > 0 && n < 200) ?? null;
+  const player = extractPlayerName(line, type);
+  if (!player) return null;
+  return normalizeImportedBet({ player, type, dir, line: lineValue, round, label: buildLabel({ type, dir, line: lineValue, round }) });
+}
+
+function parseThreeBallLine(line) {
+  const roundMatch = line.match(/\b(?:r|round)\s*([1-4])\b/i);
+  const round = roundMatch ? Number(roundMatch[1]) : 2;
+  const selected = line.split(/\s{2,}|\s[-–]\s|\+/)[0]
+    .replace(/\b3\s*ball\b.*$/i, "")
+    .replace(/\bround\s*[1-4]\b/i, "")
+    .trim();
+  const matchupText = line.match(/(?:3\s*ball\s*(?:\([^)]*\))?\s*[-:]\s*)([^+]+)$/i)?.[1]
+    || line.match(/([A-Z][A-Za-z.'-]+(?:\s*\/\s*[A-Z][A-Za-z.'-]+){2,})/)?.[1]
+    || "";
+  const lastNames = matchupText.split("/").map((p) => p.trim()).filter(Boolean);
+  const players = expandThreeBallNames(selected, lastNames);
+  const player = selected || players[0];
+  return normalizeImportedBet({
+    player,
+    players: players.length ? players : [player],
+    type: "3ball",
+    dir: "win",
+    round,
+    label: buildLabel({ type: "3ball", player, players, round }),
+  });
+}
+
+function expandThreeBallNames(selected, lastNames) {
+  if (!lastNames.length) return selected ? [selected] : [];
+  const selectedLast = selected.split(/\s+/).at(-1)?.toLowerCase();
+  return lastNames.map((name) => {
+    if (selected && name.toLowerCase() === selectedLast) return selected;
+    return name;
+  });
+}
+
+function parseDirection(line, type) {
+  const t = line.toLowerCase();
+  if (type === "winner") return "win";
+  if (/\b(under|lower|less)\b/.test(t)) return "lower";
+  if (/\b(over|higher|more)\b/.test(t)) return "higher";
+  if (/\b(better|top)\b/.test(t)) return "better";
+  return type === "pos" ? "better" : "higher";
+}
+
+function extractPlayerName(line, type) {
+  let text = line
+    .replace(/\b(?:fairways? hit|driving accuracy|greens? in regulation|greens? in reg|gir|round strokes?|strokes?|tournament position|position|finish|winner|outright|to win)\b.*$/i, "")
+    .replace(/\b(?:over|under|higher|lower|better|less|more|than|round|r)\b.*$/i, "")
+    .replace(/[-:|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text && type === "winner") text = line.replace(/\b(?:winner|outright|to win)\b/gi, "").trim();
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.slice(0, 4).join(" ");
+}
+
+function renderSlipPreview(bets, message) {
+  const preview = $("slipPreview");
+  if (!preview) return;
+  if (!bets.length) {
+    preview.innerHTML = message ? `<span>${message}</span>` : "";
+    return;
+  }
+  preview.innerHTML = bets.map((b) => `<span><b>${b.player}</b> - ${b.label}</span>`).join("");
+  $("importCount").textContent = `${bets.length} parsed legs`;
+}
+
+function applyImportedBets(bets, source) {
+  const clean = bets.map(normalizeImportedBet).filter(Boolean);
+  if (!clean.length) {
+    $("importStatus").textContent = "Could not find any usable golf legs in that slip.";
+    renderSlipPreview([], "Try one leg per line with player, market, direction, line, and round.");
+    return;
+  }
+  BETS = clean;
+  saveBets(BETS);
+  renderSlipPreview(BETS);
+  $("importStatus").textContent = `Imported ${BETS.length} legs from ${source}.`;
+  refresh();
+}
+
+async function initAuth() {
+  try {
+    const config = await fetch("/api/app-config", { cache: "no-store" }).then((r) => r.json()).catch(() => ({}));
+    if (config.supabaseUrl && config.supabaseAnonKey && window.supabase?.createClient) {
+      authState.mode = "supabase";
+      authState.supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+      const { data } = await authState.supabase.auth.getSession();
+      authState.user = data.session?.user || null;
+      authState.supabase.auth.onAuthStateChange((_event, session) => {
+        authState.user = session?.user || null;
+        afterAuthChanged();
+      });
+    } else {
+      authState.mode = "local";
+      authState.user = loadLocalUser();
+    }
+  } catch {
+    authState.mode = "local";
+    authState.user = loadLocalUser();
+  }
+  await afterAuthChanged();
+}
+
+function loadLocalUser() {
+  try {
+    return JSON.parse(localStorage.getItem("greenside:localUser") || "null");
+  } catch {
+    return null;
+  }
+}
+
+async function afterAuthChanged() {
+  updateAuthUi();
+  const cloud = await loadCloudBets();
+  BETS = cloud || loadSavedBets() || [...DEFAULT_BETS];
+  updateBetSub();
+  renderSlipPreview(BETS);
+  refresh();
+}
+
+function updateAuthUi() {
+  const email = authState.user?.email || "Guest";
+  $("userChip").textContent = authState.user ? email : "Guest";
+  $("authMode").textContent = authState.mode === "supabase" ? "cloud accounts" : "local beta mode";
+  $("authStatus").textContent = authState.user
+    ? `Signed in as ${email}. Only this user's saved slip is loaded.`
+    : "Sign in to keep each user's slips separate.";
+}
+
+async function signIn() {
+  const email = $("authEmail").value.trim();
+  const password = $("authPassword").value;
+  if (!email || !password) return setAuthStatus("Enter an email and password.");
+  if (authState.mode === "supabase") {
+    const { error } = await authState.supabase.auth.signInWithPassword({ email, password });
+    if (error) return setAuthStatus(error.message);
+    return;
+  }
+  const account = JSON.parse(localStorage.getItem(`greenside:account:${email}`) || "null");
+  if (!account || account.password !== password) return setAuthStatus("No local account found for that email/password.");
+  authState.user = { id: email, email };
+  localStorage.setItem("greenside:localUser", JSON.stringify(authState.user));
+  await afterAuthChanged();
+}
+
+async function signUp() {
+  const email = $("authEmail").value.trim();
+  const password = $("authPassword").value;
+  if (!email || password.length < 6) return setAuthStatus("Use an email and a password with at least 6 characters.");
+  if (authState.mode === "supabase") {
+    const { error } = await authState.supabase.auth.signUp({ email, password });
+    if (error) return setAuthStatus(error.message);
+    setAuthStatus("Account created. Check email if confirmation is enabled, then sign in.");
+    return;
+  }
+  localStorage.setItem(`greenside:account:${email}`, JSON.stringify({ email, password }));
+  authState.user = { id: email, email };
+  localStorage.setItem("greenside:localUser", JSON.stringify(authState.user));
+  await afterAuthChanged();
+}
+
+async function signOut() {
+  if (authState.mode === "supabase") await authState.supabase.auth.signOut();
+  authState.user = null;
+  localStorage.removeItem("greenside:localUser");
+  await afterAuthChanged();
+}
+
+function setAuthStatus(message) {
+  $("authStatus").textContent = message;
+}
+
+async function saveCloudBets(bets) {
+  if (authState.mode !== "supabase" || !authState.user) return;
+  await authState.supabase
+    .from("bet_slips")
+    .upsert({ user_id: authState.user.id, bets, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+}
+
+async function loadCloudBets() {
+  if (authState.mode !== "supabase" || !authState.user) return null;
+  const { data, error } = await authState.supabase
+    .from("bet_slips")
+    .select("bets")
+    .eq("user_id", authState.user.id)
+    .maybeSingle();
+  if (error || !Array.isArray(data?.bets) || !data.bets.length) return null;
+  localStorage.setItem(storageKey("bets"), JSON.stringify(data.bets));
+  return data.bets;
+}
 
 function fmtScore(n) {
-  if (n === null || n === undefined || isNaN(n)) return "—";
+  if (n === null || n === undefined || isNaN(n)) return "-";
   if (n === 0) return "E";
   return n > 0 ? `+${n}` : `${n}`;
 }
 function fmtStrokesAndPar(strokes, par) {
-  if (strokes === null || strokes === undefined || isNaN(strokes)) return "—";
+  if (strokes === null || strokes === undefined || isNaN(strokes)) return "-";
   if (par === null || par === undefined) return String(strokes);
   return `${strokes} (${fmtScore(strokes - par)})`;
 }
 function scoreClass(n) {
   if (n === null || n === undefined || isNaN(n)) return "";
-  return n < 0 ? "pos" : n > 0 ? "neg" : "";
+  return n < 0 ? "pos-score" : n > 0 ? "neg" : "";
 }
 function timeStr(d) {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
+function parseScore(s) {
+  if (s === null || s === undefined) return null;
+  if (typeof s === "number") return s;
+  if (s === "E" || s === "e") return 0;
+  const n = Number(String(s).replace("+", ""));
+  return isNaN(n) ? null : n;
+}
+function parsePosNum(pos) {
+  const m = String(pos || "").match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
 
-// ---- ESPN fetch -------------------------------------------------------------
 async function fetchScoreboard() {
   const url = `${ENDPOINT}?_=${Date.now()}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -284,12 +691,11 @@ async function fetchScoreboard() {
   return res.json();
 }
 
-// ---- PGA Tour stats (via same-origin Netlify Function) ---------------------
 async function fetchPgaStats() {
-  // Skip when running from file:// — no proxy available.
   if (location.protocol !== "http:" && location.protocol !== "https:") return null;
   try {
-    const res = await fetch(`${PGA_PROXY}?_=${Date.now()}`, { cache: "no-store" });
+    const eventId = state.event?.id ? `&espnEventId=${encodeURIComponent(state.event.id)}` : "";
+    const res = await fetch(`${PGA_PROXY}?_=${Date.now()}${eventId}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`PGA proxy ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -303,18 +709,13 @@ function findPgaPlayer(name) {
   const players = state.pgaStats?.players || [];
   if (!players.length) return null;
   const n = norm(name);
-  for (const p of players) {
-    if (norm(p.name) === n) return p;
-  }
-  for (const p of players) {
-    if (norm(p.name).includes(n) || n.includes(norm(p.name))) return p;
-  }
-  return null;
+  return players.find((p) => norm(p.name) === n)
+    || players.find((p) => norm(p.name).includes(n) || n.includes(norm(p.name)))
+    || null;
 }
 
-// Pick an event matching "PGA Championship" if present, else first/active event.
 function pickEvent(json) {
-  const events = json && json.events ? json.events : [];
+  const events = json?.events || [];
   if (!events.length) return null;
   const champ = events.find((e) => /pga\s*championship/i.test(e.name || e.shortName || ""));
   if (champ) return champ;
@@ -324,178 +725,145 @@ function pickEvent(json) {
 
 function coursePar(event) {
   const comp = event?.competitions?.[0];
-  if (!comp) return null;
-  // Deep-search the event for any field whose name contains "par"
-  // and whose value is a plausible course par (60–80).
-  const found = deepSearch(event, (k, v) => {
-    if (typeof v !== "number") return false;
-    if (v < 60 || v > 80) return false;
-    return /par/i.test(k);
-  });
-  if (found !== undefined) return found;
-  // Last-resort: sum hole pars if exposed
-  const holes = comp.course?.holes || comp.courses?.[0]?.holes;
+  const candidates = [
+    comp?.course?.par,
+    comp?.par,
+    Array.isArray(comp?.courses) && comp.courses[0]?.totalPar,
+    Array.isArray(comp?.courses) && comp.courses[0]?.par,
+    event?.course?.par,
+  ];
+  for (const v of candidates) {
+    const n = Number(v);
+    if (!isNaN(n) && n > 50 && n < 80) return n;
+  }
+  const holes = comp?.course?.holes || comp?.courses?.[0]?.holes;
   if (Array.isArray(holes) && holes.length === 18) {
     const sum = holes.reduce((a, h) => a + (Number(h.par) || 0), 0);
-    if (sum > 60 && sum < 80) return sum;
+    if (sum > 50 && sum < 80) return sum;
   }
   return null;
 }
 
-// Generic deep search: returns first value where predicate(key, value) is true.
-function deepSearch(obj, predicate, depth = 0) {
-  if (depth > 10 || obj === null || obj === undefined) return undefined;
-  if (typeof obj !== "object") return undefined;
-  if (Array.isArray(obj)) {
-    for (const v of obj) {
-      const r = deepSearch(v, predicate, depth + 1);
-      if (r !== undefined) return r;
-    }
-    return undefined;
-  }
-  for (const k of Object.keys(obj)) {
-    if (predicate(k, obj[k])) return obj[k];
-  }
-  for (const k of Object.keys(obj)) {
-    const r = deepSearch(obj[k], predicate, depth + 1);
-    if (r !== undefined) return r;
-  }
-  return undefined;
+function normalizeLineScore(l) {
+  const holes = Array.isArray(l.linescores) ? l.linescores : [];
+  const value = Number(l.value);
+  return {
+    period: l.period ?? null,
+    value: !isNaN(value) ? value : null,
+    displayValue: l.displayValue ?? null,
+    holes,
+    holesPlayed: holes.filter((h) => h.value !== null && h.value !== undefined).length,
+    complete: holes.length >= 18 && !isNaN(value),
+  };
 }
 
 function normalizeCompetitors(event) {
   const comp = event?.competitions?.[0];
-  if (!comp || !comp.competitors) return [];
-  return comp.competitors.map((c) => {
+  if (!comp?.competitors) return [];
+  const eventRound = Number(comp.status?.period || comp.status?.type?.period || event?.status?.period || 1);
+  const rows = comp.competitors.map((c) => {
     const ath = c.athlete || {};
-    const linescores = (c.linescores || []).map((l) => ({
-      period: l.period ?? null,
-      value: typeof l.value === "number" ? l.value : Number(l.value ?? NaN),
-      displayValue: l.displayValue ?? null,
-    }));
-    const posDisplay = extractPosition(c);
-    const m = String(posDisplay).match(/(\d+)/);
-    const posNum = m ? parseInt(m[1], 10) : null;
-    const thru = extractThru(c);
-    const period = extractPeriod(c);
+    const linescores = (c.linescores || []).map(normalizeLineScore);
+    const scoreNum = parseScore(c.score);
+    const activeLine = linescores.find((l) => l.period === eventRound && l.value !== null)
+      || [...linescores].reverse().find((l) => l.value !== null);
+    const thru = activeLine ? (activeLine.complete ? 18 : activeLine.holesPlayed) : null;
+    const currentRound = activeLine?.period ?? eventRound;
+    const statusText = c.status?.type?.description || c.status?.description || c.status?.type?.name || "";
+    const isCut = /cut|wd|withdrawn|dq/i.test(statusText);
     return {
       id: ath.id || c.id,
-      name: ath.displayName || ath.shortName || "Unknown",
+      name: ath.displayName || ath.fullName || ath.shortName || "Unknown",
       shortName: ath.shortName || "",
-      score: c.score ?? null,            // ESPN gives "+3", "-5", "E"
-      scoreNum: parseScore(c.score),
-      posDisplay,
-      posNum,
-      status: c.status?.type?.state || "",
+      score: c.score ?? null,
+      scoreNum,
+      posDisplay: "",
+      posNum: null,
       thru,
-      period,
+      period: currentRound,
+      roundToPar: activeLine?.displayValue ?? null,
       linescores,
-      isCut: /cut|wd|withdrawn|dq/i.test(posDisplay),
+      isCut,
       raw: c,
     };
   });
-}
-function parseScore(s) {
-  if (s === null || s === undefined) return null;
-  if (typeof s === "number") return s;
-  if (s === "E" || s === "e") return 0;
-  const n = Number(String(s).replace("+", ""));
-  return isNaN(n) ? null : n;
+  return addComputedPositions(rows);
 }
 
-// Tries every shape ESPN's golf scoreboard has used: status.position.{displayName|id},
-// top-level position, status.rank, or a statistics entry named/abbreviated "position".
-function extractPosition(c) {
-  const tries = [
-    c?.status?.position?.displayName,
-    c?.status?.position?.id,
-    c?.status?.position,
-    c?.position?.displayName,
-    c?.position?.id,
-    c?.position,
-    c?.status?.rank,
-    c?.rank,
-  ];
-  for (const v of tries) {
-    if (v && typeof v !== "object") return String(v);
-  }
-  const stats = c?.statistics || c?.status?.statistics || [];
-  if (Array.isArray(stats)) {
-    for (const s of stats) {
-      const key = (s?.name || s?.abbreviation || "").toLowerCase();
-      if (key === "position" || key === "pos") {
-        return String(s.displayValue ?? s.value ?? "");
-      }
-    }
-  }
-  return "";
+function addComputedPositions(rows) {
+  const active = rows.filter((r) => !r.isCut && r.scoreNum !== null)
+    .sort((a, b) => a.scoreNum - b.scoreNum || (a.name || "").localeCompare(b.name || ""));
+  let lastScore = null;
+  let lastRank = 0;
+  active.forEach((r, idx) => {
+    const rank = r.scoreNum === lastScore ? lastRank : idx + 1;
+    lastScore = r.scoreNum;
+    lastRank = rank;
+    const tied = active.some((x) => x !== r && x.scoreNum === r.scoreNum);
+    r.posNum = rank;
+    r.posDisplay = `${tied ? "T" : ""}${rank}`;
+  });
+  rows.filter((r) => r.isCut).forEach((r) => {
+    r.posDisplay = "CUT";
+    r.posNum = null;
+  });
+  return rows;
 }
 
-function extractThru(c) {
-  const tries = [
-    c?.status?.thru,
-    c?.status?.position?.thru,
-    c?.thru,
-    c?.holesPlayed,
-    c?.status?.holesPlayed,
-    c?.status?.holes,
-  ];
-  for (const v of tries) {
-    if (v !== null && v !== undefined && v !== "") {
-      const n = Number(v);
-      if (!isNaN(n)) return n;
-      return v;
-    }
-  }
-  return null;
+function namesForBet(bet) {
+  return [bet.player, ...(bet.aliases || []), ...(bet.players || [])].map(norm);
 }
 
-function extractPeriod(c) {
-  const tries = [c?.status?.period, c?.period, c?.currentRound, c?.status?.currentRound];
-  for (const v of tries) {
-    const n = Number(v);
-    if (!isNaN(n) && n > 0) return n;
-  }
-  return null;
-}
-
-function findCompetitor(name) {
-  const n = norm(name);
+function findCompetitor(nameOrBet) {
+  const names = typeof nameOrBet === "string" ? [norm(nameOrBet)] : namesForBet(nameOrBet);
   let best = null;
   for (const c of state.competitors) {
-    if (norm(c.name) === n) return c;
-    if (!best && norm(c.shortName) === n) best = c;
-    if (!best && norm(c.name).includes(n)) best = c;
+    const cn = norm(c.name);
+    const sn = norm(c.shortName);
+    const last = cn.split(" ").at(-1);
+    if (names.some((n) => cn === n || sn === n || (n.split(" ").length === 1 && last === n))) return c;
+    if (!best && names.some((n) => cn.includes(n) || n.includes(cn) || (n.split(" ").length === 1 && last.includes(n)))) best = c;
   }
   return best;
 }
 
-// ---- Bet evaluation ---------------------------------------------------------
+function roundInfo(comp, round) {
+  const ls = comp?.linescores?.find((l) => l.period === round);
+  if (!ls) return { strokes: null, toPar: null, thru: null, complete: false };
+  return {
+    strokes: ls.value,
+    toPar: ls.displayValue ?? (state.coursePar && ls.value !== null ? fmtScore(ls.value - state.coursePar) : null),
+    thru: ls.complete ? 18 : ls.holesPlayed,
+    complete: ls.complete,
+  };
+}
+
 function evaluateBet(bet) {
-  const c = findCompetitor(bet.player);
+  const c = findCompetitor(bet);
   const out = { bet, comp: c, status: "pending", actual: null, line: bet.line ?? null, note: "" };
-  if (!c) { out.note = "Player not found in field"; return out; }
 
   const eventComplete = state.event?.status?.type?.state === "post";
 
+  if (bet.type === "3ball") return evaluateThreeBall(bet, eventComplete);
+
+  if (!c) { out.note = "Player not found in ESPN field"; return out; }
+
   if (bet.type === "strokes") {
-    const ls = c.linescores.find((l) => l.period === bet.round);
-    const v = ls && !isNaN(ls.value) ? ls.value : null;
-    out.actual = v;
-    const roundComplete = v !== null && (c.period > bet.round || (c.period === bet.round && c.thru >= 18) || eventComplete);
-    if (v === null) {
+    const rd = roundInfo(c, bet.round);
+    out.actual = rd.strokes;
+    if (rd.strokes === null) {
       out.status = "live"; out.note = "Round not started";
-    } else if (!roundComplete) {
-      out.status = "live"; out.note = `Through ${c.thru ?? "?"}`;
-      // mid-round: not yet decidable — keep live
+    } else if (!rd.complete && !eventComplete) {
+      out.status = "live"; out.note = `R${bet.round} ${rd.toPar || ""} thru ${rd.thru ?? "?"}`;
     } else {
-      out.status = (bet.dir === "higher" ? v > bet.line : v < bet.line) ? "won" : "lost";
+      out.status = (bet.dir === "higher" ? rd.strokes > bet.line : rd.strokes < bet.line) ? "won" : "lost";
+      out.note = `R${bet.round} ${rd.toPar || ""}`;
     }
     return out;
   }
 
   if (bet.type === "pos") {
-    out.actual = c.posDisplay || "—";
+    out.actual = c.posDisplay || "-";
     if (c.isCut) { out.status = "lost"; out.note = "Missed cut / withdrew"; return out; }
     const p = c.posNum;
     const meets = p !== null && (bet.dir === "better" ? p < bet.line : p > bet.line);
@@ -503,19 +871,19 @@ function evaluateBet(bet) {
       out.status = meets ? "won" : "lost";
     } else {
       out.status = "live";
-      out.note = meets ? `Currently in range (${c.posDisplay})` : `Currently ${c.posDisplay || "—"}`;
+      out.note = meets ? `Currently in range (${c.posDisplay})` : `Currently ${c.posDisplay || "-"}`;
     }
     return out;
   }
 
   if (bet.type === "winner") {
-    out.actual = c.posDisplay || "—";
+    out.actual = c.posDisplay || "-";
     if (c.isCut) { out.status = "lost"; out.note = "Missed cut / withdrew"; return out; }
     if (eventComplete) {
-      out.status = (c.posNum === 1 && !/T/i.test(c.posDisplay)) ? "won" : "lost";
+      out.status = (c.posNum === 1 && !/^T/.test(c.posDisplay)) ? "won" : "lost";
     } else {
       out.status = "live";
-      out.note = `Currently ${c.posDisplay || "—"}`;
+      out.note = `Currently ${c.posDisplay || "-"}`;
     }
     return out;
   }
@@ -524,36 +892,32 @@ function evaluateBet(bet) {
     const pga = findPgaPlayer(bet.player);
     if (!pga) {
       out.note = state.pgaStats
-        ? "Not found in PGA Tour feed"
-        : (state.pgaError ? `PGA proxy: ${state.pgaError}` : "PGA proxy not configured (load via greensidejourneys.com)");
+        ? "Not found in PGA TOUR feed"
+        : (state.pgaError ? `PGA proxy: ${state.pgaError}` : "PGA proxy not configured");
       out.status = "live";
       return out;
     }
     const rd = pga.rounds.find((r) => r.round === bet.round);
     const val = bet.type === "fh" ? rd?.fairwaysHit : rd?.greensInRegulation;
     const of  = bet.type === "fh" ? rd?.fairwaysOf  : rd?.girOf;
-    out.actual = (val !== null && val !== undefined)
-      ? (of ? `${val}/${of}` : String(val))
-      : null;
+    out.actual = (val !== null && val !== undefined) ? (of ? `${val}/${of}` : String(val)) : null;
     if (val === null || val === undefined) {
       out.status = "live";
       out.note = "Awaiting per-round stat";
       return out;
     }
-    const thruRound = (c.period > bet.round) ||
-      (c.period === bet.round && c.thru >= 18) ||
-      eventComplete;
-    // Early-settle: if it's already mathematically decided, mark Won/Lost mid-round.
-    const holesPlayed = rd?.thru ?? c.thru ?? null;
-    const cap = (bet.type === "fh") ? 14 : 18;
-    const remaining = (holesPlayed !== null) ? Math.max(0, cap - holesPlayed) : null;
+    const rdInfo = roundInfo(c, bet.round);
+    const complete = rdInfo.complete || eventComplete;
+    const holesPlayed = rd?.thru ?? rdInfo.thru ?? null;
+    const cap = (bet.type === "fh") ? (of || 14) : (of || 18);
+    const remaining = holesPlayed !== null ? Math.max(0, cap - holesPlayed) : null;
     if (bet.dir === "lower") {
-      if (val > bet.line)            { out.status = "lost"; return out; }
-      if (thruRound && val < bet.line){ out.status = "won";  return out; }
+      if (val > bet.line) { out.status = "lost"; return out; }
+      if (complete && val < bet.line) { out.status = "won"; return out; }
       out.status = "live";
       out.note = remaining !== null ? `Through ${holesPlayed} (${remaining} to go)` : "In progress";
-    } else { // higher (not used by current slip, but supported)
-      if (val > bet.line)            { out.status = "won";  return out; }
+    } else {
+      if (val > bet.line) { out.status = "won"; return out; }
       if (remaining !== null && val + remaining < bet.line) { out.status = "lost"; return out; }
       out.status = "live";
     }
@@ -563,7 +927,50 @@ function evaluateBet(bet) {
   return out;
 }
 
-// ---- Rendering --------------------------------------------------------------
+function evaluateThreeBall(bet, eventComplete) {
+  const players = (bet.players || [bet.player]).map((name) => ({ name, comp: findCompetitor(name) }));
+  const selected = findCompetitor(bet.player);
+  const out = { bet, comp: selected, status: "pending", actual: null, line: null, note: "" };
+  const scored = players.map((p) => ({ ...p, round: roundInfo(p.comp, bet.round || 2) }));
+  if (!selected || scored.some((p) => !p.comp)) {
+    const missing = scored.filter((p) => !p.comp).map((p) => p.name).join(", ");
+    out.note = `Missing golfer${missing ? `: ${missing}` : ""}`;
+    return out;
+  }
+  const withScores = scored.filter((p) => p.round.strokes !== null);
+  if (!withScores.length) {
+    out.status = "live";
+    out.note = "Matchup not started";
+    return out;
+  }
+  const selectedRow = scored.find((p) => p.comp === selected);
+  if (selectedRow.round.strokes === null) {
+    out.status = "live";
+    out.note = "Selected golfer not started";
+    return out;
+  }
+  const sorted = [...withScores].sort((a, b) => a.round.strokes - b.round.strokes);
+  const leader = sorted[0];
+  const selectedScore = selectedRow.round.strokes;
+  const leaderScore = leader.round.strokes;
+  const tiedLead = sorted.filter((p) => p.round.strokes === leaderScore);
+  const complete = scored.every((p) => p.round.complete) || eventComplete;
+  out.actual = `${selectedScore} (${selectedRow.round.toPar || "-"})`;
+  if (selectedScore === leaderScore) {
+    out.status = complete && tiedLead.length === 1 ? "won" : "live";
+    out.note = tiedLead.length > 1 ? `Tied for lead thru ${selectedRow.round.thru ?? "-"}` : `Leading by ${marginToText(sorted[1]?.round.strokes - selectedScore)} thru ${selectedRow.round.thru ?? "-"}`;
+  } else {
+    out.status = complete ? "lost" : "live";
+    out.note = `${marginToText(selectedScore - leaderScore)} behind ${leader.comp.name} thru ${selectedRow.round.thru ?? "-"}`;
+  }
+  return out;
+}
+
+function marginToText(value) {
+  if (!value || value <= 0) return "0";
+  return `${value} stroke${value === 1 ? "" : "s"}`;
+}
+
 function statusPill(s) {
   const map = { live: ["live", "LIVE"], won: ["won", "WON"], lost: ["lost", "LOST"], pending: ["pending", "PENDING"] };
   const [cls, label] = map[s] || map.pending;
@@ -571,36 +978,42 @@ function statusPill(s) {
 }
 
 function actualDisplay(e) {
-  if (e.actual === null || e.actual === undefined) return "—";
-  if (e.bet.type === "strokes" && typeof e.actual === "number") {
-    // Heuristic: a "real" round score for one of these guys is roughly 60-90.
-    // If the linescore value is way below that (e.g. 16), the round is still
-    // in progress — display it as a running stroke count + holes thru.
-    const c = e.comp;
-    const inProgress = c && c.period === e.bet.round && (c.thru ?? 18) < 18;
-    if (inProgress) {
-      const thruStr = c.thru !== null && c.thru !== undefined ? `thru ${c.thru}` : "in progress";
-      return `${e.actual} (${thruStr})`;
-    }
-    return fmtStrokesAndPar(e.actual, state.coursePar);
-  }
+  if (e.actual === null || e.actual === undefined) return "-";
+  if (e.bet.type === "strokes" && typeof e.actual === "number") return fmtStrokesAndPar(e.actual, state.coursePar);
   return e.actual;
+}
+
+function roundDisplay(e) {
+  if (!e.comp) return "-";
+  const round = e.bet.round || e.comp.period || 2;
+  const rd = roundInfo(e.comp, round);
+  if (rd.toPar === null && rd.strokes === null) return "-";
+  return rd.toPar || (state.coursePar && rd.strokes ? fmtScore(rd.strokes - state.coursePar) : "-");
+}
+
+function thruDisplay(c, round) {
+  if (!c) return "-";
+  if (round) {
+    const rd = roundInfo(c, round);
+    return rd.thru ?? "-";
+  }
+  return c.thru ?? "-";
 }
 
 function renderTape(evals) {
   const rows = evals.map((e) => {
     const c = e.comp;
-    const desc = e.bet.label + (e.note ? ` · <span style="color:var(--ink-mute)">${e.note}</span>` : "");
-    const actual = actualDisplay(e);
-    const line = e.line !== null && e.line !== undefined ? e.line : "—";
+    const desc = e.bet.label + (e.note ? ` - <span style="color:var(--ink-mute)">${e.note}</span>` : "");
     return `
       <div class="row">
         <div>
           <div class="player">${e.bet.player}</div>
           <div class="desc">${desc}</div>
         </div>
-        <div class="num"><span class="k">Line</span><span class="v">${line}</span></div>
-        <div class="num"><span class="k">Actual</span><span class="v">${actual}</span></div>
+        <div class="num"><span class="k">Pos</span><span class="v">${c?.posDisplay || "-"}</span></div>
+        <div class="num"><span class="k">Thru</span><span class="v">${thruDisplay(c, e.bet.round)}</span></div>
+        <div class="num"><span class="k">Round</span><span class="v">${roundDisplay(e)}</span></div>
+        <div class="num"><span class="k">Actual</span><span class="v">${actualDisplay(e)}</span></div>
         <div>${statusPill(e.status)}</div>
       </div>`;
   }).join("");
@@ -612,19 +1025,17 @@ function renderPulse(evals) {
   const cards = evals.map((e) => {
     const c = e.comp;
     const pct = computeProgress(e);
-    const actual = actualDisplay(e);
-    const pos = c?.posDisplay || "—";
-    const thru = c ? (c.thru ?? "—") : "—";
     return `
       <div class="pulse-card ${e.status}">
         <div class="name">${e.bet.player}</div>
         <div class="bet">${e.bet.label}</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         <div class="stats">
-          <span>Line <b>${e.line ?? "—"}</b></span>
-          <span>Actual <b>${actual}</b></span>
-          <span>Pos <b>${pos}</b></span>
-          <span>Thru <b>${thru}</b></span>
+          <span>Line <b>${e.line ?? "-"}</b></span>
+          <span>Actual <b>${actualDisplay(e)}</b></span>
+          <span>Pos <b>${c?.posDisplay || "-"}</b></span>
+          <span>Thru <b>${thruDisplay(c, e.bet.round)}</b></span>
+          <span>Round <b>${roundDisplay(e)}</b></span>
         </div>
         <div class="foot">${statusPill(e.status)}
           ${e.note ? `<span style="color:var(--ink-mute);font-size:11px;">${e.note}</span>` : ""}</div>
@@ -635,34 +1046,24 @@ function renderPulse(evals) {
 }
 
 function computeProgress(e) {
-  if (e.status === "won")  return 100;
-  if (e.status === "lost") return 100;
-  if (e.bet.type === "strokes" && e.comp?.thru != null) {
-    return Math.max(4, Math.min(100, Math.round((e.comp.thru / 18) * 100)));
-  }
-  if (e.bet.type === "pos" || e.bet.type === "winner") {
-    const ev = state.event?.status?.type;
-    // approximate via round number
-    const round = e.comp?.period || 1;
-    return Math.min(100, round * 25);
-  }
+  if (e.status === "won" || e.status === "lost") return 100;
+  if (e.bet.round && e.comp) return Math.max(4, Math.min(100, Math.round((thruDisplay(e.comp, e.bet.round) / 18) * 100)));
+  if (e.bet.type === "pos" || e.bet.type === "winner") return Math.min(100, (e.comp?.period || 1) * 25);
   return 8;
 }
 
 function renderLedger(evals) {
   const rows = evals.map((e) => {
     const c = e.comp;
-    const actual = actualDisplay(e);
-    const pos = c?.posDisplay || "—";
-    const thru = c ? (c.thru ?? "—") : "—";
     return `
       <tr class="${e.status}">
         <td><strong>${e.bet.player}</strong></td>
         <td><div>${e.bet.label}</div>${e.note ? `<div style="color:var(--ink-mute);font-size:11px;">${e.note}</div>` : ""}</td>
-        <td class="num">${e.line ?? "—"}</td>
-        <td class="num">${actual}</td>
-        <td class="num">${pos}</td>
-        <td class="num">${thru}</td>
+        <td class="num">${e.line ?? "-"}</td>
+        <td class="num">${actualDisplay(e)}</td>
+        <td class="num">${c?.posDisplay || "-"}</td>
+        <td class="num">${thruDisplay(c, e.bet.round)}</td>
+        <td class="num">${roundDisplay(e)}</td>
         <td>${statusPill(e.status)}</td>
       </tr>`;
   }).join("");
@@ -671,32 +1072,27 @@ function renderLedger(evals) {
 }
 
 function renderLeaderboard() {
-  const tracked = new Set(BETS.map((b) => norm(b.player)));
+  const tracked = new Set(BETS.flatMap((b) => namesForBet(b)));
   const list = [...state.competitors].sort((a, b) => {
     if (a.isCut && !b.isCut) return 1;
     if (b.isCut && !a.isCut) return -1;
-    const ap = a.posNum ?? 9999, bp = b.posNum ?? 9999;
-    return ap - bp;
+    return (a.posNum ?? 9999) - (b.posNum ?? 9999) || (a.name || "").localeCompare(b.name || "");
   });
-  // Show top 30 plus any tracked players outside the top 30.
   const top = list.slice(0, 30);
   for (const c of list.slice(30)) {
     if (tracked.has(norm(c.name))) top.push(c);
   }
   $("lbRows").innerHTML = top.map((c) => {
-    const r2 = c.linescores.find((l) => l.period === 2);
-    const r2v = r2 && !isNaN(r2.value) ? r2.value : null;
-    const r2par = (r2v !== null && state.coursePar) ? r2v - state.coursePar : null;
-    const r2cell = r2v === null ? "—"
-      : (r2par === null ? String(r2v) : `${r2v} <span style="color:var(--ink-mute);font-size:11px">${fmtScore(r2par)}</span>`);
+    const r2 = roundInfo(c, 2);
+    const r2cell = r2.strokes === null ? "-" : `${r2.strokes} <span style="color:var(--ink-mute);font-size:11px">${r2.toPar || ""}</span>`;
     const mine = tracked.has(norm(c.name));
     return `
       <div class="lb-row ${mine ? "me" : ""}">
-        <div class="pos">${c.posDisplay || "—"}</div>
+        <div class="rank">${c.posDisplay || "-"}</div>
         <div class="name">${c.name}</div>
-        <div class="v ${scoreClass(c.scoreNum)}">${c.score ?? "—"}</div>
+        <div class="v ${scoreClass(c.scoreNum)}">${c.score ?? "-"}</div>
         <div class="v">${r2cell}</div>
-        <div class="v">${c.thru ?? "—"}</div>
+        <div class="v">${thruDisplay(c, 2)}</div>
       </div>`;
   }).join("");
   $("lbName").textContent = state.event ? state.event.name : "";
@@ -707,19 +1103,19 @@ function renderBadge(ok, statusText) {
   b.classList.remove("idle", "warn", "err");
   if (!ok) { b.classList.add("err"); b.textContent = statusText || "Error"; return; }
   const st = state.event?.status?.type?.state;
-  if (st === "in")        { b.textContent = `LIVE · ${state.event.status?.type?.detail || "In progress"}`; }
+  if (st === "in")        { b.textContent = `LIVE - ${state.event.status?.type?.detail || "In progress"}`; }
   else if (st === "post") { b.classList.add("warn"); b.textContent = "FINAL"; }
   else if (st === "pre")  { b.classList.add("warn"); b.textContent = state.event.status?.type?.detail || "Pre-event"; }
   else                    { b.classList.add("warn"); b.textContent = state.event?.name || "No data"; }
 }
 
-// ---- Refresh loop -----------------------------------------------------------
 async function refresh() {
   try {
-    const [scoreboard, pga] = await Promise.all([fetchScoreboard(), fetchPgaStats()]);
+    const scoreboard = await fetchScoreboard();
     const event = pickEvent(scoreboard);
     if (!event) throw new Error("No events in feed");
     state.event = event;
+    const pga = await fetchPgaStats();
     state.coursePar = coursePar(event);
     state.competitors = normalizeCompetitors(event);
     state.pgaStats = pga;
@@ -750,40 +1146,152 @@ function setView(v) {
 
 function setupTimer() {
   if (state.timer) { clearInterval(state.timer); state.timer = null; }
-  if ($("autoRefresh").checked) {
-    state.timer = setInterval(refresh, REFRESH_MS);
+  if ($("autoRefresh").checked) state.timer = setInterval(refresh, REFRESH_MS);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImageForUpload(file) {
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    throw new Error("Please upload a PNG, JPG, JPEG, or WebP screenshot.");
+  }
+  const source = await readFileAsDataUrl(file);
+  const img = await loadImage(source);
+  const maxSide = 1400;
+  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(img.width * scale));
+  canvas.height = Math.max(1, Math.round(img.height * scale));
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Could not read that image file."));
+    img.src = src;
+  });
+}
+
+function functionDeployHelp(path, status, contentType) {
+  if (status === 404 && path.includes("/.netlify/functions/")) {
+    return "Screenshot reader is not deployed yet. Deploy this project through Netlify with the netlify/functions folder included, then confirm /api/health returns JSON.";
+  }
+  if (status === 404 && path.startsWith("/api/")) {
+    return "Screenshot API route is missing. Confirm netlify.toml was deployed and /api/health returns JSON.";
+  }
+  if (!contentType.includes("application/json")) {
+    return "Screenshot reader returned the website HTML instead of JSON. The live host is serving static files only; Netlify Functions are not active on this deploy.";
+  }
+  return null;
+}
+
+async function postJsonWithFallback(paths, payload) {
+  let lastError = null;
+  for (const path of paths) {
+    try {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json", "accept": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const help = functionDeployHelp(path, res.status, contentType);
+        if (help) throw new Error(help);
+        const preview = text.trim().slice(0, 90).replace(/\s+/g, " ");
+        throw new Error(`${path} returned ${res.status} ${contentType || "non-JSON"}${preview ? `: ${preview}` : ""}`);
+      }
+      const body = text ? JSON.parse(text) : {};
+      if (!res.ok || !body.ok) throw new Error(body.error || `${path} failed with ${res.status}`);
+      return body;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("Screenshot parser is unavailable.");
+}
+
+async function readScreenshotSlip() {
+  const file = $("slipImage").files?.[0];
+  if (!file) {
+    $("imageStatus").textContent = "Choose a screenshot first.";
+    return;
+  }
+  $("imageStatus").textContent = "Preparing screenshot...";
+  try {
+    const imageData = await compressImageForUpload(file);
+    $("imageStatus").textContent = "Reading screenshot...";
+    const body = await postJsonWithFallback(
+      ["/api/parse-slip-image", "/.netlify/functions/parse-slip-image"],
+      { imageData },
+    );
+    const bets = (body.bets || []).map(normalizeImportedBet).filter(Boolean);
+    if (!bets.length) throw new Error("No bet legs were detected in that screenshot.");
+    applyImportedBets(bets, "screenshot");
+    $("imageStatus").textContent = "Screenshot parsed.";
+  } catch (err) {
+    const msg = err.message || "Screenshot parser is unavailable.";
+    $("imageStatus").textContent = msg.includes("<!DOCTYPE")
+      ? "Screenshot reader returned the website HTML instead of JSON. Netlify Functions are not active on this deploy."
+      : msg;
   }
 }
 
-// ---- Wire up ----------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
-  for (const t of document.querySelectorAll(".tab")) {
-    t.addEventListener("click", () => setView(t.dataset.view));
-  }
+  updateBetSub();
+  renderSlipPreview(BETS);
+  for (const t of document.querySelectorAll(".tab")) t.addEventListener("click", () => setView(t.dataset.view));
+  $("accountBtn").addEventListener("click", () => $("authPanel").classList.toggle("hidden"));
+  $("signInBtn").addEventListener("click", signIn);
+  $("signUpBtn").addEventListener("click", signUp);
+  $("signOutBtn").addEventListener("click", signOut);
+  $("importBtn").addEventListener("click", () => $("importPanel").classList.toggle("hidden"));
+  $("parseSlipBtn").addEventListener("click", () => {
+    const bets = parseSlipText($("slipText").value);
+    applyImportedBets(bets, "pasted text");
+  });
+  $("resetSlipBtn").addEventListener("click", () => {
+    BETS = [...DEFAULT_BETS];
+    localStorage.removeItem(storageKey("bets"));
+    localStorage.removeItem("greenside:bets");
+    saveCloudBets(BETS);
+    updateBetSub();
+    renderSlipPreview(BETS);
+    $("importStatus").textContent = "Restored the default 9-leg slip.";
+    refresh();
+  });
+  $("slipText").addEventListener("input", () => {
+    const bets = parseSlipText($("slipText").value);
+    renderSlipPreview(bets, "No parseable legs yet.");
+  });
+  $("slipImage").addEventListener("change", async () => {
+    const file = $("slipImage").files?.[0];
+    const img = $("slipImagePreview");
+    if (!file) {
+      img.style.display = "none";
+      return;
+    }
+    img.src = await readFileAsDataUrl(file);
+    img.style.display = "block";
+    $("imageStatus").textContent = "Ready to read screenshot.";
+  });
+  $("readScreenshotBtn").addEventListener("click", readScreenshotSlip);
   $("refreshBtn").addEventListener("click", refresh);
   $("autoRefresh").addEventListener("change", setupTimer);
-  $("debugBtn").addEventListener("click", async () => {
-    const comp = state.event?.competitions?.[0];
-    if (!comp) { alert("No data loaded yet — click Refresh first."); return; }
-    const payload = {
-      event_name: state.event.name,
-      event_status: state.event?.status?.type,
-      detected_course_par: state.coursePar,
-      competition_top_keys: Object.keys(comp),
-      course: comp.course || comp.courses || null,
-      sample_competitors: (comp.competitors || []).slice(0, 3),
-    };
-    const text = JSON.stringify(payload, null, 2);
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("Copied raw ESPN data for 3 competitors to clipboard.\nPaste it back to Claude.");
-    } catch {
-      const w = window.open("", "_blank");
-      w.document.body.innerText = text;
-    }
-  });
   setView("tape");
-  refresh();
+  initAuth();
   setupTimer();
 });
 </script>
