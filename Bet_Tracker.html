@@ -122,8 +122,8 @@
     <div class="flex items-center gap-2">
       <div class="w-9 h-9 rounded-lg accent-bg flex items-center justify-center text-lg font-bold">⛳</div>
       <div>
-        <div class="font-bold leading-tight">Greenside Bet Tracker</div>
-        <div class="text-xs text-dim">PrizePicks × PGA Tour live</div>
+        <div class="font-bold leading-tight">Greenside Bet Tracker <span class="text-xs text-dim font-normal">v6</span></div>
+        <div class="text-xs text-dim">PrizePicks × ESPN live</div>
       </div>
     </div>
     <div class="ml-auto flex items-center gap-2 flex-wrap">
@@ -470,14 +470,33 @@ const PROXIES = [
   url => url,
   url => 'https://corsproxy.io/?' + encodeURIComponent(url),
   url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-  url => 'https://thingproxy.freeboard.io/fetch/' + url,
-  url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)
+  url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+  url => 'https://thingproxy.freeboard.io/fetch/' + url
 ];
 async function jsonGet(url, proxyFn) {
   const finalUrl = proxyFn ? proxyFn(url) : url;
   const res = await fetch(finalUrl, { headers: { 'Accept':'application/json' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
+}
+// JSONP — works from file:// because <script> tag loads bypass CORS entirely.
+// ESPN's site.api supports ?callback= for cross-origin script consumption.
+function jsonp(url, timeout=10000) {
+  return new Promise((resolve, reject) => {
+    const cb = 'gbt_jsonp_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
+    const sep = url.includes('?') ? '&' : '?';
+    const script = document.createElement('script');
+    const cleanup = () => {
+      try { delete window[cb]; } catch { window[cb] = undefined; }
+      script.remove();
+      clearTimeout(timer);
+    };
+    const timer = setTimeout(() => { cleanup(); reject(new Error('JSONP timeout')); }, timeout);
+    window[cb] = (data) => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('JSONP script load failed')); };
+    script.src = url + sep + 'callback=' + cb;
+    document.head.appendChild(script);
+  });
 }
 
 function normalizeESPN(json) {
@@ -531,34 +550,40 @@ async function fetchLeaderboard() {
   const url = state.prefs.tid
     ? `${FEED.leaderboard}?event=${encodeURIComponent(state.prefs.tid)}`
     : FEED.leaderboard;
-  // Try direct first, then each proxy in turn. file:// origins are often blocked
-  // by browsers from hitting cross-origin APIs, so the proxy chain is essential.
+  // Try JSONP first — bypasses CORS via <script> tag, works from file://.
+  // Fall back to direct fetch + proxy chain if ESPN doesn't return a JSONP payload.
+  const attempts = [
+    { label: 'jsonp', run: () => jsonp(url) },
+    ...PROXIES.map((fn, i) => ({
+      label: i === 0 ? 'direct' : `proxy ${i}`,
+      run: () => jsonGet(url, fn)
+    }))
+  ];
   let lastErr;
-  for (let i = 0; i < PROXIES.length; i++) {
-    const label = i === 0 ? 'direct' : `proxy ${i}`;
+  for (const a of attempts) {
     try {
-      $('#lastUpdate').textContent = `fetching (${label})…`;
-      const json = await jsonGet(url, PROXIES[i]);
+      $('#lastUpdate').textContent = `fetching (${a.label})…`;
+      const json = await a.run();
       const norm = normalizeESPN(json);
       if (!norm || !norm.players?.length) throw new Error('No players in feed');
       state.leaderboard = norm;
       state.tournament = { id: norm.eventId, tournamentName: norm.tournamentName };
       state.lastFetch = Date.now();
-      state.workingProxy = i;
+      state.workingFetch = a.label;
       save();
       $('#tournamentBadge').textContent = norm.tournamentName + (norm.roundDisplay ? ` • ${norm.roundDisplay}` : '');
-      $('#lastUpdate').textContent = `Updated ${fmtTime(state.lastFetch)} via ${label}`;
+      $('#lastUpdate').textContent = `Updated ${fmtTime(state.lastFetch)} via ${a.label}`;
       buildTicker();
       evaluateBets();
       render();
       return;
     } catch (err) {
       lastErr = err;
-      console.warn(`Leaderboard fetch failed via ${label}:`, err.message);
+      console.warn(`Leaderboard fetch failed via ${a.label}:`, err.message);
     }
   }
-  console.error('All proxies failed', lastErr);
-  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — all proxies failed (${lastErr?.message||'unknown'})</span>`;
+  console.error('All attempts failed', lastErr);
+  $('#lastUpdate').innerHTML = `<span style="color:var(--danger)">Live feed unavailable — every method blocked (${lastErr?.message||'unknown'})</span>`;
   if (state.leaderboard) { buildTicker(); evaluateBets(); render(); }
 }
 
