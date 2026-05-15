@@ -243,6 +243,7 @@ const REFRESH_MS = 30000;
 let state = {
   event: null,
   competitors: [], // normalized
+  coursePar: null,
   view: "tape",
   timer: null,
 };
@@ -257,6 +258,11 @@ function fmtScore(n) {
   if (n === null || n === undefined || isNaN(n)) return "—";
   if (n === 0) return "E";
   return n > 0 ? `+${n}` : `${n}`;
+}
+function fmtStrokesAndPar(strokes, par) {
+  if (strokes === null || strokes === undefined || isNaN(strokes)) return "—";
+  if (par === null || par === undefined) return String(strokes);
+  return `${strokes} (${fmtScore(strokes - par)})`;
 }
 function scoreClass(n) {
   if (n === null || n === undefined || isNaN(n)) return "";
@@ -282,6 +288,29 @@ function pickEvent(json) {
   if (champ) return champ;
   const active = events.find((e) => e?.status?.type?.state === "in");
   return active || events[0];
+}
+
+function coursePar(event) {
+  const comp = event?.competitions?.[0];
+  if (!comp) return null;
+  const candidates = [
+    comp.course?.par,
+    comp.par,
+    Array.isArray(comp.courses) && comp.courses[0]?.totalPar,
+    Array.isArray(comp.courses) && comp.courses[0]?.par,
+    event?.course?.par,
+  ];
+  for (const v of candidates) {
+    const n = Number(v);
+    if (!isNaN(n) && n > 50 && n < 80) return n;
+  }
+  // Fallback: sum hole pars if present
+  const holes = comp.course?.holes || comp.courses?.[0]?.holes;
+  if (Array.isArray(holes) && holes.length === 18) {
+    const sum = holes.reduce((a, h) => a + (Number(h.par) || 0), 0);
+    if (sum > 50 && sum < 80) return sum;
+  }
+  return null;
 }
 
 function normalizeCompetitors(event) {
@@ -406,13 +435,19 @@ function statusPill(s) {
   return `<span class="pill ${cls}"><span class="dot"></span>${label}</span>`;
 }
 
+function actualDisplay(e) {
+  if (e.actual === null || e.actual === undefined) return "—";
+  if (e.bet.type === "strokes" && typeof e.actual === "number") {
+    return fmtStrokesAndPar(e.actual, state.coursePar);
+  }
+  return e.actual;
+}
+
 function renderTape(evals) {
   const rows = evals.map((e) => {
     const c = e.comp;
     const desc = e.bet.label + (e.note ? ` · <span style="color:var(--ink-mute)">${e.note}</span>` : "");
-    const actual = e.actual === null || e.actual === undefined
-      ? "—"
-      : (typeof e.actual === "number" ? e.actual : e.actual);
+    const actual = actualDisplay(e);
     const line = e.line !== null && e.line !== undefined ? e.line : "—";
     return `
       <div class="row">
@@ -433,7 +468,7 @@ function renderPulse(evals) {
   const cards = evals.map((e) => {
     const c = e.comp;
     const pct = computeProgress(e);
-    const actual = e.actual === null || e.actual === undefined ? "—" : e.actual;
+    const actual = actualDisplay(e);
     const pos = c?.posDisplay || "—";
     const thru = c ? (c.thru ?? "—") : "—";
     return `
@@ -473,7 +508,7 @@ function computeProgress(e) {
 function renderLedger(evals) {
   const rows = evals.map((e) => {
     const c = e.comp;
-    const actual = e.actual === null || e.actual === undefined ? "—" : e.actual;
+    const actual = actualDisplay(e);
     const pos = c?.posDisplay || "—";
     const thru = c ? (c.thru ?? "—") : "—";
     return `
@@ -507,13 +542,16 @@ function renderLeaderboard() {
   $("lbRows").innerHTML = top.map((c) => {
     const r2 = c.linescores.find((l) => l.period === 2);
     const r2v = r2 && !isNaN(r2.value) ? r2.value : null;
+    const r2par = (r2v !== null && state.coursePar) ? r2v - state.coursePar : null;
+    const r2cell = r2v === null ? "—"
+      : (r2par === null ? String(r2v) : `${r2v} <span style="color:var(--ink-mute);font-size:11px">${fmtScore(r2par)}</span>`);
     const mine = tracked.has(norm(c.name));
     return `
       <div class="lb-row ${mine ? "me" : ""}">
         <div class="pos">${c.posDisplay || "—"}</div>
         <div class="name">${c.name}</div>
         <div class="v ${scoreClass(c.scoreNum)}">${c.score ?? "—"}</div>
-        <div class="v">${r2v ?? "—"}</div>
+        <div class="v">${r2cell}</div>
         <div class="v">${c.thru ?? "—"}</div>
       </div>`;
   }).join("");
@@ -538,6 +576,7 @@ async function refresh() {
     const event = pickEvent(json);
     if (!event) throw new Error("No events in feed");
     state.event = event;
+    state.coursePar = coursePar(event);
     state.competitors = normalizeCompetitors(event);
     const evals = BETS.map(evaluateBet);
     renderTape(evals);
