@@ -6,9 +6,14 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function updateSession(req: NextRequest) {
   let res = NextResponse.next({ request: req });
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // No Supabase yet (e.g. local demo with placeholder env): skip auth gating.
+  if (!url || !anon) return res;
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anon,
     {
       cookies: {
         getAll() {
