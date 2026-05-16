@@ -2,6 +2,17 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Onboarding actually onboards
+
+- **`/onboarding`** Done step now (1) persists the user's selected
+  alert types to `profiles.alert_prefs`, (2) fetches and displays
+  the real `bets+<token>@<domain>` forwarding address with copy,
+  and (3) replaces the static recap with three next-step cards
+  (build slip / watch leaderboard / find leverage).
+- **`/auth/callback`** first-time sign-ins (no `profiles` row yet)
+  now auto-create the row and route to `/onboarding` instead of
+  `/dashboard`. Returning users still go straight in.
+
 ## 2026-05-16 — Course-level ownership view
 
 - **`/dashboard/ownership`** gained a **Courses** tab. Each venue

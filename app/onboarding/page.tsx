@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/edge/primitives";
 
 type StepId = "welcome" | "books" | "alerts" | "exposure" | "done";
@@ -522,6 +522,65 @@ function DoneStep({
   alerts: string[];
   tournaments: string[];
 }) {
+  const [address, setAddress] = useState<string | null>(null);
+  const [addressState, setAddressState] = useState<"loading" | "anon" | "unavailable" | "ready">(
+    "loading",
+  );
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "skipped">("idle");
+  const [copied, setCopied] = useState(false);
+
+  // Save the alert prefs and load the forwarding address as soon as we
+  // hit the Done step. Both no-op cleanly when Supabase / auth are
+  // missing — onboarding still flows for anonymous demo users.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Forwarding address
+      try {
+        const r = await fetch("/api/account/forwarding", { cache: "no-store" });
+        const j = await r.json();
+        if (cancelled) return;
+        if (!j.configured) setAddressState("unavailable");
+        else if (!j.signedIn) setAddressState("anon");
+        else if (j.address) {
+          setAddress(j.address);
+          setAddressState("ready");
+        } else setAddressState("unavailable");
+      } catch {
+        if (!cancelled) setAddressState("unavailable");
+      }
+      // Save alert prefs (only the IDs the account page knows about)
+      const alertMap: Record<string, boolean> = {};
+      for (const a of ALERT_TYPES) alertMap[a.id] = alerts.includes(a.id);
+      setSaveStatus("saving");
+      try {
+        const r = await fetch("/api/account/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ alert_prefs: alertMap }),
+        });
+        if (cancelled) return;
+        setSaveStatus(r.ok ? "saved" : "skipped");
+      } catch {
+        if (!cancelled) setSaveStatus("skipped");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [alerts]);
+
+  async function copy() {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard refused */
+    }
+  }
+
   return (
     <div>
       <span
@@ -537,17 +596,119 @@ function DoneStep({
         <em>The edge</em> starts now.
       </h1>
       <p className="text-text-dim max-w-2xl mb-8" style={{ fontSize: 15, lineHeight: 1.55 }}>
-        Your dashboard is configured. To start pulling in real bets, forward any
-        sportsbook confirmation email to your personal address — find it in{" "}
-        <strong className="text-text">Settings → Ingestion</strong>.
+        {saveStatus === "saved" && "Preferences saved to your account."}
+        {saveStatus === "saving" && "Saving preferences…"}
+        {saveStatus === "skipped" && "Preferences will sync once you sign in."}
+        {saveStatus === "idle" && "Hold tight."}
       </p>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <Recap label="Books" count={books.length} />
         <Recap label="Alert types" count={alerts.length} />
         <Recap label="Tournaments" count={tournaments.length} />
       </div>
+
+      <div className="rounded-[14px] bg-surface-1 border border-line p-5 mb-4">
+        <div
+          className="num font-semibold uppercase text-text-muted mb-2"
+          style={{ fontSize: 10, letterSpacing: 1.2 }}
+        >
+          ① Forward your bets
+        </div>
+        <div className="serif-italic" style={{ fontSize: 18, fontStyle: "normal" }}>
+          Your inbound address
+        </div>
+        <p className="text-text-dim mb-3" style={{ fontSize: 13 }}>
+          Forward any DK / FD / PrizePicks / Underdog confirmation here.
+          Claude parses each leg into your tickets.
+        </p>
+        {addressState === "loading" && (
+          <div className="text-text-dim" style={{ fontSize: 12 }}>
+            Loading…
+          </div>
+        )}
+        {addressState === "anon" && (
+          <div className="text-text-dim" style={{ fontSize: 13 }}>
+            <Link href="/login" className="text-text underline">
+              Sign in
+            </Link>{" "}
+            to claim your unique address.
+          </div>
+        )}
+        {addressState === "unavailable" && (
+          <div className="text-text-dim" style={{ fontSize: 12 }}>
+            Inbound parsing isn&apos;t configured on this deploy yet — set
+            it up from <code className="num text-text">/dashboard/admin</code>.
+          </div>
+        )}
+        {addressState === "ready" && address && (
+          <div
+            className="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-3 py-2"
+            style={{ fontSize: 13, fontFamily: "ui-monospace, monospace" }}
+          >
+            <span className="flex-1 truncate text-text">{address}</span>
+            <button
+              onClick={copy}
+              className="rounded-[6px] px-2 py-1 border border-line hover:border-line-strong"
+              style={{ fontSize: 11 }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-4">
+        <NextStepCard
+          label="② Build your first slip"
+          body="Top finishes, matchups, round props, make-cut — full editor with autocomplete."
+          href="/dashboard/slip"
+        />
+        <NextStepCard
+          label="③ Watch live"
+          body="Full ESPN field with your bet legs decorating the rows live."
+          href="/dashboard/leaderboard"
+        />
+        <NextStepCard
+          label="④ Find leverage"
+          body="DK ownership history across the 2026 season — chalk vs leverage at a glance."
+          href="/dashboard/ownership"
+        />
+      </div>
     </div>
+  );
+}
+
+function NextStepCard({
+  label,
+  body,
+  href,
+}: {
+  label: string;
+  body: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-[14px] bg-surface-1 border border-line p-4 hover:border-line-strong transition block"
+    >
+      <div
+        className="num font-semibold uppercase text-text-muted mb-1.5"
+        style={{ fontSize: 9.5, letterSpacing: 1.2 }}
+      >
+        {label}
+      </div>
+      <p className="text-text" style={{ fontSize: 13, lineHeight: 1.4 }}>
+        {body}
+      </p>
+      <div
+        className="num mt-3 text-text-dim"
+        style={{ fontSize: 11, letterSpacing: 0.4 }}
+      >
+        Open →
+      </div>
+    </Link>
   );
 }
 
