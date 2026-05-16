@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BookChip, type Book } from "@/components/edge/primitives";
 
 type ParsedBet = {
@@ -21,9 +21,9 @@ const BOOK_MAP: Record<string, Book> = {
   underdog: "UD",
 };
 
-// Until Supabase is wired, the per-user inbound address is a placeholder.
-// After auth: profile.id → token, displayed as bets+<token>@greensidejourneys.com.
-const DEMO_INBOUND = "bets+demo-user@greensidejourneys.com";
+// Fallback shown until the per-user address resolves. The forwarding API
+// returns the real bets+<token>@<domain> when the user is signed in.
+const FALLBACK_INBOUND = "bets+yourtoken@greensidejourneys.com";
 
 export default function UploadPage() {
   return (
@@ -80,10 +80,26 @@ export default function UploadPage() {
 // ─── Email forwarding card ──────────────────────────────────
 function EmailForwardCard() {
   const [copied, setCopied] = useState(false);
+  const [address, setAddress] = useState<string>(FALLBACK_INBOUND);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/account/forwarding", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.signedIn && j.address) {
+          setAddress(j.address);
+          setSignedIn(true);
+        } else {
+          setSignedIn(!!j.signedIn);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function copyAddress() {
     try {
-      await navigator.clipboard.writeText(DEMO_INBOUND);
+      await navigator.clipboard.writeText(address);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -139,7 +155,7 @@ function EmailForwardCard() {
           className="num text-text flex-1 truncate"
           style={{ fontSize: 13, letterSpacing: 0.3 }}
         >
-          {DEMO_INBOUND}
+          {address}
         </span>
         <button
           onClick={copyAddress}
@@ -197,7 +213,11 @@ function EmailForwardCard() {
         className="mt-4 pt-3 border-t border-line num text-text-muted"
         style={{ fontSize: 10.5, letterSpacing: 0.4 }}
       >
-        0 emails received so far · last 24h
+        {signedIn === null
+          ? "Loading address…"
+          : signedIn
+            ? "This is your unique address — rotate it from /dashboard/account."
+            : "Sign in to claim your unique forwarding address."}
       </div>
     </div>
   );
@@ -234,6 +254,29 @@ function ScreenshotCard() {
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState<ParsedBet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  async function saveToBets() {
+    if (!result || result.length === 0) return;
+    setSaving(true);
+    setSaved(null);
+    setError(null);
+    try {
+      const r = await fetch("/api/bets/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bets: result, source: "screenshot" }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      setSaved(`Saved ${j.inserted}. Confirm them on /dashboard/bets.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSubmit() {
     if (!file) return;
@@ -362,6 +405,21 @@ function ScreenshotCard() {
 
       {result && result.length > 0 && (
         <div className="mt-4 space-y-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={saveToBets}
+              disabled={saving}
+              className="rounded-[8px] px-3 py-1.5 font-semibold disabled:opacity-40"
+              style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 12 }}
+            >
+              {saving ? "Saving…" : `Save ${result.length} to my bets`}
+            </button>
+            {saved && (
+              <span className="text-text-dim" style={{ fontSize: 11 }}>
+                {saved}
+              </span>
+            )}
+          </div>
           {result.map((b, i) => {
             const bookChip = BOOK_MAP[b.book.toLowerCase()] ?? null;
             return (

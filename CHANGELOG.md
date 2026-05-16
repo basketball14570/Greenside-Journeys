@@ -2,6 +2,17 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Upload page wired to real ingestion
+
+- **`/dashboard/upload`** email card now shows the real
+  `bets+<token>@<domain>` forwarding address (signed-in) or a
+  placeholder with "Sign in to claim" copy.
+- **`/api/bets/save`** — POST persists ParsedBet rows from the
+  screenshot OCR path into Supabase as pending bets.
+- Screenshot card gained a **Save N to my bets** button that
+  pushes the OCR result into the same pending-confirmation queue
+  the email pipeline uses.
+
 ## 2026-05-16 — Web Push end-to-end
 
 - **`lib/notify/push.ts`** — VAPID-signed web push via the `web-push`

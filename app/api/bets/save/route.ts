@@ -1,0 +1,57 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
+import { supabaseServer } from "@/lib/supabase/server";
+import { ParsedBetSchema } from "@/lib/parsers/screenshot";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// Persists one or more ParsedBet rows (the shape returned by the
+// screenshot OCR endpoint) into the `bets` table for the signed-in user.
+// Status starts as 'pending' so the user still confirms on the Tickets
+// page — same flow as the email-inbound path.
+
+const PayloadSchema = z.object({
+  bets: z.array(ParsedBetSchema).min(1).max(50),
+  source: z.enum(["screenshot", "manual"]).default("screenshot"),
+});
+
+export async function POST(req: NextRequest) {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return NextResponse.json({ error: "supabase not configured" }, { status: 503 });
+  }
+  const supabase = supabaseServer();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return NextResponse.json({ error: "not signed in" }, { status: 401 });
+
+  const body = PayloadSchema.safeParse(await req.json().catch(() => ({})));
+  if (!body.success) {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+
+  const rows = body.data.bets.map((b) => ({
+    user_id: userData.user!.id,
+    book: b.book,
+    player: b.player,
+    market: b.market,
+    line: b.line,
+    american_odds: b.americanOdds,
+    stake: b.stake,
+    to_win: b.toWin,
+    status: "pending" as const,
+    source: body.data.source,
+    parse_confidence: b.confidence,
+    user_confirmed: false,
+    placed_at: new Date().toISOString(),
+  }));
+
+  const { error, count } = await supabase
+    .from("bets")
+    .insert(rows, { count: "exact" });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true, inserted: count ?? rows.length });
+}
