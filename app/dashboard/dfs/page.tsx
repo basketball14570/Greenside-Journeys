@@ -1,6 +1,7 @@
 import { Stat } from "@/components/edge/primitives";
 import { DFS_PLAYERS, buildSampleLineup } from "@/lib/demo-dfs";
 import { getPlayerHistory } from "@/lib/data/ownership";
+import { OptimizerPanel } from "@/components/edge/OptimizerPanel";
 
 const SAMPLE = buildSampleLineup(DFS_PLAYERS);
 const TOTAL_SALARY = SAMPLE.picks.reduce((s, p) => s + p.salary, 0);
@@ -219,6 +220,8 @@ export default function DfsPage() {
           </div>
         </div>
       </div>
+
+      <OptimizerPanel />
 
       <LeverageInsights />
 
