@@ -1,0 +1,69 @@
+# Greenside Changelog
+
+Reverse-chronological, one entry per push. Surfaced at `/changelog`.
+
+## 2026-05-16 — Settlement, syndication, exports
+
+- **Bet-grading engine** (`lib/grading.ts`) — generic settler that takes
+  any open bet + a live ESPN snapshot and decides won / lost / live /
+  push. Handles top-N, to-win, matchup, and round-prop markets. Live
+  smoke test at `/api/bets/grade`.
+- **Cron jobs** wired in `vercel.json` — daily newsletter dispatch at
+  13:00 UTC (`/api/cron/newsletter`) and a 15-minute settlement check
+  (`/api/cron/grade`). Both gated by `CRON_SECRET` when set.
+- **Webhook dispatcher** — push the daily digest into Discord / Slack /
+  generic JSON sinks via `DISCORD_WEBHOOK_URL`, `SLACK_WEBHOOK_URL`,
+  `NEWSLETTER_WEBHOOK_URL`. Multi-target fan-out with per-target
+  status reporting.
+- **CSV / JSON bet history export** at `/api/bets/export` — Export CSV
+  and Export JSON buttons live on the Tickets page.
+- **Changelog page** at `/changelog`.
+
+## 2026-05-16 — Live odds, newsletter, iOS share, auth chip
+
+- The Odds API wired with fallback-aware client + `/api/odds/[player]`.
+- Daily newsletter generator with markdown / HTML / JSON renderers,
+  admin preview at `/dashboard/newsletter`, public API at
+  `/api/newsletter/daily`.
+- iOS share extension reference (`docs/ios-share-extension.swift`)
+  paired with the existing Web Share Target landing page.
+- Real Supabase auth chip in the desktop chrome — initials, dropdown,
+  sign-out — with graceful "Sign in" fallback when env vars are absent.
+
+## 2026-05-16 — Wind-model calibration, preview JSON, DataGolf profiles
+
+- `/dashboard/model` page validating windSensitivity coefficients
+  against actual recent rounds — bias, MAE, R², per-bucket calibration,
+  per-player drift with suggested coefficients, predicted-vs-actual
+  scatter.
+- Preview JSON export at `/api/preview/[slug]` with a stable
+  schema_version and Share / Open JSON / Download JSON buttons on the
+  preview detail page.
+- DataGolf wiring (`lib/data/datagolf.ts`) with `getPlayerProfile(slug)`
+  returning live data when `DATAGOLF_API_KEY` is set, demo fixtures
+  otherwise. Exposed at `/api/players/[slug]`.
+- Ask Greenside gained `get_player_profile`, `model_calibration`, and
+  `get_live_odds` tools.
+
+## 2026-05-16 — Weather API, AI backtest tools, multi-tournament matrix
+
+- Pluggable forecast provider (`lib/weather/forecast.ts`) — Open-Meteo
+  default, Tomorrow.io behind `TOMORROW_IO_API_KEY`, 5-minute cache,
+  graceful demo fallback.
+- Backtest engine now slices by tournament; matrix on
+  `/dashboard/backtest`.
+- Ask Greenside picked up `run_backtest`, `build_preview`,
+  `get_forecast`.
+
+## 2026-05-16 — Showdown leaderboard
+
+- `/dashboard/showdown` — six-player ESPN-backed live tracker with
+  Nicolai / Rasmus disambiguation, strict round-period matching, and
+  auto-detection of the active round.
+
+## 2026-05-16 — Backtest, previews, mobile shell
+
+- `/dashboard/backtest` with six selection strategies and equity curve.
+- `/dashboard/preview/[slug]` joining course profile + conditions +
+  player pool into a structured tournament read.
+- Capacitor mobile shell + Web Share Target wired into the manifest.

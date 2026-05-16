@@ -212,6 +212,15 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "grade_open_bets",
+    description:
+      "Grade the user's current open bets against the live PGA scoreboard. Returns a per-bet decision (won/lost/live/push/unknown) plus an aggregate report and net P&L. Use when the user asks 'how are my bets doing' or 'did anything settle'.",
+    input_schema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
     name: "get_live_odds",
     description:
       "Fetch live cross-book hedge / outright odds for a named player from The Odds API. Returns null/empty when the upstream key isn't configured — use the demo prices on the hedge page in that case.",
@@ -259,6 +268,8 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handleModelCalibration(input);
     case "get_live_odds":
       return handleLiveOdds(input);
+    case "grade_open_bets":
+      return handleGradeBets();
     default:
       return { error: `Unknown tool ${name}` };
   }
@@ -303,6 +314,39 @@ async function handlePlayerProfile(input: Input) {
       edge_note: profile.edge,
     },
   };
+}
+
+async function handleGradeBets() {
+  const { fetchLeaderboard } = await import("@/lib/espn-leaderboard");
+  const { gradeAll } = await import("@/lib/grading");
+  const liveBets = DEMO_BETS.filter((b) => b.status === "live").map((b) => ({
+    player: b.player,
+    market: b.market,
+    line: b.line,
+    stake: b.stake,
+    payout: b.payout,
+  }));
+  try {
+    const snapshot = await fetchLeaderboard();
+    const report = gradeAll(liveBets, snapshot);
+    return {
+      event: snapshot.event?.shortName ?? null,
+      total: report.total,
+      by_status: report.by_status,
+      net_pnl_units: report.net_pnl_units,
+      decisions: report.decisions.map((d) => ({
+        player: d.bet.player,
+        market: d.bet.market,
+        line: d.bet.line,
+        status: d.status,
+        reason: d.reason,
+        observed: d.observedValue,
+        pnl_units: d.pnl,
+      })),
+    };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
 }
 
 async function handleLiveOdds(input: Input) {
@@ -673,5 +717,6 @@ When to use tools:
 - For deep dives on a specific player (form, wind sensitivity, archetype fit, the user's own exposure on them), call get_player_profile.
 - If the user asks whether the model is right / calibrated / trustworthy, or for a coefficient suggestion, call model_calibration with per_player:true.
 - For "what's the live price on X" / cross-book comparison, call get_live_odds. When it returns source:"unavailable", say the live odds feed isn't wired and surface the demo prices from compute_hedge instead.
+- For "how are my bets doing" / "did anything settle" / "what's still live", call grade_open_bets. Summarize by status and call out any newly settled legs.
 
 Current context: Quail Hollow Championship, Round 2 live. The user has 5–7 open bets across DK, FD, PrizePicks, Underdog.`;

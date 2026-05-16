@@ -98,6 +98,35 @@ export default function BetsPage() {
         </div>
       </header>
 
+      <div className="flex flex-wrap gap-2">
+        <a
+          href="/api/bets/export?format=csv"
+          download
+          className="rounded-[10px] border border-line px-3 py-1.5 hover:bg-surface-2"
+          style={{ fontSize: 12 }}
+        >
+          Export CSV
+        </a>
+        <a
+          href="/api/bets/export?format=json"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-[10px] border border-line px-3 py-1.5 hover:bg-surface-2"
+          style={{ fontSize: 12 }}
+        >
+          Export JSON
+        </a>
+        <a
+          href="/api/bets/grade"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-[10px] border border-line px-3 py-1.5 hover:bg-surface-2"
+          style={{ fontSize: 12 }}
+        >
+          Run grader
+        </a>
+      </div>
+
       {/* P&L chart + breakdowns */}
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 rounded-[14px] bg-surface-1 border border-line p-5">
