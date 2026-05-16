@@ -197,6 +197,7 @@ const DESKTOP_TABS = [
   { label: "Showdown", href: "/dashboard/showdown" },
   { label: "Previews", href: "/dashboard/preview" },
   { label: "Backtest", href: "/dashboard/backtest" },
+  { label: "Model", href: "/dashboard/model" },
   { label: "Bankroll", href: "/dashboard/account" },
 ];
 

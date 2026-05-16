@@ -4,7 +4,7 @@
 //    This is the default. Coverage is good for the US/EU; resolution is
 //    hourly at ~9 km grid spacing.
 //
-// 2. Tomorrow.io — when TOMORROW_IO_KEY is set in the environment, we
+// 2. Tomorrow.io — when TOMORROW_IO_API_KEY is set in the environment, we
 //    swap to their endpoint. Higher fidelity, paid plan once you exceed
 //    the free tier. Adapter included as a stub so flipping providers is
 //    a one-env-var change.
@@ -61,7 +61,7 @@ export async function getForecast(
 
   const provider =
     opts.provider ??
-    (process.env.TOMORROW_IO_KEY ? "tomorrow.io" : "open-meteo");
+    (process.env.TOMORROW_IO_API_KEY ? "tomorrow.io" : "open-meteo");
 
   try {
     const data =
@@ -121,15 +121,15 @@ async function fetchOpenMeteo(
 
 // ── Tomorrow.io ─────────────────────────────────────────────
 //
-// Higher-resolution adapter; activated when TOMORROW_IO_KEY is set.
+// Higher-resolution adapter; activated when TOMORROW_IO_API_KEY is set.
 // Field names below match their /v4/timelines response.
 async function fetchTomorrowIo(
   courseId: string,
   coords: { lat: number; lon: number; tz: string },
   signal?: AbortSignal,
 ): Promise<Forecast> {
-  const key = process.env.TOMORROW_IO_KEY;
-  if (!key) throw new Error("TOMORROW_IO_KEY not set");
+  const key = process.env.TOMORROW_IO_API_KEY;
+  if (!key) throw new Error("TOMORROW_IO_API_KEY not set");
   const params = new URLSearchParams({
     location: `${coords.lat},${coords.lon}`,
     fields:

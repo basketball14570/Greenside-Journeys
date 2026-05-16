@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buildPreview, listPreviewable } from "@/lib/preview";
+import PreviewShareActions from "@/components/edge/PreviewShareActions";
 
 export async function generateStaticParams() {
   return listPreviewable().map((p) => ({ slug: p.slug }));
@@ -207,8 +208,15 @@ export default function PreviewDetailPage({
         </ul>
       </section>
 
-      <div className="print:hidden pt-4 border-t border-line text-text-dim" style={{ fontSize: 12 }}>
-        Cmd/Ctrl-P prints a clean one-page version.
+      <div className="print:hidden pt-4 border-t border-line space-y-2">
+        <PreviewShareActions slug={preview.slug} />
+        <div className="text-text-dim" style={{ fontSize: 11 }}>
+          Cmd/Ctrl-P prints a clean one-page version. JSON endpoint is{" "}
+          <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: 4 }}>
+            GET /api/preview/{preview.slug}
+          </code>{" "}
+          with a 5-minute edge cache — safe to syndicate.
+        </div>
       </div>
     </div>
   );

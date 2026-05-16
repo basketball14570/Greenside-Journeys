@@ -11,6 +11,8 @@ import { DFS_PLAYERS } from "@/lib/demo-dfs";
 import { STRATEGIES, runStrategy } from "@/lib/backtest";
 import { buildPreviewAsync } from "@/lib/preview";
 import { getForecast } from "@/lib/weather/forecast";
+import { calibrate, perPlayer } from "@/lib/wind-model";
+import { getPlayerProfile, datagolfEnabled } from "@/lib/data/datagolf";
 
 export type Tool = {
   name: string;
@@ -181,6 +183,33 @@ export const TOOLS: Tool[] = [
       required: ["course_slug"],
     },
   },
+  {
+    name: "get_player_profile",
+    description:
+      "Fetch a single player's profile — wind sensitivity, recent form, course-archetype fit, exposure history. DataGolf-backed when wired, demo fixture otherwise. Slugs are kebab-case: 'scheffler', 'mcilroy', 'cantlay', 'schauffele', 'morikawa'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "Player slug, e.g. 'scheffler'." },
+      },
+      required: ["slug"],
+    },
+  },
+  {
+    name: "model_calibration",
+    description:
+      "Check whether the wind-sensitivity model is calibrated against actual recent rounds. Returns bias, MAE, R², Pearson r, per-wind-regime buckets, and per-player drift with suggested coefficient updates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        per_player: {
+          type: "boolean",
+          description:
+            "When true, also return per-player drift rows (default false).",
+        },
+      },
+    },
+  },
 ];
 
 // ─── Handlers ──────────────────────────────────────────────
@@ -208,9 +237,87 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handlePreview(input);
     case "get_forecast":
       return handleForecast(input);
+    case "get_player_profile":
+      return handlePlayerProfile(input);
+    case "model_calibration":
+      return handleModelCalibration(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
+}
+
+async function handlePlayerProfile(input: Input) {
+  const slug = (input.slug as string | undefined) ?? "";
+  const profile = await getPlayerProfile(slug);
+  if (!profile) {
+    return {
+      error: `No player profile for slug '${slug}'.`,
+      hint: "Try one of: scheffler, mcilroy, cantlay, schauffele, morikawa.",
+    };
+  }
+  return {
+    source: datagolfEnabled() ? "datagolf" : "demo",
+    player: {
+      slug: profile.slug,
+      name: profile.name,
+      world_rank: profile.worldRank,
+      sg_baseline_per_round: profile.sgBaseline,
+      wind_sensitivity: profile.windSensitivity,
+      wind_sensitivity_rank: profile.windSensitivityRank,
+      recent_rounds: profile.recent.map((r) => ({
+        event: r.event,
+        date: r.date,
+        finish: r.finish,
+        sg_total: r.sgTotal,
+        wind_mph: r.windMph,
+      })),
+      archetype_fit: profile.fit.map((f) => ({
+        archetype: f.archetype,
+        rounds: f.rounds,
+        sg_per_round: f.sgPerRound,
+      })),
+      exposure: {
+        lifetime_bets: profile.exposure.lifetimeBets,
+        lifetime_net_units: profile.exposure.lifetimeNetU,
+        win_rate_percent: +(profile.exposure.winRate * 100).toFixed(1),
+        open_bets: profile.exposure.openBets,
+      },
+      edge_note: profile.edge,
+    },
+  };
+}
+
+function handleModelCalibration(input: Input) {
+  const includePerPlayer = !!input.per_player;
+  const stats = calibrate();
+  const out: Record<string, unknown> = {
+    rounds_sampled: stats.rounds,
+    bias_strokes_per_round: stats.meanResidual,
+    mean_abs_error: stats.meanAbsResidual,
+    rmse: stats.rmse,
+    r_squared: stats.rSquared,
+    pearson_r: stats.pearson,
+    buckets: stats.buckets.map((b) => ({
+      regime: b.label,
+      wind_mph_range: `${b.windRangeLow}-${b.windRangeHigh}`,
+      rounds: b.rounds,
+      mean_predicted: b.meanPredicted,
+      mean_actual: b.meanActual,
+      bias: b.bias,
+    })),
+  };
+  if (includePerPlayer) {
+    out.per_player = perPlayer().map((p) => ({
+      slug: p.slug,
+      name: p.name,
+      current_coefficient: p.current,
+      suggested_coefficient: p.suggested,
+      rounds: p.rounds,
+      bias: p.bias,
+      mae: p.mae,
+    }));
+  }
+  return out;
 }
 
 function handleBacktest(input: Input) {
@@ -524,5 +631,7 @@ When to use tools:
 - For "what if I had skipped X" / "which rule has been working" / strategy questions, call run_backtest. Pass strategy_id when the user names a specific rule; otherwise return them all.
 - For "preview this tournament" / "who's the play" / "what's the angle this week", call build_preview with the appropriate course slug.
 - For wind / weather / forecast questions, call get_forecast. It returns hourly data plus a 24h aggregate.
+- For deep dives on a specific player (form, wind sensitivity, archetype fit, the user's own exposure on them), call get_player_profile.
+- If the user asks whether the model is right / calibrated / trustworthy, or for a coefficient suggestion, call model_calibration with per_player:true.
 
 Current context: Quail Hollow Championship, Round 2 live. The user has 5–7 open bets across DK, FD, PrizePicks, Underdog.`;
