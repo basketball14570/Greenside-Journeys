@@ -134,13 +134,69 @@ export default function AccountPage() {
     save({ evCutoff: v });
   }
 
+  const [pushStatus, setPushStatus] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined") {
+      setPushPermission(Notification.permission);
+    }
+  }, []);
+
   async function requestPush() {
     if (typeof Notification === "undefined") {
       setPushPermission("denied");
+      setPushStatus("This browser doesn't support notifications.");
       return;
     }
-    const result = await Notification.requestPermission();
-    setPushPermission(result as "granted" | "denied" | "default");
+    const perm = await Notification.requestPermission();
+    setPushPermission(perm as "granted" | "denied" | "default");
+    if (perm !== "granted") {
+      setPushStatus("Notification permission denied.");
+      return;
+    }
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidKey) {
+      setPushStatus("Permission granted, but VAPID isn't configured on this deploy yet.");
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+      });
+      const r = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sub.toJSON()),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setPushStatus(`Subscribed locally but server save failed: ${j.error ?? r.status}`);
+        return;
+      }
+      setPushStatus("Push enabled. Try the test below.");
+    } catch (e) {
+      setPushStatus(`Could not subscribe: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  async function sendTest() {
+    setTesting(true);
+    setPushStatus(null);
+    try {
+      const r = await fetch("/api/push/test", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) setPushStatus(`Test failed: ${j.error ?? r.status}`);
+      else if (j.sent === 0) setPushStatus("No active subscriptions — re-enable push above.");
+      else setPushStatus(`Test sent to ${j.sent} device${j.sent === 1 ? "" : "s"}.`);
+    } catch (e) {
+      setPushStatus(`Test failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setTesting(false);
+    }
   }
 
   return (
@@ -164,6 +220,19 @@ export default function AccountPage() {
 
       {/* Push permission */}
       <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+        {pushStatus && (
+          <div
+            className="rounded-[8px] border px-3 py-2 mb-3"
+            style={{
+              borderColor: "#3f8a52",
+              background: "#3f8a521a",
+              color: "#a8e6a8",
+              fontSize: 12,
+            }}
+          >
+            {pushStatus}
+          </div>
+        )}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
             <div
@@ -177,20 +246,30 @@ export default function AccountPage() {
             </p>
           </div>
           {pushPermission === "granted" ? (
-            <span
-              className="num font-semibold"
-              style={{
-                fontSize: 11,
-                letterSpacing: 0.6,
-                color: "#8ee68e",
-                padding: "6px 11px",
-                borderRadius: 6,
-                background: "rgba(142,230,142,0.13)",
-                border: "1px solid rgba(142,230,142,0.3)",
-              }}
-            >
-              ENABLED
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={sendTest}
+                disabled={testing}
+                className="rounded-[6px] px-3 py-1.5 border border-line hover:border-line-strong disabled:opacity-40"
+                style={{ fontSize: 12 }}
+              >
+                {testing ? "Sending…" : "Send test"}
+              </button>
+              <span
+                className="num font-semibold"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 0.6,
+                  color: "#8ee68e",
+                  padding: "6px 11px",
+                  borderRadius: 6,
+                  background: "rgba(142,230,142,0.13)",
+                  border: "1px solid rgba(142,230,142,0.3)",
+                }}
+              >
+                ENABLED
+              </span>
+            </div>
           ) : pushPermission === "denied" ? (
             <span
               className="num font-semibold"
@@ -359,6 +438,17 @@ function ThresholdRow({
       />
     </div>
   );
+}
+
+// VAPID's public key is URL-safe base64; pushManager.subscribe wants a
+// Uint8Array. Standard incantation from the web-push docs.
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const b64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
 }
 
 function ForwardingAddress() {

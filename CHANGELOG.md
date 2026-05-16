@@ -2,6 +2,22 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Web Push end-to-end
+
+- **`lib/notify/push.ts`** — VAPID-signed web push via the `web-push`
+  package; pushes to one user or broadcasts to all, auto-prunes
+  410/404 dead subscriptions.
+- **`/api/push/subscribe`** — POST registers a PushSubscription (multi-
+  device dedup by endpoint), DELETE removes it. Persists to
+  `profiles.push_subscription` (jsonb array).
+- **`/api/push/test`** — fires a test push to the signed-in user.
+- **`/dashboard/account`** push card now actually registers the
+  service worker, subscribes, and stores the subscription. Adds a
+  Send-test button and inline status banner.
+- **`/api/cron/grade`** gained a second phase: pulls live/pending
+  bets from `bets` table, grades per user, and pushes when legs
+  transition. Demo webhook fan-out still runs alongside.
+
 ## 2026-05-16 — Tickets page reads real bets, email-confirm flow
 
 - **`/api/bets/mine`** GET returns the signed-in user's bets, PATCH

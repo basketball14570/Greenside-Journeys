@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { fetchLeaderboard } from "@/lib/espn-leaderboard";
+import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
 import { gradeAll, type OpenBet } from "@/lib/grading";
 import { DEMO_BETS } from "@/lib/demo-data";
 import { diffDecisions, renderAlertText } from "@/lib/notify/alerts";
 import { dispatchAll } from "@/lib/notify/webhooks";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { pushToUser, pushEnabled } from "@/lib/notify/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,6 +57,8 @@ export async function GET(req: Request) {
       });
     }
 
+    const userPush = await gradeAndPushUserBets(snapshot);
+
     return NextResponse.json({
       ran_at: new Date().toISOString(),
       event: snapshot.event?.shortName ?? null,
@@ -64,6 +68,7 @@ export async function GET(req: Request) {
       first_run: firstRun,
       changed: changed.length,
       dispatched,
+      user_push: userPush,
     });
   } catch (err) {
     return NextResponse.json(
@@ -80,4 +85,59 @@ function escapeHtml(s: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+// Pulls all live/pending bets owned by real users out of Supabase,
+// grades each user's bets, diffs against the prior tick scoped by
+// user_id, and fires a web-push to that user for every transition.
+// No-ops cleanly when the service role key or push aren't configured.
+async function gradeAndPushUserBets(
+  snapshot: LeaderboardSnapshot,
+): Promise<{ users: number; transitions: number; pushed: number }> {
+  const admin = supabaseAdmin();
+  if (!admin) return { users: 0, transitions: 0, pushed: 0 };
+
+  const { data, error } = await admin
+    .from("bets")
+    .select("id, user_id, player, market, line, american_odds, stake, to_win, status")
+    .in("status", ["live", "pending"]);
+  if (error || !data) return { users: 0, transitions: 0, pushed: 0 };
+
+  const byUser = new Map<string, typeof data>();
+  for (const row of data) {
+    const arr = byUser.get(row.user_id) ?? [];
+    arr.push(row);
+    byUser.set(row.user_id, arr);
+  }
+
+  let transitions = 0;
+  let pushed = 0;
+  const canPush = pushEnabled();
+
+  for (const [userId, rows] of byUser) {
+    const openBets: OpenBet[] = rows.map((r) => ({
+      id: r.id,
+      player: r.player,
+      market: r.market,
+      line: r.line !== null ? String(r.line) : "",
+      stake: Number(r.stake),
+      payout: Number(r.to_win),
+    }));
+    const report = gradeAll(openBets, snapshot);
+    const { changed, firstRun } = diffDecisions(`user:${userId}`, report.decisions);
+    if (changed.length === 0 || firstRun) continue;
+    transitions += changed.length;
+    if (!canPush) continue;
+    const head = changed[0];
+    const more = changed.length > 1 ? ` +${changed.length - 1} more` : "";
+    const res = await pushToUser(userId, {
+      title: `Greenside · ${head.bet.player} ${head.status.toUpperCase()}`,
+      body: `${head.bet.market} — ${head.reason}${more}`,
+      url: "/dashboard/bets",
+      tag: "greenside-grade",
+    });
+    pushed += res.sent;
+  }
+
+  return { users: byUser.size, transitions, pushed };
 }
