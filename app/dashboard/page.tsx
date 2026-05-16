@@ -3,12 +3,11 @@ import {
   AlertsFeed,
   AlertsPanel,
   DesktopBetsTable,
-  DesktopLeaderboard,
   DesktopWeatherHero,
-  MobileLeaderboard,
   MobileOpenBets,
   MobileWeatherHero,
 } from "@/components/edge/sections";
+import { LiveDashboardLeaderboard } from "@/components/edge/LiveDashboardLeaderboard";
 import {
   DEMO_ALERTS,
   DEMO_ALERTS_DESKTOP,
@@ -27,7 +26,11 @@ export default function DashboardHome() {
         <MobileWeatherHero />
         <AlertsFeed alerts={DEMO_ALERTS} />
         <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
-        <MobileLeaderboard rows={DEMO_LEADERBOARD.slice(0, 8)} />
+        <LiveDashboardLeaderboard
+          layout="mobile"
+          fallback={DEMO_LEADERBOARD.slice(0, 8)}
+          limit={8}
+        />
       </div>
 
       {/* ─── Desktop ─── */}
@@ -40,7 +43,11 @@ export default function DashboardHome() {
         </div>
         <div className="flex flex-col gap-6 min-w-0">
           <AlertsPanel alerts={DEMO_ALERTS_DESKTOP} />
-          <DesktopLeaderboard rows={DEMO_LEADERBOARD} />
+          <LiveDashboardLeaderboard
+            layout="desktop"
+            fallback={DEMO_LEADERBOARD}
+            limit={12}
+          />
         </div>
       </div>
     </>
