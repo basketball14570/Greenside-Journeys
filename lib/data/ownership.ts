@@ -171,6 +171,66 @@ export function leverage(
   return projected - med;
 }
 
+// Group all tournaments by their course. Useful when the same venue has
+// multiple events in the dataset over time (Pebble, Torrey, etc.) — the
+// course-level view aggregates ownership across every appearance.
+export type CourseHistory = {
+  course: string;
+  events: { tournament: string; meta: OwnershipMeta }[];
+  playerStats: {
+    name: string;
+    appearances: number;
+    avgOwn: number;
+    avgSalary: number;
+    maxOwn: number;
+    minOwn: number;
+  }[];
+};
+
+export function listCourses(): { course: string; eventCount: number; meta: OwnershipMeta }[] {
+  const map = new Map<string, { events: number; meta: OwnershipMeta }>();
+  for (const t of Object.values(OWNERSHIP_DATA)) {
+    const existing = map.get(t.meta.course);
+    if (existing) existing.events++;
+    else map.set(t.meta.course, { events: 1, meta: t.meta });
+  }
+  return [...map.entries()]
+    .map(([course, v]) => ({ course, eventCount: v.events, meta: v.meta }))
+    .sort((a, b) => b.eventCount - a.eventCount || a.course.localeCompare(b.course));
+}
+
+export function getCourseHistory(course: string): CourseHistory | null {
+  const events: { tournament: string; meta: OwnershipMeta }[] = [];
+  const perPlayer = new Map<string, { displayName: string; owns: number[]; salaries: number[] }>();
+
+  for (const tName of TOURNAMENT_ORDER) {
+    const t = OWNERSHIP_DATA[tName];
+    if (!t || t.meta.course !== course) continue;
+    events.push({ tournament: tName, meta: t.meta });
+    for (const p of t.players) {
+      const key = normalizeName(p.name);
+      const row = perPlayer.get(key) ?? { displayName: p.name, owns: [], salaries: [] };
+      row.owns.push(p.own);
+      row.salaries.push(p.salary);
+      perPlayer.set(key, row);
+    }
+  }
+  if (events.length === 0) return null;
+
+  const playerStats = [...perPlayer.values()]
+    .map((r) => ({
+      name: r.displayName,
+      appearances: r.owns.length,
+      avgOwn: avg(r.owns),
+      avgSalary: avg(r.salaries),
+      maxOwn: Math.max(...r.owns),
+      minOwn: Math.min(...r.owns),
+    }))
+    .sort((a, b) => b.avgOwn - a.avgOwn);
+
+  return { course, events, playerStats };
+}
+
 function avg(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
 }

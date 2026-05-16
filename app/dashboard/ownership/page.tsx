@@ -7,6 +7,8 @@ import {
   TOURNAMENT_ORDER,
   listPlayers,
   getPlayerHistory,
+  listCourses,
+  getCourseHistory,
   type OwnershipMeta,
 } from "@/lib/data/ownership";
 
@@ -17,8 +19,10 @@ import {
 type View =
   | { kind: "tournaments" }
   | { kind: "players" }
+  | { kind: "courses" }
   | { kind: "tournament"; name: string }
-  | { kind: "player"; name: string };
+  | { kind: "player"; name: string }
+  | { kind: "course"; name: string };
 
 export default function OwnershipPage() {
   const [view, setView] = useState<View>({ kind: "tournaments" });
@@ -34,6 +38,7 @@ export default function OwnershipPage() {
   );
 
   const players = useMemo(() => listPlayers(), []);
+  const courses = useMemo(() => listCourses(), []);
 
   const stats = useMemo(() => {
     let records = 0;
@@ -77,6 +82,12 @@ export default function OwnershipPage() {
         >
           Players
         </Tab>
+        <Tab
+          active={view.kind === "courses" || view.kind === "course"}
+          onClick={() => setView({ kind: "courses" })}
+        >
+          Courses
+        </Tab>
         <span className="flex-1" />
         <Link
           href="/dashboard/ownership/upload"
@@ -104,6 +115,9 @@ export default function OwnershipPage() {
       {view.kind === "players" && (
         <PlayersTable rows={players} onPick={(name) => setView({ kind: "player", name })} />
       )}
+      {view.kind === "courses" && (
+        <CoursesTable rows={courses} onPick={(name) => setView({ kind: "course", name })} />
+      )}
       {view.kind === "tournament" && (
         <TournamentDetail
           name={view.name}
@@ -118,8 +132,245 @@ export default function OwnershipPage() {
           onPickTournament={(name) => setView({ kind: "tournament", name })}
         />
       )}
+      {view.kind === "course" && (
+        <CourseDetail
+          name={view.name}
+          onBack={() => setView({ kind: "courses" })}
+          onPickPlayer={(name) => setView({ kind: "player", name })}
+          onPickTournament={(name) => setView({ kind: "tournament", name })}
+        />
+      )}
     </div>
   );
+}
+
+function CoursesTable({
+  rows,
+  onPick,
+}: {
+  rows: { course: string; eventCount: number; meta: OwnershipMeta }[];
+  onPick: (name: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = rows.filter((r) => r.course.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="space-y-3">
+      <input
+        placeholder="Search course…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        className="w-full rounded-[8px] border border-line bg-surface-1 px-3 py-2 text-text"
+        style={{ fontSize: 13 }}
+      />
+      <div className="rounded-[14px] border border-line overflow-hidden">
+        <div
+          className="grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
+          style={{
+            gridTemplateColumns: "2.5fr 70px 80px 80px 110px",
+            fontSize: 10,
+            letterSpacing: 1.1,
+            background: "rgba(0,0,0,0.18)",
+          }}
+        >
+          <span>Course</span>
+          <span className="text-right">Events</span>
+          <span className="text-right">Par</span>
+          <span className="text-right">Yards</span>
+          <span className="text-right">Type</span>
+        </div>
+        {filtered.map((r) => (
+          <button
+            key={r.course}
+            onClick={() => onPick(r.course)}
+            className="w-full text-left grid gap-2 px-4 py-3 border-b border-line/50 last:border-b-0 hover:bg-surface-2"
+            style={{ gridTemplateColumns: "2.5fr 70px 80px 80px 110px", fontSize: 13 }}
+          >
+            <span className="text-text font-medium">{r.course}</span>
+            <span className="num text-right text-text-dim">{r.eventCount}</span>
+            <span className="num text-right text-text-dim">{r.meta.par}</span>
+            <span className="num text-right text-text-dim">{r.meta.yards.toLocaleString()}</span>
+            <span className="text-right"><TypeBadge type={r.meta.type} /></span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CourseDetail({
+  name,
+  onBack,
+  onPickPlayer,
+  onPickTournament,
+}: {
+  name: string;
+  onBack: () => void;
+  onPickPlayer: (name: string) => void;
+  onPickTournament: (name: string) => void;
+}) {
+  const h = getCourseHistory(name);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"avg" | "max" | "apps">("avg");
+
+  if (!h) return null;
+
+  const filtered = useMemoFilter(h.playerStats, q, sort);
+  // Players with the most repeat appearances at this course are the most
+  // informative — they've shown up in the field multiple times.
+  const repeats = filtered.filter((p) => p.appearances > 1);
+  const oneOff = filtered.filter((p) => p.appearances === 1);
+
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={onBack}
+        className="text-text-dim hover:text-text"
+        style={{ fontSize: 12 }}
+      >
+        ← All courses
+      </button>
+      <div className="rounded-[14px] border border-line p-5 bg-surface-1 space-y-3">
+        <div className="serif-italic" style={{ fontSize: 24, fontStyle: "normal" }}>
+          <em>{h.course}</em>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Stat label="Events on file" value={`${h.events.length}`} />
+          <Stat label="Unique players" value={`${h.playerStats.length}`} />
+          <Stat label="Repeat field" value={`${repeats.length}`} tone="good" />
+          <Stat
+            label="Most-chalked"
+            value={
+              h.playerStats[0]
+                ? `${h.playerStats[0].name.split(" ").pop()} ${h.playerStats[0].avgOwn.toFixed(0)}%`
+                : "—"
+            }
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 text-text-dim" style={{ fontSize: 12 }}>
+          <span className="text-text-muted num uppercase" style={{ letterSpacing: 1, fontSize: 10 }}>
+            Events:
+          </span>
+          {h.events.map((e) => (
+            <button
+              key={e.tournament}
+              onClick={() => onPickTournament(e.tournament)}
+              className="underline hover:text-text"
+            >
+              {e.tournament}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          placeholder="Filter players…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="flex-1 min-w-[200px] rounded-[8px] border border-line bg-surface-1 px-3 py-2 text-text"
+          style={{ fontSize: 13 }}
+        />
+        <SortChip current={sort} value="avg" onPick={setSort}>
+          Sort: Avg
+        </SortChip>
+        <SortChip current={sort} value="max" onPick={setSort}>
+          Peak
+        </SortChip>
+        <SortChip current={sort} value="apps" onPick={setSort}>
+          Apps
+        </SortChip>
+      </div>
+
+      {repeats.length > 0 && (
+        <CoursePlayerTable
+          title={`Repeat field (${repeats.length})`}
+          rows={repeats}
+          onPick={onPickPlayer}
+        />
+      )}
+      {oneOff.length > 0 && (
+        <CoursePlayerTable
+          title={`One-off appearances (${oneOff.length})`}
+          rows={oneOff}
+          onPick={onPickPlayer}
+        />
+      )}
+    </div>
+  );
+}
+
+function CoursePlayerTable({
+  title,
+  rows,
+  onPick,
+}: {
+  title: string;
+  rows: { name: string; appearances: number; avgOwn: number; avgSalary: number; maxOwn: number; minOwn: number }[];
+  onPick: (name: string) => void;
+}) {
+  return (
+    <div className="rounded-[14px] border border-line overflow-hidden">
+      <div
+        className="px-4 py-2.5 border-b border-line num font-semibold uppercase text-text-muted"
+        style={{ fontSize: 10, letterSpacing: 1.1, background: "rgba(0,0,0,0.18)" }}
+      >
+        {title}
+      </div>
+      <div
+        className="grid gap-2 px-4 py-2 num font-semibold uppercase text-text-muted border-b border-line"
+        style={{
+          gridTemplateColumns: "1.8fr 60px 80px 100px 100px",
+          fontSize: 9.5,
+          letterSpacing: 1.1,
+        }}
+      >
+        <span>Player</span>
+        <span className="text-right">Apps</span>
+        <span className="text-right">Avg own</span>
+        <span className="text-right">Range</span>
+        <span className="text-right">Avg salary</span>
+      </div>
+      {rows.slice(0, 100).map((r) => (
+        <button
+          key={r.name}
+          onClick={() => onPick(r.name)}
+          className="w-full text-left grid gap-2 px-4 py-2.5 border-b border-line/50 last:border-b-0 hover:bg-surface-2"
+          style={{ gridTemplateColumns: "1.8fr 60px 80px 100px 100px", fontSize: 13 }}
+        >
+          <span className="text-text">{r.name}</span>
+          <span className="num text-right text-text-dim">{r.appearances}</span>
+          <span className="num text-right" style={{ color: ownColor(r.avgOwn) }}>
+            {r.avgOwn.toFixed(1)}%
+          </span>
+          <span className="num text-right text-text-dim" style={{ fontSize: 11 }}>
+            {r.minOwn.toFixed(1)}–{r.maxOwn.toFixed(1)}%
+          </span>
+          <span className="num text-right text-text-dim">
+            ${Math.round(r.avgSalary).toLocaleString()}
+          </span>
+        </button>
+      ))}
+      {rows.length > 100 && (
+        <div className="px-4 py-3 text-text-muted text-center" style={{ fontSize: 11 }}>
+          Showing top 100 of {rows.length}.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function useMemoFilter<
+  T extends { name: string; appearances: number; avgOwn: number; maxOwn: number },
+>(rows: T[], q: string, sort: "avg" | "max" | "apps"): T[] {
+  return useMemo(() => {
+    const f = rows.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+    f.sort((a, b) => {
+      if (sort === "apps") return b.appearances - a.appearances;
+      if (sort === "max") return b.maxOwn - a.maxOwn;
+      return b.avgOwn - a.avgOwn;
+    });
+    return f;
+  }, [rows, q, sort]);
 }
 
 function Tab({

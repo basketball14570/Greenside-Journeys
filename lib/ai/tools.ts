@@ -14,7 +14,13 @@ import { getForecast } from "@/lib/weather/forecast";
 import { calibrate, perPlayer } from "@/lib/wind-model";
 import { getPlayerProfile, datagolfEnabled } from "@/lib/data/datagolf";
 import { getPlayerHedgeQuotes, oddsApiEnabled } from "@/lib/data/odds";
-import { getPlayerHistory, getTournament, TOURNAMENT_ORDER } from "@/lib/data/ownership";
+import {
+  getPlayerHistory,
+  getTournament,
+  getCourseHistory,
+  listCourses,
+  TOURNAMENT_ORDER,
+} from "@/lib/data/ownership";
 
 export type Tool = {
   name: string;
@@ -210,6 +216,18 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_course_ownership_history",
+    description:
+      "Look up every player's aggregated DK ownership at a specific course across the whole 2026 season (handles courses with multiple events — Pebble Beach, Torrey Pines). Returns repeat-field players sorted by avg ownership plus one-off appearances. Use to answer 'who's chalk at Quail Hollow' or 'find leverage plays at Riviera'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        course: { type: "string", description: "Course name, e.g. 'Quail Hollow Club', 'Pebble Beach Golf Links'." },
+      },
+      required: ["course"],
+    },
+  },
+  {
     name: "get_player_profile",
     description:
       "Fetch a single player's profile — wind sensitivity, recent form, course-archetype fit, exposure history. DataGolf-backed when wired, demo fixture otherwise. Slugs are kebab-case: 'scheffler', 'mcilroy', 'cantlay', 'schauffele', 'morikawa'.",
@@ -319,6 +337,8 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handlePlayerOwnership(input);
     case "get_tournament_ownership":
       return handleTournamentOwnership(input);
+    case "get_course_ownership_history":
+      return handleCourseOwnership(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
@@ -345,6 +365,31 @@ async function handlePlayerOwnership(input: Input) {
       ownership_pct: Number(e.own.toFixed(2)),
       salary: e.salary,
     })),
+  };
+}
+
+async function handleCourseOwnership(input: Input) {
+  const course = (input.course as string | undefined) ?? "";
+  const h = getCourseHistory(course);
+  if (!h) {
+    const candidates = listCourses().slice(0, 5).map((c) => c.course);
+    return {
+      error: `No ownership history for course '${course}'.`,
+      hint: `Try one of: ${candidates.join(", ")}.`,
+    };
+  }
+  return {
+    course: h.course,
+    events: h.events.map((e) => e.tournament),
+    unique_players: h.playerStats.length,
+    top_chalk: h.playerStats.slice(0, 10).map((p) => ({
+      name: p.name,
+      appearances: p.appearances,
+      avg_ownership_pct: Number(p.avgOwn.toFixed(2)),
+      avg_salary: Math.round(p.avgSalary),
+      range: `${p.minOwn.toFixed(1)}–${p.maxOwn.toFixed(1)}%`,
+    })),
+    repeat_field_count: h.playerStats.filter((p) => p.appearances > 1).length,
   };
 }
 

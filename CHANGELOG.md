@@ -2,6 +2,20 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Course-level ownership view
+
+- **`/dashboard/ownership`** gained a **Courses** tab. Each venue
+  rolls up all its 2026 events into one view with stats: events
+  on file, unique players, repeat field, most-chalked player.
+- Click a course → see repeat-field players sorted by avg
+  ownership, plus a separate one-off list. Range column shows
+  min–max ownership across appearances so you can spot the
+  inconsistency.
+- `lib/data/ownership.ts` gained `listCourses` / `getCourseHistory`
+  helpers (groups tournaments that share a venue).
+- Ask Greenside: `get_course_ownership_history` tool —
+  "who's chalk at Quail Hollow", "leverage plays at Riviera".
+
 ## 2026-05-16 — DFS leverage cards + ownership upload helper
 
 - **`/dashboard/dfs`** gained side-by-side **Leverage plays** and
