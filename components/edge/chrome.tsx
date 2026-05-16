@@ -194,6 +194,8 @@ const DESKTOP_TABS = [
   { label: "Ask", href: "/dashboard/ask" },
   { label: "DFS Optimizer", href: "/dashboard/dfs" },
   { label: "Course Lab", href: "/dashboard/conditions" },
+  { label: "Previews", href: "/dashboard/preview" },
+  { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Bankroll", href: "/dashboard/account" },
 ];
 
