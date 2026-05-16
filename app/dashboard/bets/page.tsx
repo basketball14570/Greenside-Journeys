@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookChip, StatusDot, type Book, type Status } from "@/components/edge/primitives";
 import { BreakdownBar, PnlSpark } from "@/components/edge/pnl";
 import { DEMO_BETS } from "@/lib/demo-data";
@@ -126,6 +126,8 @@ export default function BetsPage() {
           Run grader
         </a>
       </div>
+
+      <ImportedBets />
 
       {/* P&L chart + breakdowns */}
       <div className="grid lg:grid-cols-3 gap-5">
@@ -386,6 +388,209 @@ function BetRowDesktop({
       </span>
     </div>
   );
+}
+
+type ImportedBet = {
+  id: string;
+  book: string;
+  player: string;
+  market: string;
+  line: number | null;
+  american_odds: number;
+  stake: number;
+  to_win: number;
+  status: string;
+  source: string;
+  parse_confidence: number | null;
+  user_confirmed: boolean;
+  placed_at: string | null;
+};
+
+function ImportedBets() {
+  const [state, setState] = useState<
+    | { kind: "loading" }
+    | { kind: "anon" }
+    | { kind: "unconfigured" }
+    | { kind: "ready"; bets: ImportedBet[] }
+  >({ kind: "loading" });
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch("/api/bets/mine?limit=100", { cache: "no-store" });
+      const j = await r.json();
+      if (!j.configured) return setState({ kind: "unconfigured" });
+      if (!j.signedIn) return setState({ kind: "anon" });
+      setState({ kind: "ready", bets: (j.bets ?? []) as ImportedBet[] });
+    } catch {
+      setState({ kind: "unconfigured" });
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function act(id: string, action: "confirm" | "dismiss") {
+    await fetch("/api/bets/mine", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    load();
+  }
+
+  if (state.kind === "loading" || state.kind === "unconfigured") return null;
+  if (state.kind === "anon") return null;
+  if (state.bets.length === 0) return null;
+
+  const pending = state.bets.filter((b) => !b.user_confirmed && b.source !== "manual");
+  const confirmed = state.bets.filter((b) => b.user_confirmed || b.source === "manual");
+
+  return (
+    <div className="space-y-3">
+      {pending.length > 0 && (
+        <section className="rounded-[14px] border border-line p-5 bg-surface-1">
+          <div className="flex items-baseline justify-between mb-3">
+            <div
+              className="serif-italic text-text"
+              style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+            >
+              <em>Pending confirmation ({pending.length})</em>
+            </div>
+            <div
+              className="num font-semibold uppercase text-text-muted"
+              style={{ fontSize: 10, letterSpacing: 1.2 }}
+            >
+              From your inbox
+            </div>
+          </div>
+          <div className="space-y-2">
+            {pending.map((b) => (
+              <ImportedRow key={b.id} b={b} onConfirm={() => act(b.id, "confirm")} onDismiss={() => act(b.id, "dismiss")} />
+            ))}
+          </div>
+        </section>
+      )}
+      {confirmed.length > 0 && (
+        <section className="rounded-[14px] border border-line p-5 bg-surface-1">
+          <div className="flex items-baseline justify-between mb-3">
+            <div
+              className="serif-italic text-text"
+              style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+            >
+              <em>Your bets ({confirmed.length})</em>
+            </div>
+            <div
+              className="num font-semibold uppercase text-text-muted"
+              style={{ fontSize: 10, letterSpacing: 1.2 }}
+            >
+              Synced from Supabase
+            </div>
+          </div>
+          <div className="space-y-2">
+            {confirmed.slice(0, 25).map((b) => (
+              <ImportedRow key={b.id} b={b} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function ImportedRow({
+  b,
+  onConfirm,
+  onDismiss,
+}: {
+  b: ImportedBet;
+  onConfirm?: () => void;
+  onDismiss?: () => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-[10px] border border-line/60 bg-bg/40 px-3 py-2.5"
+      style={{ fontSize: 13 }}
+    >
+      <span
+        className="num font-bold uppercase shrink-0"
+        style={{
+          fontSize: 10,
+          letterSpacing: 1.1,
+          color: "#a8b3ac",
+          padding: "3px 6px",
+          background: "#0a1f1422",
+          borderRadius: 4,
+        }}
+      >
+        {b.book}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-text font-medium truncate" style={{ fontSize: 13 }}>
+          {b.player}
+        </div>
+        <div className="text-text-dim truncate" style={{ fontSize: 11 }}>
+          {b.market}
+          {b.line !== null ? ` · ${b.line}` : ""}
+          {" · "}
+          <span className="num">
+            {b.american_odds > 0 ? "+" : ""}
+            {b.american_odds}
+          </span>
+          {" · "}
+          <span className="num">${b.stake.toFixed(0)} → ${b.to_win.toFixed(0)}</span>
+        </div>
+      </div>
+      <span
+        className="num uppercase shrink-0"
+        style={{
+          fontSize: 9,
+          letterSpacing: 1,
+          color: statusColor(b.status),
+          background: `${statusColor(b.status)}1a`,
+          padding: "2px 6px",
+          borderRadius: 4,
+        }}
+      >
+        {b.status}
+      </span>
+      {onConfirm && onDismiss && (
+        <div className="flex gap-1.5 shrink-0">
+          <button
+            onClick={onConfirm}
+            className="rounded-[6px] px-2 py-1"
+            style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 11, fontWeight: 600 }}
+          >
+            Confirm
+          </button>
+          <button
+            onClick={onDismiss}
+            className="rounded-[6px] px-2 py-1 border border-line"
+            style={{ fontSize: 11 }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function statusColor(s: string): string {
+  switch (s) {
+    case "won":
+      return "#7fd49a";
+    case "lost":
+      return "#e87c7c";
+    case "live":
+      return "#f5c558";
+    case "pending":
+      return "#a8b3ac";
+    case "void":
+      return "#7cc0e8";
+    default:
+      return "#a8b3ac";
+  }
 }
 
 function BetCardMobile({ b }: { b: DashBet | HistoryBet }) {

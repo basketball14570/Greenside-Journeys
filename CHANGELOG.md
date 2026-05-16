@@ -2,6 +2,16 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Tickets page reads real bets, email-confirm flow
+
+- **`/api/bets/mine`** GET returns the signed-in user's bets, PATCH
+  flips `user_confirmed` (pending → live) or deletes on dismiss.
+  RLS-scoped to own rows.
+- **`/dashboard/bets`** gained a "Pending confirmation" section that
+  surfaces bets imported from Postmark inbound with Confirm / Dismiss
+  controls, plus a "Your bets" section showing all real bets — the
+  demo data renders below for first-time visitors.
+
 ## 2026-05-16 — Persisted alert preferences
 
 - **`/api/account/preferences`** GET/PUT — backed by new
