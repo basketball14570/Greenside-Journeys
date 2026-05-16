@@ -64,7 +64,7 @@ export default function OwnershipPage() {
         </p>
       </header>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Tab
           active={view.kind === "tournaments" || view.kind === "tournament"}
           onClick={() => setView({ kind: "tournaments" })}
@@ -77,6 +77,22 @@ export default function OwnershipPage() {
         >
           Players
         </Tab>
+        <span className="flex-1" />
+        <Link
+          href="/dashboard/ownership/upload"
+          className="num font-semibold uppercase"
+          style={{
+            padding: "6px 12px",
+            borderRadius: 6,
+            fontSize: 11,
+            letterSpacing: 0.8,
+            color: "#8ee68e",
+            background: "rgba(142,230,142,0.13)",
+            border: "1px solid rgba(142,230,142,0.3)",
+          }}
+        >
+          + Add tournament
+        </Link>
       </div>
 
       {view.kind === "tournaments" && (

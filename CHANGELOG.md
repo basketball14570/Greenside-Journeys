@@ -2,6 +2,19 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — DFS leverage cards + ownership upload helper
+
+- **`/dashboard/dfs`** gained side-by-side **Leverage plays** and
+  **Chalk warning** cards: for each pool player with ≥2 historical
+  appearances, computes `projected − historical_avg` ownership and
+  surfaces the five biggest gaps in each direction.
+- **`/dashboard/ownership/upload`** + **`/api/ownership/upload`** —
+  paste a JSON blob in the same shape as the standalone HTML viewer;
+  the validator checks structure and returns a ready-to-paste
+  TypeScript snippet for `OWNERSHIP_DATA`. No server-side mutation —
+  the dataset stays in the repo where every change is reviewable.
+- Ownership browser nav gained a **+ Add tournament** chip.
+
 ## 2026-05-16 — DK ownership database (696 records, 14 events)
 
 - **`lib/data/ownership.ts`** — typed dataset of every PGA tournament so

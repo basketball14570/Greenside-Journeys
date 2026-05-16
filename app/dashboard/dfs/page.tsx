@@ -1,5 +1,6 @@
 import { Stat } from "@/components/edge/primitives";
 import { DFS_PLAYERS, buildSampleLineup } from "@/lib/demo-dfs";
+import { getPlayerHistory } from "@/lib/data/ownership";
 
 const SAMPLE = buildSampleLineup(DFS_PLAYERS);
 const TOTAL_SALARY = SAMPLE.picks.reduce((s, p) => s + p.salary, 0);
@@ -219,6 +220,8 @@ export default function DfsPage() {
         </div>
       </div>
 
+      <LeverageInsights />
+
       {/* Full salary table */}
       <div className="rounded-[14px] overflow-hidden bg-surface-1 border border-line">
         <div
@@ -344,6 +347,132 @@ export default function DfsPage() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Leverage insights ─────────────────────────────────────
+// For each DFS player with historical ownership, compare today's projected
+// ownership to their season-long average. Big positive delta = "they're
+// chalk this week relative to how they normally play"; big negative delta
+// = "the field is sleeping on them." Both are useful signals.
+function LeverageInsights() {
+  const rows = DFS_PLAYERS.map((p) => {
+    const h = getPlayerHistory(p.name);
+    if (!h || h.appearances < 2) return null;
+    const delta = p.ownership - h.avgOwn;
+    return {
+      name: p.name,
+      projected: p.ownership,
+      historical: h.avgOwn,
+      delta,
+      apps: h.appearances,
+      salary: p.salary,
+    };
+  }).filter((x): x is NonNullable<typeof x> => x !== null);
+
+  const leverage = [...rows].sort((a, b) => a.delta - b.delta).slice(0, 5);
+  const chalk = [...rows].sort((a, b) => b.delta - a.delta).slice(0, 5);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-5">
+      <LeverageCard
+        title="Leverage plays"
+        subtitle="Projected ownership well below their season average"
+        rows={leverage}
+        tone="good"
+      />
+      <LeverageCard
+        title="Chalk warning"
+        subtitle="Projected ownership well above their season average"
+        rows={chalk}
+        tone="bad"
+      />
+    </div>
+  );
+}
+
+function LeverageCard({
+  title,
+  subtitle,
+  rows,
+  tone,
+}: {
+  title: string;
+  subtitle: string;
+  rows: { name: string; projected: number; historical: number; delta: number; apps: number; salary: number }[];
+  tone: "good" | "bad";
+}) {
+  const accent = tone === "good" ? "#7fd49a" : "#e87c7c";
+  return (
+    <div className="rounded-[14px] bg-surface-1 border border-line overflow-hidden">
+      <div
+        className="px-5 py-4 border-b border-line"
+        style={{ background: "rgba(0,0,0,0.18)" }}
+      >
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 9.5, letterSpacing: 1.2, color: accent }}
+        >
+          ● {title}
+        </span>
+        <div
+          className="text-text-dim mt-1"
+          style={{ fontSize: 12 }}
+        >
+          {subtitle}
+        </div>
+      </div>
+      <div
+        className="grid gap-2 px-5 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
+        style={{
+          gridTemplateColumns: "1.6fr 65px 65px 65px",
+          fontSize: 9.5,
+          letterSpacing: 1.1,
+        }}
+      >
+        <span>Player</span>
+        <span className="text-right">Proj</span>
+        <span className="text-right">Avg</span>
+        <span className="text-right">Δ</span>
+      </div>
+      {rows.map((r, i) => (
+        <div
+          key={r.name}
+          className="grid gap-2 px-5 py-3 items-center"
+          style={{
+            gridTemplateColumns: "1.6fr 65px 65px 65px",
+            borderBottom:
+              i < rows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+            fontSize: 13,
+          }}
+        >
+          <div className="min-w-0">
+            <div className="text-text font-medium truncate">{r.name}</div>
+            <div
+              className="num text-text-muted"
+              style={{ fontSize: 10.5 }}
+            >
+              ${r.salary.toLocaleString()} · {r.apps} apps
+            </div>
+          </div>
+          <span className="num text-right text-text" style={{ fontSize: 12.5 }}>
+            {r.projected.toFixed(1)}%
+          </span>
+          <span className="num text-right text-text-dim" style={{ fontSize: 12.5 }}>
+            {r.historical.toFixed(1)}%
+          </span>
+          <span
+            className="num text-right font-semibold"
+            style={{ fontSize: 12.5, color: accent }}
+          >
+            {r.delta > 0 ? "+" : ""}
+            {r.delta.toFixed(1)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
