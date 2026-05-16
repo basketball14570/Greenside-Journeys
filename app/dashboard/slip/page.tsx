@@ -9,6 +9,7 @@ import {
 import { useBetSlip } from "@/lib/bet-slip-store";
 import { describeLeg, legToOpenBet, type SlipLeg } from "@/lib/bet-slip";
 import { gradeBet } from "@/lib/grading";
+import { parseSlipText } from "@/lib/slip-parser";
 
 type LegKind = SlipLeg["kind"];
 
@@ -24,6 +25,36 @@ const KIND_LABELS: Record<LegKind, string> = {
 export default function SlipPage() {
   const { slip, addLeg, removeLeg, clear, ready, signedIn } = useBetSlip();
   const [snapshot, setSnapshot] = useState<LeaderboardSnapshot | null>(null);
+  const [pasted, setPasted] = useState("");
+  const [pasteStatus, setPasteStatus] = useState<string | null>(null);
+
+  // Bookmarklet hand-off: /dashboard/slip#import=<urlencoded text>
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    const match = hash.match(/^#import=(.+)$/);
+    if (match) {
+      try {
+        setPasted(decodeURIComponent(match[1]));
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {
+        // Bad encoding — leave hash, user can paste manually.
+      }
+    }
+  }, []);
+
+  function ingestPaste() {
+    const { parsed, rejected } = parseSlipText(pasted);
+    parsed.forEach((p) => addLeg(p));
+    const okMsg = parsed.length
+      ? `Added ${parsed.length} leg${parsed.length === 1 ? "" : "s"}.`
+      : "";
+    const rejMsg = rejected.length
+      ? ` Skipped ${rejected.length} line${rejected.length === 1 ? "" : "s"} (no grader matched).`
+      : "";
+    setPasteStatus(`${okMsg}${rejMsg}`.trim() || "No legs found in input.");
+    if (parsed.length) setPasted("");
+  }
 
   useEffect(() => {
     fetchLeaderboard().then(setSnapshot).catch(() => undefined);
@@ -67,6 +98,40 @@ export default function SlipPage() {
           decorates rows with live grading.
         </p>
       </header>
+
+      <section className="rounded-[14px] border border-line p-5 bg-surface-1 space-y-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-medium" style={{ fontSize: 18 }}>
+            Paste a slip
+          </h2>
+          <span className="text-text-dim" style={{ fontSize: 11 }}>
+            From DK, FD, PrizePicks, Underdog — one leg per chunk.
+          </span>
+        </div>
+        <textarea
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          placeholder={`Scottie Scheffler Top 10 +250 1u DK\n\nMcIlroy vs Schauffele R3 -115 1u FD\n\nJustin Rose Make Cut -140 0.5u`}
+          rows={5}
+          className="w-full rounded-[8px] border border-line bg-bg px-3 py-2 text-text"
+          style={{ fontSize: 13, fontFamily: "ui-monospace, monospace" }}
+        />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={ingestPaste}
+            disabled={!pasted.trim()}
+            className="rounded-[10px] px-4 py-2 disabled:opacity-40"
+            style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 13, fontWeight: 600 }}
+          >
+            Parse and add
+          </button>
+          {pasteStatus && (
+            <span className="text-text-dim" style={{ fontSize: 12 }}>
+              {pasteStatus}
+            </span>
+          )}
+        </div>
+      </section>
 
       <AddLegForm fieldNames={fieldNames} onAdd={addLeg} />
 

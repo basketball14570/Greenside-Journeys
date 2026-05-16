@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { fetchLeaderboard } from "@/lib/espn-leaderboard";
 import { gradeAll, type OpenBet } from "@/lib/grading";
 import { DEMO_BETS } from "@/lib/demo-data";
+import { diffDecisions, renderAlertText } from "@/lib/notify/alerts";
+import { dispatchAll } from "@/lib/notify/webhooks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,12 +40,30 @@ export async function GET(req: Request) {
   try {
     const snapshot = await fetchLeaderboard();
     const report = gradeAll(openBetsFromDemo(), snapshot);
+    const { changed, firstRun } = diffDecisions("default", report.decisions);
+
+    // Only fan out webhooks when something actually transitioned, and
+    // never on the first run (avoids a flood when the process boots).
+    let dispatched: Awaited<ReturnType<typeof dispatchAll>> = [];
+    if (changed.length && !firstRun) {
+      const markdown = renderAlertText(changed);
+      dispatched = await dispatchAll({
+        title: `Greenside · ${changed.length} bet update${changed.length === 1 ? "" : "s"}`,
+        markdown,
+        html: `<pre style="font-family:-apple-system,Segoe UI,Roboto,sans-serif">${escapeHtml(markdown)}</pre>`,
+        url: `${new URL(req.url).origin}/dashboard/bets`,
+      });
+    }
+
     return NextResponse.json({
       ran_at: new Date().toISOString(),
       event: snapshot.event?.shortName ?? null,
       total: report.total,
       by_status: report.by_status,
       net_pnl_units: report.net_pnl_units,
+      first_run: firstRun,
+      changed: changed.length,
+      dispatched,
     });
   } catch (err) {
     return NextResponse.json(
@@ -54,3 +74,10 @@ export async function GET(req: Request) {
 }
 
 export const POST = GET;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}

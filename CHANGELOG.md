@@ -2,6 +2,36 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Slip paste, alert dispatch, bookmarklet
+
+- **Slip-paste import** on `/dashboard/slip` — heuristic parser
+  (`lib/slip-parser.ts`) recognizes top-N, outright, matchup, 3-ball,
+  round prop over/unders, and make-cut from free-form text dumps of
+  DK / FD / PrizePicks / Underdog slips. Parsed legs slot straight
+  into the slip; rejected lines are reported.
+- **Change-only alert dispatch** — `/api/cron/grade` now diffs each
+  decision against the prior run and only fans out webhooks when a
+  bet actually transitions (live → won, etc.). No more cron spam.
+- **Bookmarklet** at `/bookmarklet` — drag the button to your
+  bookmarks bar; on any sportsbook tab, highlight the bet text and
+  click the bookmark to hand off to `/dashboard/slip#import=…` with
+  the selection pre-filled.
+
+## 2026-05-16 — Full leaderboard, unified slip editor, health
+
+- **/dashboard/leaderboard** — every player in the live ESPN field with
+  search / filter (All, Mine, Made cut, Top 30) / sort. Rows the user
+  has a bet on glow with a colored pill per leg showing live grading.
+- **/dashboard/slip** — full slip editor: top-N, outright, matchup,
+  3-ball, round prop O/U (strokes/birdies/bogeys/eagles), make-cut.
+  Player inputs autocomplete from the live field. Persists to
+  localStorage instantly; syncs to Supabase `bet_slips` when signed in.
+- **lib/bet-slip.ts** — discriminated union covering every market,
+  with `legToOpenBet` adapter feeding the existing grader.
+- **db/schema.sql** adds the `bet_slips` table with own-row RLS.
+- **/api/health** — 13-integration status probe.
+- Ask Greenside picked up `get_full_leaderboard`.
+
 ## 2026-05-16 — Settlement, syndication, exports
 
 - **Bet-grading engine** (`lib/grading.ts`) — generic settler that takes

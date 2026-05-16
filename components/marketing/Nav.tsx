@@ -96,6 +96,8 @@ export function MarketingFooter() {
             <li><Link href="/pricing" className="text-text-dim hover:text-text">Pricing</Link></li>
             <li><Link href="/dashboard" className="text-text-dim hover:text-text">Dashboard</Link></li>
             <li><Link href="/dashboard/ask" className="text-text-dim hover:text-text">Ask Greenside</Link></li>
+            <li><Link href="/bookmarklet" className="text-text-dim hover:text-text">Bookmarklet</Link></li>
+            <li><Link href="/changelog" className="text-text-dim hover:text-text">Changelog</Link></li>
           </ul>
         </div>
         <div>
