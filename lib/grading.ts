@@ -231,10 +231,49 @@ function parsePropLine(line: string): { side: "over" | "under" | null; line: num
   return { side, line: parseFloat(m[2]) };
 }
 
+// "Make Cut" / "Miss Cut" — settles only after the field plays through the
+// cut line. Before then, status reflects current cut probability via
+// position vs projected line — but we don't have a projected cut line in
+// the ESPN feed, so we just surface "live" until the event posts.
+function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
+  const wantsMake = bet.market.toLowerCase().includes("make");
+  const p = findPlayer(snapshot, bet.player);
+  if (!p) return { bet, status: "unknown", reason: "Player not in field" };
+  const finalState = eventComplete(snapshot);
+  // ESPN sets isCut once the cut has been applied. Until then we wait.
+  if (p.isCut) {
+    return {
+      bet,
+      status: wantsMake ? "lost" : "won",
+      reason: wantsMake ? "Missed cut" : "Missed cut as predicted",
+      observedValue: p.posDisplay,
+      pnl: wantsMake ? -bet.stake : payoutOnWin(bet),
+    };
+  }
+  // No isCut flag — either still pre-cut or made it.
+  // Period >= 3 with the player still active = made the cut.
+  if ((snapshot.event?.period ?? 0) >= 3 && !p.isCut) {
+    return {
+      bet,
+      status: wantsMake ? "won" : "lost",
+      reason: wantsMake ? "Made cut" : "Made cut against you",
+      observedValue: p.posDisplay,
+      pnl: wantsMake ? payoutOnWin(bet) : -bet.stake,
+    };
+  }
+  return {
+    bet,
+    status: finalState ? (wantsMake ? "won" : "lost") : "live",
+    reason: "Pre-cut",
+    observedValue: p.posDisplay,
+  };
+}
+
 // ── Dispatcher ───────────────────────────────────────────────────
 
 export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const m = bet.market.toLowerCase();
+  if (m.includes("make cut") || m.includes("miss cut")) return gradeMakeCut(bet, snapshot);
   if (m.includes("top")) return gradeTopN(bet, snapshot);
   if (m.includes("win") && !m.includes("over") && !m.includes("under")) return gradeToWin(bet, snapshot);
   if (m.includes("matchup") || m.includes("vs")) return gradeMatchup(bet, snapshot);

@@ -221,6 +221,24 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_full_leaderboard",
+    description:
+      "Fetch the full live leaderboard from ESPN for the active PGA event. Returns every player in the field with position, total-to-par, today's round-to-par, and thru. Use this for any 'where is player X' / 'top 10 right now' / 'how is the cut line shaping up' type question.",
+    input_schema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Cap the number of players returned (default 30).",
+        },
+        made_cut_only: {
+          type: "boolean",
+          description: "When true, exclude players marked as CUT/WD/DQ.",
+        },
+      },
+    },
+  },
+  {
     name: "get_live_odds",
     description:
       "Fetch live cross-book hedge / outright odds for a named player from The Odds API. Returns null/empty when the upstream key isn't configured — use the demo prices on the hedge page in that case.",
@@ -270,6 +288,8 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handleLiveOdds(input);
     case "grade_open_bets":
       return handleGradeBets();
+    case "get_full_leaderboard":
+      return handleFullLeaderboard(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
@@ -314,6 +334,40 @@ async function handlePlayerProfile(input: Input) {
       edge_note: profile.edge,
     },
   };
+}
+
+async function handleFullLeaderboard(input: Input) {
+  const { fetchLeaderboard } = await import("@/lib/espn-leaderboard");
+  const limit = Math.max(1, Math.min(200, (input.limit as number | undefined) ?? 30));
+  const cutOnly = !!input.made_cut_only;
+  try {
+    const snap = await fetchLeaderboard();
+    let rows = snap.players;
+    if (cutOnly) rows = rows.filter((p) => !p.isCut);
+    rows = rows
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.posNum ?? 9999) - (b.posNum ?? 9999) ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, limit);
+    return {
+      event: snap.event?.name ?? null,
+      round: snap.event?.period ?? null,
+      state: snap.event?.state ?? null,
+      players: rows.map((p) => ({
+        position: p.posDisplay,
+        player: p.name,
+        total_to_par: p.totalToPar,
+        today_to_par: p.todayLine?.toPar ?? null,
+        thru: p.todayLine?.complete ? "F" : (p.todayLine?.thru ?? null),
+        cut: p.isCut,
+      })),
+    };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
 }
 
 async function handleGradeBets() {
@@ -718,5 +772,6 @@ When to use tools:
 - If the user asks whether the model is right / calibrated / trustworthy, or for a coefficient suggestion, call model_calibration with per_player:true.
 - For "what's the live price on X" / cross-book comparison, call get_live_odds. When it returns source:"unavailable", say the live odds feed isn't wired and surface the demo prices from compute_hedge instead.
 - For "how are my bets doing" / "did anything settle" / "what's still live", call grade_open_bets. Summarize by status and call out any newly settled legs.
+- For "where is player X right now" / "top 10 right now" / "how does the cut look", call get_full_leaderboard. Use limit and made_cut_only to keep responses focused.
 
 Current context: Quail Hollow Championship, Round 2 live. The user has 5–7 open bets across DK, FD, PrizePicks, Underdog.`;

@@ -152,3 +152,21 @@ create policy "own alerts" on user_alerts
 
 create policy "own lineups" on dfs_lineups
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================================
+-- Bet slips — lightweight, per-user "current open slip" used by the
+-- /dashboard/slip and /dashboard/leaderboard views. One row per user.
+-- The full structured `bets` table above is the post-import canonical form;
+-- bet_slips is what the UI reads/writes during a live session.
+-- ============================================================================
+create table if not exists bet_slips (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  -- Array of slip legs. Each leg is freeform JSON to keep the UI moving;
+  -- a server-side validator coerces to the canonical bet shape on grade.
+  bets jsonb not null default '[]',
+  tournament_id text references tournaments(id),
+  updated_at timestamptz not null default now()
+);
+alter table bet_slips enable row level security;
+create policy "own slip" on bet_slips
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
