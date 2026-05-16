@@ -13,6 +13,7 @@ import { buildPreviewAsync } from "@/lib/preview";
 import { getForecast } from "@/lib/weather/forecast";
 import { calibrate, perPlayer } from "@/lib/wind-model";
 import { getPlayerProfile, datagolfEnabled } from "@/lib/data/datagolf";
+import { getPlayerHedgeQuotes, oddsApiEnabled } from "@/lib/data/odds";
 
 export type Tool = {
   name: string;
@@ -210,6 +211,21 @@ export const TOOLS: Tool[] = [
       },
     },
   },
+  {
+    name: "get_live_odds",
+    description:
+      "Fetch live cross-book hedge / outright odds for a named player from The Odds API. Returns null/empty when the upstream key isn't configured — use the demo prices on the hedge page in that case.",
+    input_schema: {
+      type: "object",
+      properties: {
+        player: {
+          type: "string",
+          description: "Player name, e.g. 'Scottie Scheffler'.",
+        },
+      },
+      required: ["player"],
+    },
+  },
 ];
 
 // ─── Handlers ──────────────────────────────────────────────
@@ -241,6 +257,8 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handlePlayerProfile(input);
     case "model_calibration":
       return handleModelCalibration(input);
+    case "get_live_odds":
+      return handleLiveOdds(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
@@ -284,6 +302,27 @@ async function handlePlayerProfile(input: Input) {
       },
       edge_note: profile.edge,
     },
+  };
+}
+
+async function handleLiveOdds(input: Input) {
+  const player = (input.player as string | undefined) ?? "";
+  if (!player) {
+    return { error: "player is required" };
+  }
+  if (!oddsApiEnabled()) {
+    return {
+      source: "unavailable",
+      reason: "THE_ODDS_API_KEY not configured",
+      player,
+      quotes: [],
+    };
+  }
+  const quotes = await getPlayerHedgeQuotes(player);
+  return {
+    source: quotes ? "the-odds-api" : "unavailable",
+    player,
+    quotes: quotes ?? [],
   };
 }
 
@@ -633,5 +672,6 @@ When to use tools:
 - For wind / weather / forecast questions, call get_forecast. It returns hourly data plus a 24h aggregate.
 - For deep dives on a specific player (form, wind sensitivity, archetype fit, the user's own exposure on them), call get_player_profile.
 - If the user asks whether the model is right / calibrated / trustworthy, or for a coefficient suggestion, call model_calibration with per_player:true.
+- For "what's the live price on X" / cross-book comparison, call get_live_odds. When it returns source:"unavailable", say the live odds feed isn't wired and surface the demo prices from compute_hedge instead.
 
 Current context: Quail Hollow Championship, Round 2 live. The user has 5–7 open bets across DK, FD, PrizePicks, Underdog.`;

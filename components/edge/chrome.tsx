@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark, StatusDot } from "./primitives";
+import UserChip from "./UserChip";
 
 // ─── Mobile top bar (settings + bell) ───────────────────────
 export function MobileTopBar() {
@@ -198,6 +199,7 @@ const DESKTOP_TABS = [
   { label: "Previews", href: "/dashboard/preview" },
   { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Model", href: "/dashboard/model" },
+  { label: "Newsletter", href: "/dashboard/newsletter" },
   { label: "Bankroll", href: "/dashboard/account" },
 ];
 
@@ -244,15 +246,7 @@ export function DesktopAppBar({ active = "Today" }: { active?: string }) {
         Search players, books, markets…
         <span className="text-text-muted ml-3">⌘K</span>
       </div>
-      <div className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-full bg-surface-1 border border-line">
-        <div
-          className="w-6 h-6 rounded-full"
-          style={{ background: "linear-gradient(135deg, #f5c558, #3f8a52)" }}
-        />
-        <span className="text-text" style={{ fontSize: 13 }}>
-          JS
-        </span>
-      </div>
+      <UserChip />
     </div>
   );
 }

@@ -81,7 +81,10 @@ from any app. This requires:
    `/dashboard/upload/share?...`.
 
 A reference implementation lives in `docs/ios-share-extension.swift` —
-copy it into the Xcode target after generation.
+copy `ShareViewController` into the Xcode target after generation,
+then add the AppDelegate / SceneDelegate snippet at the bottom of that
+file to wire the `greenside://` deep link. The file also lists the
+Info.plist + App Group entitlements you'll need.
 
 ## Android share intent
 
