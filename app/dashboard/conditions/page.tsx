@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Stat,
   StatusDot,
@@ -95,12 +96,13 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
             >
               {course.tournament} · {course.round}
             </span>
-            <div
-              className="serif-italic mt-0.5 text-text"
+            <Link
+              href={`/courses/${course.id}`}
+              className="serif-italic mt-0.5 text-text hover:opacity-80 transition block"
               style={{ fontSize: 22, letterSpacing: -0.3, fontStyle: "normal" }}
             >
-              {course.name}
-            </div>
+              {course.name} →
+            </Link>
             <div className="num text-text-dim mt-1" style={{ fontSize: 11.5 }}>
               {course.location}
             </div>

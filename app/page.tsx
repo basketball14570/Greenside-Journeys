@@ -1,40 +1,10 @@
 import Link from "next/link";
-import { BrandMark } from "@/components/edge/primitives";
+import { MarketingNav, MarketingFooter } from "@/components/marketing/Nav";
 
 export default function MarketingHome() {
   return (
     <main className="min-h-screen bg-bg text-text">
-      <nav className="flex items-center justify-between px-6 lg:px-12 py-5">
-        <div className="flex items-center gap-2.5">
-          <BrandMark size={28} />
-          <span
-            className="serif-italic"
-            style={{ fontSize: 22, letterSpacing: -0.3, fontStyle: "normal" }}
-          >
-            Greenside
-          </span>
-        </div>
-        <div className="flex items-center gap-6">
-          <Link
-            href="/login"
-            className="text-text-dim hover:text-text"
-            style={{ fontSize: 14 }}
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/login"
-            className="px-4 py-2 rounded font-semibold"
-            style={{
-              background: "#8ee68e",
-              color: "#06140c",
-              fontSize: 14,
-            }}
-          >
-            Open Dashboard
-          </Link>
-        </div>
-      </nav>
+      <MarketingNav />
 
       <section className="relative overflow-hidden">
         <div
@@ -48,7 +18,7 @@ export default function MarketingHome() {
               "radial-gradient(circle, rgba(245,197,88,0.15) 0%, transparent 65%)",
           }}
         />
-        <div className="relative max-w-5xl mx-auto px-6 lg:px-12 py-24 lg:py-36">
+        <div className="relative max-w-5xl mx-auto px-6 lg:px-12 py-20 lg:py-32">
           <span
             className="num font-semibold uppercase"
             style={{
@@ -90,11 +60,11 @@ export default function MarketingHome() {
               Open Dashboard
             </Link>
             <Link
-              href="/dashboard/upload"
+              href="/features"
               className="px-6 py-3 rounded font-semibold border border-line text-text hover:bg-surface-1"
               style={{ fontSize: 15 }}
             >
-              Upload a Bet Slip
+              Tour the features
             </Link>
           </div>
         </div>
@@ -104,7 +74,7 @@ export default function MarketingHome() {
         <Feature
           label="Aggregation"
           title="Every book, one screen"
-          body="Snap a bet slip from DK, FD, PrizePicks, or Underdog. Claude vision extracts the line, odds, and stake. Total exposure and correlated risk live in one dashboard."
+          body="Forward bet emails or snap a slip — Claude vision extracts the line, odds, and stake. Total exposure and correlated risk live in one dashboard."
         />
         <Feature
           label="Live Alerts"
@@ -112,19 +82,13 @@ export default function MarketingHome() {
           body="When the forecast jumps from 8 to 18 mph at Quail Hollow, we tell you which of your bets just got cheaper and which just got expensive — with the math, not a vibe."
         />
         <Feature
-          label="DFS Edge"
-          title="Wave-aware lineups"
-          body="DraftKings golf optimizer that prices in tee-time wave, course fit, and live weather. Build, save, and deep-link straight to DK."
+          label="Ask Greenside"
+          title="Talk to your portfolio"
+          body="Conversational AI grounded in your actual data. 'Hedge my McIlroy bet' or 'show me my +EV AM-wave bets' — answered with the math, not vibes."
         />
       </section>
 
-      <footer
-        className="border-t border-line py-8 text-center text-text-muted"
-        style={{ fontSize: 12 }}
-      >
-        Greenside is an analytics product. We don&apos;t accept wagers. 21+.
-        Gamble responsibly.
-      </footer>
+      <MarketingFooter />
     </main>
   );
 }

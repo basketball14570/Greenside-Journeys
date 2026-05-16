@@ -1,10 +1,27 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { PWARegister } from "@/components/edge/PWARegister";
 
 export const metadata: Metadata = {
   title: "Greenside — Golf Bet Intelligence",
   description:
     "Live course conditions, every bet across every book, and wave-aware DFS lineups for serious golf bettors.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Greenside",
+  },
+  icons: {
+    icon: "/brand/greenside-journeys-icon.svg",
+    apple: "/brand/greenside-journeys-icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a1f14",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -26,7 +43,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-bg text-text">{children}</body>
+      <body className="bg-bg text-text">
+        {children}
+        <PWARegister />
+      </body>
     </html>
   );
 }
