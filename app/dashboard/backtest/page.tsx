@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { runAllStrategies, type StrategyResult } from "@/lib/backtest";
+import {
+  buildStrategyMatrix,
+  listTournaments,
+  runAllStrategies,
+  type StrategyMatrixRow,
+  type StrategyResult,
+} from "@/lib/backtest";
 
 export default function BacktestPage() {
   const results = useMemo(() => runAllStrategies(), []);
@@ -44,9 +50,106 @@ export default function BacktestPage() {
         <EquityCurve result={active} baseline={baseline} />
       </div>
 
+      <TournamentMatrix />
+
       <ReadingTheNumbers />
     </div>
   );
+}
+
+function TournamentMatrix() {
+  const matrix = useMemo(() => buildStrategyMatrix(), []);
+  const tournaments = useMemo(() => listTournaments(), []);
+  if (!tournaments.length) return null;
+  return (
+    <div className="rounded-[14px] border border-line overflow-hidden">
+      <div className="px-4 py-3 border-b border-line bg-surface-1">
+        <h2 className="font-medium" style={{ fontSize: 18 }}>
+          By tournament
+        </h2>
+        <p className="text-text-dim mt-1" style={{ fontSize: 12 }}>
+          Each cell is net units under that strategy at that event. The
+          last column is the union across all tournaments. Empty cells
+          mean the strategy skipped every bet at that event.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full" style={{ fontSize: 13 }}>
+          <thead>
+            <tr className="bg-surface-1 text-text-dim uppercase" style={{ fontSize: 10, letterSpacing: 1.2 }}>
+              <th className="text-left px-4 py-2.5 sticky left-0 bg-surface-1">Strategy</th>
+              {tournaments.map((t) => (
+                <th key={t} className="text-right px-4 py-2.5 whitespace-nowrap">
+                  {shortName(t)}
+                </th>
+              ))}
+              <th className="text-right px-4 py-2.5">Overall</th>
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.map((row) => (
+              <MatrixRow key={row.strategy.id} row={row} tournaments={tournaments} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MatrixRow({
+  row,
+  tournaments,
+}: {
+  row: StrategyMatrixRow;
+  tournaments: string[];
+}) {
+  return (
+    <tr className="border-t border-line/40">
+      <td className="px-4 py-2.5 sticky left-0 bg-bg" style={{ fontWeight: 500 }}>
+        {row.strategy.label}
+      </td>
+      {tournaments.map((t) => {
+        const cell = row.byTournament[t];
+        if (!cell || cell.taken === 0) {
+          return (
+            <td key={t} className="text-right px-4 py-2.5 text-text-dim num">
+              —
+            </td>
+          );
+        }
+        return (
+          <td
+            key={t}
+            className="text-right px-4 py-2.5 num"
+            style={{ color: cell.netUnits >= 0 ? "#7fd49a" : "#e87c7c" }}
+            title={`${cell.taken} bets · ${(cell.winRate * 100).toFixed(0)}% win · ${(cell.roi * 100).toFixed(1)}% ROI`}
+          >
+            {cell.netUnits >= 0 ? "+" : ""}
+            {cell.netUnits.toFixed(2)}u
+          </td>
+        );
+      })}
+      <td
+        className="text-right px-4 py-2.5 num"
+        style={{
+          color: row.overall.netUnits >= 0 ? "#7fd49a" : "#e87c7c",
+          fontWeight: 600,
+        }}
+      >
+        {row.overall.netUnits >= 0 ? "+" : ""}
+        {row.overall.netUnits.toFixed(2)}u
+      </td>
+    </tr>
+  );
+}
+
+function shortName(tournament: string): string {
+  // Trim "Championship" / "Open" suffixes so the column header stays compact.
+  return tournament
+    .replace(/\sChampionship$/i, "")
+    .replace(/\sOpen$/i, "")
+    .replace(/\sInvitational$/i, "");
 }
 
 function ComparisonTable({

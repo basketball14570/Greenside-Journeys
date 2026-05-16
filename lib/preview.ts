@@ -5,6 +5,11 @@
 import { COURSE_PROFILES, type CourseProfile } from "@/lib/demo-course-profiles";
 import { COURSES, type CourseSnapshot } from "@/lib/demo-courses";
 import { PLAYERS, PLAYER_LIST, type PlayerProfile } from "@/lib/demo-players";
+import {
+  getForecast,
+  expectedWindDragForTournament,
+  type Forecast,
+} from "@/lib/weather/forecast";
 
 export type FitPlayer = {
   player: PlayerProfile;
@@ -31,19 +36,33 @@ export type TournamentPreview = {
   angles: AngleNote[];
   hedgeCandidates: { player: string; rationale: string }[];
   historyNotes: string[];
+  forecast: Forecast | null;
 };
 
-function expectedWindPenalty(player: PlayerProfile, snapshot: CourseSnapshot) {
-  // sensitivity is strokes lost per round per +10 mph above 5 mph baseline
+function expectedWindPenalty(
+  player: PlayerProfile,
+  snapshot: CourseSnapshot,
+  forecast: Forecast | null,
+) {
+  // Use the live forecast's 24h average if available — otherwise fall back
+  // to the snapshot's instantaneous wind. This keeps the preview rendering
+  // deterministically even when the upstream feed is offline.
+  if (forecast) {
+    return expectedWindDragForTournament(player.windSensitivity, forecast);
+  }
   const overBaseline = Math.max(0, snapshot.wind - 5);
-  return +(player.windSensitivity * (overBaseline / 10) * 4).toFixed(2); // 4-round tournament
+  return +(player.windSensitivity * (overBaseline / 10) * 4).toFixed(2);
 }
 
-function rankFit(course: CourseProfile, snapshot: CourseSnapshot): FitPlayer[] {
+function rankFit(
+  course: CourseProfile,
+  snapshot: CourseSnapshot,
+  forecast: Forecast | null,
+): FitPlayer[] {
   return PLAYER_LIST.map((player) => {
     const match = player.fit.find((f) => f.archetype === course.archetype);
     const archetypeFit = match?.sgPerRound ?? 0;
-    const penalty = expectedWindPenalty(player, snapshot);
+    const penalty = expectedWindPenalty(player, snapshot, forecast);
     const windAdjusted = +(archetypeFit * 4 - penalty).toFixed(2);
     const rationale =
       archetypeFit > 0
@@ -143,21 +162,48 @@ function buildHistoryNotes(course: CourseProfile, snapshot: CourseSnapshot): str
   return notes;
 }
 
+// Synchronous version — uses the snapshot's wind only, no live forecast.
+// Called by SSG and any sync renderer (older AI tool handlers, etc.).
 export function buildPreview(courseSlug: string): TournamentPreview | null {
+  return buildPreviewWith(courseSlug, null);
+}
+
+// Async version — pulls the live forecast and feeds it into the model.
+// Used by the AI tool handler and any client that wants a fresh read.
+export async function buildPreviewAsync(
+  courseSlug: string,
+): Promise<TournamentPreview | null> {
+  const course = COURSE_PROFILES[courseSlug];
+  if (!course) return null;
+  let forecast: Forecast | null = null;
+  try {
+    forecast = await getForecast(courseSlug);
+  } catch {
+    forecast = null;
+  }
+  return buildPreviewWith(courseSlug, forecast);
+}
+
+function buildPreviewWith(
+  courseSlug: string,
+  forecast: Forecast | null,
+): TournamentPreview | null {
   const course = COURSE_PROFILES[courseSlug];
   const snapshot = COURSES.find((c) => c.id === courseSlug);
   if (!course || !snapshot) return null;
-  const fit = rankFit(course, snapshot);
+  const fit = rankFit(course, snapshot, forecast);
   const top = fit.slice(0, 5);
   const fades = [...fit].reverse().slice(0, 3);
+  const liveWind = forecast?.next24.windMphAvg ?? snapshot.wind;
   const headline =
-    snapshot.wind >= 14
+    liveWind >= 14
       ? `Wind-shaped week at ${snapshot.location.split(",")[0]} — coastal résumés rule.`
       : snapshot.precipChance >= 50
         ? `Soft, wet setup — receptive greens and short hitters benefit.`
         : `${course.archetype} test — fit matters more than form.`;
-  const weather =
-    `${snapshot.wind} mph sustained from ${snapshot.windDirLabel}, gusting to ${snapshot.gust}. ${snapshot.temperatureF}°F, ${snapshot.humidity}% humidity, ${snapshot.precipChance}% precip.`;
+  const weather = forecast
+    ? `Live forecast: ${forecast.next24.windMphAvg} mph avg wind (peak ${forecast.next24.windMphMax}, gusts ${forecast.next24.gustMphMax}), ${forecast.next24.precipChanceMax}% peak precip in next 24h. Source: ${forecast.source}.`
+    : `${snapshot.wind} mph sustained from ${snapshot.windDirLabel}, gusting to ${snapshot.gust}. ${snapshot.temperatureF}°F, ${snapshot.humidity}% humidity, ${snapshot.precipChance}% precip.`;
   return {
     slug: courseSlug,
     tournament: snapshot.tournament,
@@ -170,6 +216,7 @@ export function buildPreview(courseSlug: string): TournamentPreview | null {
     angles: buildAngles(course, snapshot),
     hedgeCandidates: buildHedgeCandidates(fit),
     historyNotes: buildHistoryNotes(course, snapshot),
+    forecast,
   };
 }
 

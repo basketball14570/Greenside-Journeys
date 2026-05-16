@@ -183,3 +183,66 @@ export function runStrategy(strategy: Strategy, bets: HistoryBet[] = SETTLED_BET
 export function runAllStrategies(bets: HistoryBet[] = SETTLED_BETS) {
   return STRATEGIES.map((s) => runStrategy(s, bets));
 }
+
+// ── Multi-tournament aggregator ───────────────────────────────
+//
+// Slices the history by tournament and runs every strategy against each
+// slice + the union. Returns a grid that can power "where is the edge"
+// per-tournament panels and a per-event ROI heatmap.
+
+export type TournamentSlice = {
+  tournament: string;
+  bets: HistoryBet[];
+  results: StrategyResult[];
+};
+
+export function listTournaments(bets: HistoryBet[] = SETTLED_BETS): string[] {
+  const seen = new Set<string>();
+  for (const b of bets) seen.add(b.tournament);
+  return Array.from(seen);
+}
+
+export function runByTournament(
+  bets: HistoryBet[] = SETTLED_BETS,
+): TournamentSlice[] {
+  return listTournaments(bets).map((tournament) => {
+    const slice = bets.filter((b) => b.tournament === tournament);
+    return {
+      tournament,
+      bets: slice,
+      results: STRATEGIES.map((s) => runStrategy(s, slice)),
+    };
+  });
+}
+
+// Returns rows shaped for a strategy × tournament matrix:
+// [{ strategy, byTournament: { [tournament]: { netUnits, roi, ... } }, overall }]
+export type StrategyMatrixRow = {
+  strategy: Strategy;
+  overall: StrategyResult;
+  byTournament: Record<
+    string,
+    Pick<StrategyResult, "netUnits" | "roi" | "winRate" | "taken" | "maxDrawdown">
+  >;
+};
+
+export function buildStrategyMatrix(
+  bets: HistoryBet[] = SETTLED_BETS,
+): StrategyMatrixRow[] {
+  const slices = runByTournament(bets);
+  return STRATEGIES.map((strategy) => {
+    const overall = runStrategy(strategy, bets);
+    const byTournament: StrategyMatrixRow["byTournament"] = {};
+    for (const slice of slices) {
+      const r = slice.results.find((x) => x.strategy.id === strategy.id)!;
+      byTournament[slice.tournament] = {
+        netUnits: r.netUnits,
+        roi: r.roi,
+        winRate: r.winRate,
+        taken: r.taken,
+        maxDrawdown: r.maxDrawdown,
+      };
+    }
+    return { strategy, overall, byTournament };
+  });
+}

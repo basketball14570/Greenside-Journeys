@@ -8,6 +8,9 @@ import { DEMO_BETS, DEMO_ALERTS_DESKTOP, DEMO_LEADERBOARD } from "@/lib/demo-dat
 import { SETTLED_BETS, summarize, groupBy } from "@/lib/demo-history";
 import { COURSES, ALERT_HISTORY } from "@/lib/demo-courses";
 import { DFS_PLAYERS } from "@/lib/demo-dfs";
+import { STRATEGIES, runStrategy } from "@/lib/backtest";
+import { buildPreviewAsync } from "@/lib/preview";
+import { getForecast } from "@/lib/weather/forecast";
 
 export type Tool = {
   name: string;
@@ -122,6 +125,62 @@ export const TOOLS: Tool[] = [
       },
     },
   },
+  {
+    name: "run_backtest",
+    description:
+      "Replay the user's settled bet history under a named selection strategy and return ROI, win rate, net units, max drawdown, and profit factor. If strategy_id is omitted, returns all strategies side by side. Optionally filter to a single tournament. Use this when the user asks 'what would have happened if I had skipped X' or 'which rule has been working'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        strategy_id: {
+          type: "string",
+          description:
+            "One of: baseline, wind-discipline, no-longshots, mainstream-books, wave-aware, kelly-quarter. Omit for all.",
+        },
+        tournament: {
+          type: "string",
+          description:
+            "Restrict the replay to one tournament name (exact match).",
+        },
+      },
+    },
+  },
+  {
+    name: "build_preview",
+    description:
+      "Generate a structured tournament preview for the given course slug: top archetype-fit players with wind-drag penalty, betting angles, hedge candidates, fade list, and history notes. Use this for 'who's the play this week' type questions.",
+    input_schema: {
+      type: "object",
+      properties: {
+        course_slug: {
+          type: "string",
+          description:
+            "One of: quail-hollow, pebble-beach, torrey-pines-south.",
+        },
+      },
+      required: ["course_slug"],
+    },
+  },
+  {
+    name: "get_forecast",
+    description:
+      "Get the live wind / temperature / precipitation forecast for a course. Returns hourly data plus 24h aggregates. Use this when the user asks about conditions, wind impact, or weather for their bets.",
+    input_schema: {
+      type: "object",
+      properties: {
+        course_slug: {
+          type: "string",
+          description:
+            "One of: quail-hollow, pebble-beach, torrey-pines-south.",
+        },
+        hours: {
+          type: "number",
+          description: "How many forecast hours to return (default 24, max 48).",
+        },
+      },
+      required: ["course_slug"],
+    },
+  },
 ];
 
 // ─── Handlers ──────────────────────────────────────────────
@@ -143,9 +202,120 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handleHedge(input);
     case "get_dfs_player_pool":
       return handleDfs(input);
+    case "run_backtest":
+      return handleBacktest(input);
+    case "build_preview":
+      return handlePreview(input);
+    case "get_forecast":
+      return handleForecast(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
+}
+
+function handleBacktest(input: Input) {
+  const strategyId = input.strategy_id as string | undefined;
+  const tournament = input.tournament as string | undefined;
+  const bets = tournament
+    ? SETTLED_BETS.filter((b) => b.tournament === tournament)
+    : SETTLED_BETS;
+  if (tournament && !bets.length) {
+    return {
+      error: `No settled bets found for tournament '${tournament}'.`,
+      available: Array.from(new Set(SETTLED_BETS.map((b) => b.tournament))),
+    };
+  }
+  const targets = strategyId
+    ? STRATEGIES.filter((s) => s.id === strategyId)
+    : STRATEGIES;
+  if (!targets.length) {
+    return {
+      error: `Unknown strategy_id '${strategyId}'.`,
+      available: STRATEGIES.map((s) => s.id),
+    };
+  }
+  const results = targets.map((s) => {
+    const r = runStrategy(s, bets);
+    return {
+      strategy_id: s.id,
+      strategy_label: s.label,
+      description: s.description,
+      bets_taken: r.taken,
+      bets_skipped: r.skipped,
+      wins: r.wins,
+      losses: r.losses,
+      win_rate_percent: +(r.winRate * 100).toFixed(1),
+      net_units: r.netUnits,
+      roi_percent: +(r.roi * 100).toFixed(1),
+      max_drawdown_units: r.maxDrawdown,
+      profit_factor: r.profitFactor === Infinity ? "inf" : r.profitFactor,
+    };
+  });
+  return {
+    tournament: tournament ?? "all",
+    sample_size: bets.length,
+    results,
+  };
+}
+
+async function handlePreview(input: Input) {
+  const slug = (input.course_slug as string | undefined) ?? "";
+  const preview = await buildPreviewAsync(slug);
+  if (!preview) {
+    return {
+      error: `No preview available for course_slug '${slug}'.`,
+      available: ["quail-hollow", "pebble-beach", "torrey-pines-south"],
+    };
+  }
+  return {
+    tournament: preview.tournament,
+    course: preview.snapshot.name,
+    location: preview.snapshot.location,
+    archetype: preview.course.archetype,
+    headline: preview.headline,
+    weather: preview.weather,
+    top_fits: preview.fitPlayers.map((f) => ({
+      player: f.player.name,
+      archetype_sg_per_round: f.archetypeFit,
+      wind_adjusted_4_round_edge: f.windAdjusted,
+      rationale: f.rationale,
+    })),
+    angles: preview.angles.map((a) => ({
+      kind: a.kind,
+      title: a.title,
+      body: a.body,
+    })),
+    hedge_candidates: preview.hedgeCandidates,
+    fades: preview.fades.map((f) => ({
+      player: f.player.name,
+      wind_adjusted_4_round_edge: f.windAdjusted,
+      rationale: f.rationale,
+    })),
+    history_notes: preview.historyNotes,
+  };
+}
+
+async function handleForecast(input: Input) {
+  const slug = (input.course_slug as string | undefined) ?? "";
+  const hours = Math.min(
+    Math.max(1, (input.hours as number | undefined) ?? 24),
+    48,
+  );
+  const forecast = await getForecast(slug);
+  return {
+    course: slug,
+    source: forecast.source,
+    fetched_at: forecast.fetchedAt,
+    next_24h: forecast.next24,
+    hours: forecast.hours.slice(0, hours).map((h) => ({
+      ts: h.ts,
+      wind_mph: h.windMph,
+      gust_mph: h.gustMph,
+      wind_dir_deg: h.windDirDeg,
+      temperature_f: h.temperatureF,
+      precip_chance_percent: h.precipChance,
+    })),
+  };
 }
 
 function handleOpenBets(input: Input) {
@@ -351,5 +521,8 @@ When to use tools:
 - ALWAYS call a tool before answering questions about specific bets, prices, conditions, or leaderboard. Don't rely on memory.
 - For "hedge X" requests, call compute_hedge.
 - For DFS questions, call get_dfs_player_pool.
+- For "what if I had skipped X" / "which rule has been working" / strategy questions, call run_backtest. Pass strategy_id when the user names a specific rule; otherwise return them all.
+- For "preview this tournament" / "who's the play" / "what's the angle this week", call build_preview with the appropriate course slug.
+- For wind / weather / forecast questions, call get_forecast. It returns hourly data plus a 24h aggregate.
 
 Current context: Quail Hollow Championship, Round 2 live. The user has 5–7 open bets across DK, FD, PrizePicks, Underdog.`;
