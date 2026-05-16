@@ -109,10 +109,12 @@ function normalizeRound(l: any): RoundLine {
     (h: any) => h?.value !== null && h?.value !== undefined,
   ).length;
   const complete = holes.length >= 18 && strokes !== null;
+  // Don't surface a toPar string until the player has actually played holes.
+  const hasPlay = strokes !== null || holesPlayed > 0;
   return {
     period: Number(l.period) || 0,
     strokes,
-    toPar: typeof l.displayValue === "string" ? l.displayValue : null,
+    toPar: hasPlay && typeof l.displayValue === "string" ? l.displayValue : null,
     thru: complete ? 18 : holesPlayed > 0 ? holesPlayed : null,
     complete,
   };
@@ -124,15 +126,11 @@ function normalizePlayer(c: any, eventRound: number, par: number | null): Leader
   const totalToParRaw = parseScore(c.score);
   const status = c.status?.type?.description || c.status?.description || "";
   const isCut = /cut|wd|withdrawn|dq|did not/i.test(status);
-  // Today = the highest-period line that has strokes recorded, or the event's current round
+  // Today = the linescore for the event's current round, strictly.
+  // No fallback to prior rounds — if the player hasn't teed off today,
+  // todayLine stays null and the UI shows "—" plus the tee time.
   const todayLine =
-    linescores
-      .filter((l) => l.period === eventRound && (l.strokes !== null || l.thru !== null))
-      .pop() ??
-    linescores
-      .filter((l) => l.strokes !== null || l.thru !== null)
-      .sort((a, b) => b.period - a.period)[0] ??
-    null;
+    linescores.find((l) => l.period === eventRound) ?? null;
 
   // Patch toPar if ESPN didn't pre-format it
   if (todayLine && todayLine.toPar === null && todayLine.strokes !== null && par) {
