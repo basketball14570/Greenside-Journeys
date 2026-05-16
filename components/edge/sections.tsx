@@ -1,6 +1,7 @@
 // Composable sections used by both mobile and desktop dashboard.
 // Ported from mobile-dashboard.jsx + desktop-dashboard.jsx.
 
+import Link from "next/link";
 import {
   BookChip,
   Stat,
@@ -39,6 +40,7 @@ export type LeaderRow = {
   thru: string;
   wave: "AM" | "PM";
   mine?: string[];
+  slug?: string;
 };
 
 export type AlertItem = {
@@ -829,16 +831,30 @@ function MobileLeaderRow({ r, last }: { r: LeaderRow; last: boolean }) {
       >
         {r.pos}
       </span>
-      <span
-        className="flex-1 truncate"
-        style={{
-          fontSize: 13.5,
-          color: mine ? "#f0ebe0" : "#a8b3ac",
-          fontWeight: mine ? 600 : 400,
-        }}
-      >
-        {r.name}
-      </span>
+      {r.slug ? (
+        <Link
+          href={`/players/${r.slug}`}
+          className="flex-1 truncate hover:text-text transition"
+          style={{
+            fontSize: 13.5,
+            color: mine ? "#f0ebe0" : "#a8b3ac",
+            fontWeight: mine ? 600 : 400,
+          }}
+        >
+          {r.name}
+        </Link>
+      ) : (
+        <span
+          className="flex-1 truncate"
+          style={{
+            fontSize: 13.5,
+            color: mine ? "#f0ebe0" : "#a8b3ac",
+            fontWeight: mine ? 600 : 400,
+          }}
+        >
+          {r.name}
+        </span>
+      )}
       {mine && (
         <span
           className="num font-semibold"
@@ -947,16 +963,30 @@ export function DesktopLeaderboard({ rows }: { rows: LeaderRow[] }) {
               {r.pos}
             </span>
             <div className="min-w-0">
-              <div
-                className="truncate"
-                style={{
-                  fontSize: 13,
-                  color: mine ? "#f0ebe0" : "#a8b3ac",
-                  fontWeight: mine ? 600 : 400,
-                }}
-              >
-                {r.name}
-              </div>
+              {r.slug ? (
+                <Link
+                  href={`/players/${r.slug}`}
+                  className="truncate block hover:text-text transition"
+                  style={{
+                    fontSize: 13,
+                    color: mine ? "#f0ebe0" : "#a8b3ac",
+                    fontWeight: mine ? 600 : 400,
+                  }}
+                >
+                  {r.name}
+                </Link>
+              ) : (
+                <div
+                  className="truncate"
+                  style={{
+                    fontSize: 13,
+                    color: mine ? "#f0ebe0" : "#a8b3ac",
+                    fontWeight: mine ? 600 : 400,
+                  }}
+                >
+                  {r.name}
+                </div>
+              )}
               {mine && (
                 <div
                   className="num font-semibold mt-px"

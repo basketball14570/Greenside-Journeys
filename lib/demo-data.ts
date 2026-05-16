@@ -99,11 +99,11 @@ export const DEMO_BETS: DashBet[] = [
 
 export const DEMO_LEADERBOARD: LeaderRow[] = [
   { pos: "1", name: "Mike Scofield", score: -10, thru: "F", wave: "AM" },
-  { pos: "2", name: "Scottie Scheffler", score: -9, thru: "F", wave: "AM", mine: ["Top 10"] },
-  { pos: "T3", name: "Rory McIlroy", score: -8, thru: "14", wave: "AM", mine: ["R2 U70"] },
-  { pos: "T3", name: "Xander Schauffele", score: -8, thru: "F", wave: "AM", mine: ["Matchup"] },
-  { pos: "5", name: "Patrick Cantlay", score: -7, thru: "15", wave: "PM", mine: ["FH O8.5"] },
-  { pos: "T6", name: "Collin Morikawa", score: -6, thru: "F", wave: "AM", mine: ["Top 20"] },
+  { pos: "2", name: "Scottie Scheffler", score: -9, thru: "F", wave: "AM", mine: ["Top 10"], slug: "scheffler" },
+  { pos: "T3", name: "Rory McIlroy", score: -8, thru: "14", wave: "AM", mine: ["R2 U70"], slug: "mcilroy" },
+  { pos: "T3", name: "Xander Schauffele", score: -8, thru: "F", wave: "AM", mine: ["Matchup"], slug: "schauffele" },
+  { pos: "5", name: "Patrick Cantlay", score: -7, thru: "15", wave: "PM", mine: ["FH O8.5"], slug: "cantlay" },
+  { pos: "T6", name: "Collin Morikawa", score: -6, thru: "F", wave: "AM", mine: ["Top 20"], slug: "morikawa" },
   { pos: "T6", name: "Viktor Hovland", score: -6, thru: "13", wave: "PM", mine: ["Win"] },
   { pos: "8", name: "Justin Thomas", score: -5, thru: "12", wave: "PM", mine: ["Bogeys U3.5"] },
   { pos: "T9", name: "Jordan Spieth", score: -4, thru: "F", wave: "AM" },

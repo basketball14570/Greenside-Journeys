@@ -103,9 +103,9 @@ export function EventStrap() {
 const TABS = [
   { id: "home", href: "/dashboard", label: "Today" },
   { id: "bets", href: "/dashboard/bets", label: "Tickets" },
+  { id: "ask", href: "/dashboard/ask", label: "Ask" },
   { id: "dfs", href: "/dashboard/dfs", label: "DFS" },
   { id: "course", href: "/dashboard/conditions", label: "Course" },
-  { id: "me", href: "/dashboard/account", label: "You" },
 ] as const;
 
 const ICONS: Record<string, (c: string) => React.ReactNode> = {
@@ -123,6 +123,19 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <rect x="3" y="6" width="18" height="12" rx="2" stroke={c} strokeWidth="1.7" />
       <path d="M8 10v4M12 10v4M16 10v4" stroke={c} strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
+  ask: (c) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.83L3 20l1.17-4.5A7.6 7.6 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+        stroke={c}
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <circle cx="8.5" cy="12" r="0.9" fill={c} />
+      <circle cx="12" cy="12" r="0.9" fill={c} />
+      <circle cx="15.5" cy="12" r="0.9" fill={c} />
     </svg>
   ),
   dfs: (c) => (
@@ -178,6 +191,7 @@ export function MobileBottomNav({ active }: { active: string }) {
 const DESKTOP_TABS = [
   { label: "Today", href: "/dashboard" },
   { label: "Tickets", href: "/dashboard/bets" },
+  { label: "Ask", href: "/dashboard/ask" },
   { label: "DFS Optimizer", href: "/dashboard/dfs" },
   { label: "Course Lab", href: "/dashboard/conditions" },
   { label: "Bankroll", href: "/dashboard/account" },
