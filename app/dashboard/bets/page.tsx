@@ -5,6 +5,62 @@ import { BookChip, StatusDot, type Book, type Status } from "@/components/edge/p
 import { BreakdownBar, PnlSpark } from "@/components/edge/pnl";
 import { DEMO_BETS } from "@/lib/demo-data";
 import { supabaseBrowser } from "@/lib/supabase/client";
+
+// Map a row from /api/bets/mine to the HistoryBet shape the existing
+// PnL chart + breakdown bars consume. resolvedPayout is computed from
+// stake + status (won → +profit, lost → −stake, void → 0).
+type RawBet = {
+  id: string;
+  book: string;
+  player: string;
+  market: string;
+  line: number | null;
+  american_odds: number;
+  stake: number;
+  to_win: number;
+  status: string;
+  resolved_at: string | null;
+  resolved_payout: number | null;
+  created_at: string;
+};
+
+// The Book chip union covers DK/FD/PP/UD. Caesars/BetMGM rows from the
+// bets table fall back to DK styling — visual only, the underlying book
+// label is preserved on the imported-bets row.
+const BOOK_MAP: Record<string, Book> = {
+  draftkings: "DK",
+  fanduel: "FD",
+  prizepicks: "PP",
+  underdog: "UD",
+};
+
+function rawBetToHistoryBet(b: RawBet): HistoryBet {
+  const won = b.status === "won";
+  const explicit = b.resolved_payout;
+  const resolvedPayout =
+    typeof explicit === "number"
+      ? Number(explicit)
+      : won
+        ? Number(b.to_win)
+        : b.status === "lost"
+          ? -Number(b.stake)
+          : 0;
+  return {
+    book: (BOOK_MAP[b.book.toLowerCase()] ?? "DK") as Book,
+    player: b.player,
+    market: b.market,
+    line: b.line !== null ? String(b.line) : "",
+    stake: Number(b.stake),
+    payout: Number(b.to_win),
+    status: "graded",
+    live: { score: won ? "W" : "L", thru: "F" },
+    ev: 0,
+    won: won || undefined,
+    resolvedAt: b.resolved_at ?? b.created_at,
+    resolvedPayout,
+    tournament: "",
+  };
+}
 import {
   SETTLED_BETS,
   groupBy,
@@ -37,22 +93,58 @@ function matchesFilter(b: DashBet | HistoryBet, f: FilterKey) {
 export default function BetsPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [book, setBook] = useState<Book | "ALL">("ALL");
+  const [realHistory, setRealHistory] = useState<HistoryBet[] | null>(null);
+
+  // Pull settled real bets once on mount. We render real PnL when there
+  // are ≥1 graded rows; otherwise fall back to demo so the page is never
+  // empty for first-time visitors.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (
+        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ) {
+        return;
+      }
+      try {
+        const r = await fetch("/api/bets/mine?limit=500", { cache: "no-store" });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (cancelled || !j.signedIn || !Array.isArray(j.bets)) return;
+        const settled = (j.bets as RawBet[])
+          .filter((b) => b.status === "won" || b.status === "lost" || b.status === "void")
+          .map(rawBetToHistoryBet);
+        if (settled.length > 0) setRealHistory(settled);
+      } catch {
+        /* fall through to demo */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const usingReal = realHistory !== null;
+  const settledSource = realHistory ?? SETTLED_BETS;
 
   const filtered = useMemo(() => {
-    return ALL.filter(
+    const base: (DashBet | HistoryBet)[] = usingReal
+      ? settledSource
+      : ALL;
+    return base.filter(
       (b) => matchesFilter(b, filter) && (book === "ALL" || b.book === book),
     );
-  }, [filter, book]);
+  }, [filter, book, usingReal, settledSource]);
 
-  const summary = useMemo(() => summarize(SETTLED_BETS), []);
+  const summary = useMemo(() => summarize(settledSource), [settledSource]);
   const byBook = useMemo(
-    () => groupBy(SETTLED_BETS, (b) => b.book).sort((a, b) => b.netUnits - a.netUnits),
-    [],
+    () => groupBy(settledSource, (b) => b.book).sort((a, b) => b.netUnits - a.netUnits),
+    [settledSource],
   );
   const byMarketType = useMemo(
     () =>
-      groupBy(SETTLED_BETS, (b) => {
-        // Coarse market grouping for the breakdown chart.
+      groupBy(settledSource, (b) => {
         const m = b.market.toLowerCase();
         if (m.includes("top")) return "Top finish";
         if (m.includes("matchup")) return "Matchup";
@@ -60,7 +152,7 @@ export default function BetsPage() {
         if (m.includes("score")) return "Round score";
         return "Player props";
       }).sort((a, b) => b.netUnits - a.netUnits),
-    [],
+    [settledSource],
   );
 
   return (
@@ -74,10 +166,28 @@ export default function BetsPage() {
             ● Portfolio
           </span>
           <h1
-            className="serif-italic mt-1.5"
+            className="serif-italic mt-1.5 flex items-center gap-2.5 flex-wrap"
             style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
           >
             <em>All tickets.</em>
+            <span
+              className="num uppercase"
+              style={{
+                fontSize: 9.5,
+                letterSpacing: 1.2,
+                padding: "3px 8px",
+                borderRadius: 4,
+                background: usingReal ? "rgba(127,212,154,0.13)" : "rgba(245,197,88,0.1)",
+                color: usingReal ? "#7fd49a" : "#f5c558",
+                border: usingReal
+                  ? "1px solid rgba(127,212,154,0.3)"
+                  : "1px solid rgba(245,197,88,0.3)",
+                position: "relative",
+                top: -6,
+              }}
+            >
+              {usingReal ? "Your data" : "Demo data"}
+            </span>
           </h1>
         </div>
         <div className="flex flex-wrap gap-5">

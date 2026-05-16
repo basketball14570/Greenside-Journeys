@@ -2,6 +2,17 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Real PnL on Tickets page
+
+- **`/dashboard/bets`** PnL chart, summary stats (settled / win-rate
+  / net units / ROI), by-book and by-market breakdowns now compute
+  from the signed-in user's actual graded bets when ≥1 exists.
+  Demo data still renders for first-time visitors and signed-out.
+- Header badge flags **Your data** vs **Demo data** so it's
+  obvious which view you're looking at.
+- Conversion mapper handles `bets.resolved_payout` (or derives it
+  from stake + status when the column is null).
+
 ## 2026-05-16 — Onboarding actually onboards
 
 - **`/onboarding`** Done step now (1) persists the user's selected
