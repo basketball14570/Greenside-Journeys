@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type AlertPref = {
   id: string;
@@ -87,6 +87,8 @@ export default function AccountPage() {
           <em>Alerts & account.</em>
         </h1>
       </header>
+
+      <ForwardingAddress />
 
       {/* Push permission */}
       <div className="rounded-[14px] bg-surface-1 border border-line p-5">
@@ -278,6 +280,120 @@ function ThresholdRow({
         className="w-full"
         style={{ accentColor: "#8ee68e" }}
       />
+    </div>
+  );
+}
+
+function ForwardingAddress() {
+  const [state, setState] = useState<
+    | { kind: "loading" }
+    | { kind: "anon" }
+    | { kind: "unconfigured" }
+    | { kind: "ready"; address: string | null }
+  >({ kind: "loading" });
+  const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
+
+  async function load() {
+    try {
+      const r = await fetch("/api/account/forwarding", { cache: "no-store" });
+      const j = await r.json();
+      if (!j.configured) setState({ kind: "unconfigured" });
+      else if (!j.signedIn) setState({ kind: "anon" });
+      else setState({ kind: "ready", address: j.address ?? null });
+    } catch {
+      setState({ kind: "unconfigured" });
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function copy(address: string) {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* fall through */
+    }
+  }
+
+  async function rotate() {
+    if (!confirm("Rotate forwarding address? The current one will stop working.")) return;
+    setRotating(true);
+    try {
+      const r = await fetch("/api/account/forwarding", { method: "POST" });
+      const j = await r.json();
+      if (j.address) setState({ kind: "ready", address: j.address });
+    } finally {
+      setRotating(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+      <div
+        className="serif-italic mb-1 text-text"
+        style={{ fontSize: 18, letterSpacing: -0.2, fontStyle: "normal" }}
+      >
+        Forward bets by email
+      </div>
+      <p className="text-text-dim" style={{ fontSize: 13 }}>
+        Forward any DK / FD / PrizePicks / Underdog confirmation to this
+        address. Claude parses each leg into your tickets automatically.
+      </p>
+
+      <div className="mt-4">
+        {state.kind === "loading" && (
+          <p className="text-text-dim" style={{ fontSize: 12 }}>
+            Loading…
+          </p>
+        )}
+        {state.kind === "anon" && (
+          <p className="text-text-dim" style={{ fontSize: 12 }}>
+            Sign in to claim your forwarding address.
+          </p>
+        )}
+        {state.kind === "unconfigured" && (
+          <p className="text-text-dim" style={{ fontSize: 12 }}>
+            Supabase isn&apos;t configured on this deploy, so forwarding is
+            unavailable. Set <code className="num">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
+            and the service-role key, then redeploy.
+          </p>
+        )}
+        {state.kind === "ready" && state.address && (
+          <>
+            <div
+              className="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-3 py-2"
+              style={{ fontSize: 13, fontFamily: "ui-monospace, monospace" }}
+            >
+              <span className="flex-1 truncate text-text">{state.address}</span>
+              <button
+                onClick={() => copy(state.address!)}
+                className="rounded-[6px] px-2 py-1 border border-line hover:border-line-strong"
+                style={{ fontSize: 11 }}
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <button
+              onClick={rotate}
+              disabled={rotating}
+              className="mt-3 text-text-dim hover:text-text disabled:opacity-40"
+              style={{ fontSize: 12 }}
+            >
+              {rotating ? "Rotating…" : "Rotate address"}
+            </button>
+          </>
+        )}
+        {state.kind === "ready" && !state.address && (
+          <p className="text-text-dim" style={{ fontSize: 12 }}>
+            No address yet — refresh after Supabase migrations apply.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

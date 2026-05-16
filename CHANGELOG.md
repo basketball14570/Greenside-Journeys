@@ -2,6 +2,21 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Postmark inbound persistence, per-user forwarding address
+
+- **`/api/email/inbound`** now writes parsed legs into the `bets` table
+  via a service-role admin client. The `bets+<token>@…` address routes
+  to the right user by looking up `profiles.bets_token`.
+- **`lib/supabase/admin.ts`** — service-role client factory; returns
+  null when not configured so callers can no-op in local / demo envs.
+- **`profiles.bets_token`** added in `db/schema.sql` with a default
+  random value, so every signup auto-gets an inbound address.
+- **`/api/account/forwarding`** — GET returns the signed-in user's
+  forwarding address (creating the profile row on first hit), POST
+  rotates the token. The `/dashboard/account` page surfaces the
+  address with copy + rotate controls.
+- `POSTMARK_INBOUND_DOMAIN` added to `.env.example`.
+
 ## 2026-05-16 — Shareable slips, admin integrations panel
 
 - **Public slip view** at `/slip/[token]` — anyone with the link can see

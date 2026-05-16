@@ -11,8 +11,13 @@ create table if not exists profiles (
   display_name text,
   tier text not null default 'free' check (tier in ('free', 'pro', 'sharp')),
   push_subscription jsonb,
+  -- Per-user token surfaced as bets+<token>@greensidejourneys.com for the
+  -- Postmark inbound email parser. Random by default; the user can rotate
+  -- it from /dashboard/account.
+  bets_token text unique default replace(gen_random_uuid()::text, '-', ''),
   created_at timestamptz not null default now()
 );
+create index if not exists profiles_bets_token_idx on profiles (bets_token);
 
 -- ============================================================================
 -- Tournaments + courses (seeded weekly from DataGolf)
