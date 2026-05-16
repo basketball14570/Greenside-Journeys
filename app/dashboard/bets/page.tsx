@@ -1,35 +1,416 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { BookChip, StatusDot, type Book, type Status } from "@/components/edge/primitives";
+import { BreakdownBar, PnlSpark } from "@/components/edge/pnl";
+import { DEMO_BETS } from "@/lib/demo-data";
+import {
+  SETTLED_BETS,
+  groupBy,
+  summarize,
+  type HistoryBet,
+} from "@/lib/demo-history";
+import type { DashBet } from "@/components/edge/sections";
+
+type FilterKey = "all" | "live" | "graded" | "hedge";
+const FILTERS: { id: FilterKey; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "live", label: "Live" },
+  { id: "graded", label: "Graded" },
+  { id: "hedge", label: "Hedge" },
+];
+
+const ALL: (DashBet | HistoryBet)[] = [
+  ...DEMO_BETS.filter((b) => b.status === "live"),
+  ...SETTLED_BETS,
+];
+
+function matchesFilter(b: DashBet | HistoryBet, f: FilterKey) {
+  if (f === "all") return true;
+  if (f === "hedge") return !!(b as DashBet).hedge;
+  if (f === "live") return b.status === "live";
+  if (f === "graded") return b.status === "graded";
+  return true;
+}
+
 export default function BetsPage() {
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [book, setBook] = useState<Book | "ALL">("ALL");
+
+  const filtered = useMemo(() => {
+    return ALL.filter(
+      (b) => matchesFilter(b, filter) && (book === "ALL" || b.book === book),
+    );
+  }, [filter, book]);
+
+  const summary = useMemo(() => summarize(SETTLED_BETS), []);
+  const byBook = useMemo(
+    () => groupBy(SETTLED_BETS, (b) => b.book).sort((a, b) => b.netUnits - a.netUnits),
+    [],
+  );
+  const byMarketType = useMemo(
+    () =>
+      groupBy(SETTLED_BETS, (b) => {
+        // Coarse market grouping for the breakdown chart.
+        const m = b.market.toLowerCase();
+        if (m.includes("top")) return "Top finish";
+        if (m.includes("matchup")) return "Matchup";
+        if (m.includes("win")) return "To win";
+        if (m.includes("score")) return "Round score";
+        return "Player props";
+      }).sort((a, b) => b.netUnits - a.netUnits),
+    [],
+  );
+
   return (
-    <div className="max-w-4xl mx-auto px-5 lg:px-0 py-6 space-y-6">
-      <header>
-        <span
-          className="num font-semibold uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-        >
-          ● Portfolio
-        </span>
-        <h1
-          className="serif-italic mt-1.5"
-          style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
-        >
-          <em>All tickets.</em>
-        </h1>
-        <p className="text-text-dim mt-2" style={{ fontSize: 14 }}>
-          Filter by book, tournament, status, market. Export CSV. Tag for model
-          training.
-        </p>
-      </header>
-      <div className="rounded-[14px] bg-surface-1 border border-line p-12 text-center">
-        <div
-          className="serif-italic mb-2"
-          style={{ fontSize: 22, fontStyle: "normal", color: "#f0ebe0" }}
-        >
-          Coming next
+    <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
+      <header className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <span
+            className="num font-semibold uppercase"
+            style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+          >
+            ● Portfolio
+          </span>
+          <h1
+            className="serif-italic mt-1.5"
+            style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
+          >
+            <em>All tickets.</em>
+          </h1>
         </div>
-        <p className="text-text-dim" style={{ fontSize: 13.5 }}>
-          Full table view · book filters · CSV export · win/loss analytics ·
-          correlation visualizer.
-        </p>
+        <div className="flex flex-wrap gap-5">
+          <Summary label="Bets settled" value={summary.total.toString()} />
+          <Summary
+            label="Win rate"
+            value={`${(summary.winRate * 100).toFixed(0)}%`}
+          />
+          <Summary
+            label="Net units"
+            value={`${summary.netUnits > 0 ? "+" : ""}${summary.netUnits.toFixed(2)}u`}
+            tone={summary.netUnits > 0 ? "pos" : "neg"}
+          />
+          <Summary
+            label="ROI"
+            value={`${summary.roi > 0 ? "+" : ""}${(summary.roi * 100).toFixed(0)}%`}
+            tone={summary.roi > 0 ? "pos" : "neg"}
+          />
+        </div>
+      </header>
+
+      {/* P&L chart + breakdowns */}
+      <div className="grid lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 rounded-[14px] bg-surface-1 border border-line p-5">
+          <div className="flex items-baseline justify-between mb-4">
+            <span
+              className="serif-italic text-text"
+              style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+            >
+              Cumulative P&L
+            </span>
+            <span
+              className="num text-text-muted"
+              style={{ fontSize: 11, letterSpacing: 0.4 }}
+            >
+              Last 3 events
+            </span>
+          </div>
+          <PnlSpark bets={SETTLED_BETS} width={680} height={120} />
+        </div>
+        <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+          <div
+            className="serif-italic mb-3 text-text"
+            style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+          >
+            By market
+          </div>
+          {byMarketType.map((g) => (
+            <BreakdownBar
+              key={g.key}
+              label={g.key}
+              winRate={g.winRate}
+              roi={g.roi}
+              net={g.netUnits}
+              count={g.total}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+        <div
+          className="serif-italic mb-3 text-text"
+          style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+        >
+          By book
+        </div>
+        {byBook.map((g) => (
+          <BreakdownBar
+            key={g.key}
+            label={g.key}
+            winRate={g.winRate}
+            roi={g.roi}
+            net={g.netUnits}
+            count={g.total}
+          />
+        ))}
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex gap-1.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className="num font-semibold uppercase transition"
+              style={{
+                padding: "5px 11px",
+                borderRadius: 6,
+                fontSize: 10.5,
+                letterSpacing: 0.6,
+                color: f.id === filter ? "#f0ebe0" : "#a8b3ac",
+                background: f.id === filter ? "#1e4030" : "transparent",
+                border:
+                  f.id === filter
+                    ? "1px solid rgba(255,255,255,0.06)"
+                    : "1px solid transparent",
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-text-muted px-1" style={{ fontSize: 12 }}>
+          ·
+        </span>
+        <div className="flex gap-1.5 items-center">
+          <span
+            className="num text-text-muted uppercase"
+            style={{ fontSize: 10, letterSpacing: 1.1 }}
+          >
+            Book
+          </span>
+          {(["ALL", "DK", "FD", "PP", "UD"] as const).map((b) => (
+            <button
+              key={b}
+              onClick={() => setBook(b)}
+              className="num font-semibold transition"
+              style={{
+                padding: "4px 9px",
+                borderRadius: 4,
+                fontSize: 10,
+                letterSpacing: 0.6,
+                color: b === book ? "#f0ebe0" : "#a8b3ac",
+                background: b === book ? "#1e4030" : "transparent",
+                border:
+                  b === book
+                    ? "1px solid rgba(255,255,255,0.06)"
+                    : "1px solid transparent",
+              }}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+        <span className="flex-1" />
+        <span className="num text-text-muted" style={{ fontSize: 11 }}>
+          {filtered.length} ticket{filtered.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden lg:block rounded-[14px] overflow-hidden bg-surface-1 border border-line">
+        <div
+          className="grid gap-2.5 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
+          style={{
+            gridTemplateColumns: "52px 1.6fr 1.1fr 80px 100px 80px 90px",
+            fontSize: 9.5,
+            letterSpacing: 1.1,
+            background: "rgba(0,0,0,0.18)",
+          }}
+        >
+          <span>Book</span>
+          <span>Player</span>
+          <span>Market</span>
+          <span className="text-right">Line</span>
+          <span className="text-right">Risk → Win</span>
+          <span className="text-right">Status</span>
+          <span className="text-right">Result</span>
+        </div>
+        {filtered.map((b, i) => (
+          <BetRowDesktop key={i} b={b} last={i === filtered.length - 1} />
+        ))}
+        {filtered.length === 0 && (
+          <div className="p-8 text-center text-text-dim" style={{ fontSize: 13 }}>
+            No bets match this filter.
+          </div>
+        )}
+      </div>
+
+      {/* Mobile card list */}
+      <div className="lg:hidden space-y-3">
+        {filtered.map((b, i) => (
+          <BetCardMobile key={i} b={b} />
+        ))}
+        {filtered.length === 0 && (
+          <div
+            className="rounded-[14px] bg-surface-1 border border-line p-8 text-center text-text-dim"
+            style={{ fontSize: 13 }}
+          >
+            No bets match this filter.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Summary({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "pos" | "neg";
+}) {
+  const color =
+    tone === "pos" ? "#8ee68e" : tone === "neg" ? "#e07868" : "#f0ebe0";
+  return (
+    <div>
+      <div
+        className="num font-semibold uppercase text-text-muted"
+        style={{ fontSize: 9.5, letterSpacing: 1.2 }}
+      >
+        {label}
+      </div>
+      <div
+        className="serif-italic"
+        style={{ fontSize: 28, lineHeight: 1, color, fontStyle: "italic" }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function BetRowDesktop({
+  b,
+  last,
+}: {
+  b: DashBet | HistoryBet;
+  last: boolean;
+}) {
+  const isHistory = "resolvedPayout" in b;
+  return (
+    <div
+      className="grid gap-2.5 px-4 py-3.5 items-center"
+      style={{
+        gridTemplateColumns: "52px 1.6fr 1.1fr 80px 100px 80px 90px",
+        borderBottom: last ? "none" : "1px solid rgba(255,255,255,0.06)",
+        background: (b as DashBet).hedge ? "rgba(224,120,104,0.05)" : "transparent",
+      }}
+    >
+      <span>
+        <BookChip book={b.book} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-text font-semibold truncate" style={{ fontSize: 13.5 }}>
+          {b.player}
+        </div>
+        {isHistory && (
+          <div className="num text-text-muted truncate" style={{ fontSize: 11 }}>
+            {(b as HistoryBet).tournament}
+          </div>
+        )}
+      </div>
+      <span className="text-text-dim truncate" style={{ fontSize: 13 }}>
+        {b.market}
+      </span>
+      <span className="num text-text text-right" style={{ fontSize: 12.5 }}>
+        {b.line}
+      </span>
+      <span
+        className="num text-text text-right font-semibold"
+        style={{ fontSize: 12.5 }}
+      >
+        {b.stake}u → {b.payout.toFixed(2)}u
+      </span>
+      <span className="text-right">
+        <StatusDot status={b.status as Status} withLabel />
+      </span>
+      <span
+        className="num text-right font-bold"
+        style={{
+          fontSize: 12,
+          color: isHistory
+            ? (b as HistoryBet).resolvedPayout >= 0
+              ? "#8ee68e"
+              : "#e07868"
+            : "#a8b3ac",
+        }}
+      >
+        {isHistory
+          ? `${(b as HistoryBet).resolvedPayout > 0 ? "+" : ""}${(b as HistoryBet).resolvedPayout.toFixed(2)}u`
+          : `${(b as DashBet).ev > 0 ? "+" : ""}${(b as DashBet).ev}%`}
+      </span>
+    </div>
+  );
+}
+
+function BetCardMobile({ b }: { b: DashBet | HistoryBet }) {
+  const isHistory = "resolvedPayout" in b;
+  return (
+    <div className="rounded-[14px] bg-surface-1 border border-line p-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <BookChip book={b.book} />
+        <StatusDot status={b.status as Status} withLabel />
+        <span className="flex-1" />
+        <span
+          className="num font-bold"
+          style={{
+            fontSize: 11.5,
+            color: isHistory
+              ? (b as HistoryBet).resolvedPayout >= 0
+                ? "#8ee68e"
+                : "#e07868"
+              : "#a8b3ac",
+          }}
+        >
+          {isHistory
+            ? `${(b as HistoryBet).resolvedPayout > 0 ? "+" : ""}${(b as HistoryBet).resolvedPayout.toFixed(2)}u`
+            : `${(b as DashBet).ev > 0 ? "+" : ""}${(b as DashBet).ev}% EV`}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div
+            className="text-text font-semibold truncate"
+            style={{ fontSize: 14.5, lineHeight: 1.2 }}
+          >
+            {b.player}
+          </div>
+          <div className="text-text-dim mt-0.5" style={{ fontSize: 12.5 }}>
+            {b.market} · <span className="num">{b.line}</span>
+          </div>
+          {isHistory && (
+            <div
+              className="num text-text-muted mt-0.5"
+              style={{ fontSize: 10.5, letterSpacing: 0.4 }}
+            >
+              {(b as HistoryBet).tournament}
+            </div>
+          )}
+        </div>
+        <div className="text-right">
+          <div
+            className="num text-text font-semibold"
+            style={{ fontSize: 13 }}
+          >
+            {b.stake}u → {b.payout.toFixed(2)}u
+          </div>
+        </div>
       </div>
     </div>
   );
