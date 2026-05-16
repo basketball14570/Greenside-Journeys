@@ -2,6 +2,23 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — DK ownership database (696 records, 14 events)
+
+- **`lib/data/ownership.ts`** — typed dataset of every PGA tournament so
+  far in 2026: course, type, par, yards plus per-player salary +
+  finishing ownership %. Helpers: `getPlayerHistory`, `getTournament`,
+  `listPlayers`, `leverage` (salary-band median delta).
+- **`/dashboard/ownership`** — browse view mirroring the standalone
+  HTML viewer: tournaments grid → tournament detail with chalk recap
+  and full board; players list (sortable by avg / peak / apps) →
+  player detail with sparkline-style history.
+- **Player profile** (`/players/[slug]`) gained an Ownership History
+  card on the right rail with a horizontal-bar mini-chart of the
+  last six events.
+- **Ask Greenside** picked up `get_player_ownership` and
+  `get_tournament_ownership` tools.
+- Nav: added **Ownership** tab to the desktop bar.
+
 ## 2026-05-16 — Supabase realtime on Tickets
 
 - **`/dashboard/bets`** ImportedBets section now subscribes to a

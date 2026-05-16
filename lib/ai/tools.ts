@@ -14,6 +14,7 @@ import { getForecast } from "@/lib/weather/forecast";
 import { calibrate, perPlayer } from "@/lib/wind-model";
 import { getPlayerProfile, datagolfEnabled } from "@/lib/data/datagolf";
 import { getPlayerHedgeQuotes, oddsApiEnabled } from "@/lib/data/odds";
+import { getPlayerHistory, getTournament, TOURNAMENT_ORDER } from "@/lib/data/ownership";
 
 export type Tool = {
   name: string;
@@ -185,6 +186,30 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_player_ownership",
+    description:
+      "Look up a player's full DraftKings DFS ownership history across the 2026 season — every tournament, salary at the time, finishing ownership %. Use to assess leverage (chronically under-owned for salary tier), spot chalk patterns at specific course archetypes, or answer 'how owned was Scheffler at Pebble Beach'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        player: { type: "string", description: "Player display name, e.g. 'Scottie Scheffler'." },
+      },
+      required: ["player"],
+    },
+  },
+  {
+    name: "get_tournament_ownership",
+    description:
+      "Fetch the full DK ownership board for one tournament — every player, salary, finishing ownership %. Use for chalk-level analysis at similar courses or to compare projected vs actual ownership.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tournament: { type: "string", description: "Tournament name, e.g. 'Masters 2026', 'Pebble Beach 2026'." },
+      },
+      required: ["tournament"],
+    },
+  },
+  {
     name: "get_player_profile",
     description:
       "Fetch a single player's profile — wind sensitivity, recent form, course-archetype fit, exposure history. DataGolf-backed when wired, demo fixture otherwise. Slugs are kebab-case: 'scheffler', 'mcilroy', 'cantlay', 'schauffele', 'morikawa'.",
@@ -290,9 +315,63 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handleGradeBets();
     case "get_full_leaderboard":
       return handleFullLeaderboard(input);
+    case "get_player_ownership":
+      return handlePlayerOwnership(input);
+    case "get_tournament_ownership":
+      return handleTournamentOwnership(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
+}
+
+async function handlePlayerOwnership(input: Input) {
+  const player = (input.player as string | undefined) ?? "";
+  const h = getPlayerHistory(player);
+  if (!h) {
+    return {
+      error: `No ownership history for '${player}'.`,
+      hint: "Check spelling or try last name only. Dataset covers the 2026 PGA season.",
+    };
+  }
+  return {
+    player: h.name,
+    appearances: h.appearances,
+    avg_ownership_pct: Number(h.avgOwn.toFixed(2)),
+    min_ownership_pct: Number(h.minOwn.toFixed(2)),
+    max_ownership_pct: Number(h.maxOwn.toFixed(2)),
+    avg_salary: Math.round(h.avgSalary),
+    history: h.history.map((e) => ({
+      tournament: e.tournament,
+      ownership_pct: Number(e.own.toFixed(2)),
+      salary: e.salary,
+    })),
+  };
+}
+
+async function handleTournamentOwnership(input: Input) {
+  const name = (input.tournament as string | undefined) ?? "";
+  const t = getTournament(name);
+  if (!t) {
+    return {
+      error: `No ownership data for '${name}'.`,
+      hint: `Try one of: ${TOURNAMENT_ORDER.slice(0, 5).join(", ")}.`,
+    };
+  }
+  return {
+    tournament: name,
+    meta: t.meta,
+    field_size: t.players.length,
+    top_chalk: t.players.slice(0, 10).map((p) => ({
+      name: p.name,
+      salary: p.salary,
+      ownership_pct: p.own,
+    })),
+    full_board: t.players.map((p) => ({
+      name: p.name,
+      salary: p.salary,
+      ownership_pct: p.own,
+    })),
+  };
 }
 
 async function handlePlayerProfile(input: Input) {

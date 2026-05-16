@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Stat, BookChip, type Book } from "@/components/edge/primitives";
 import { PLAYERS, type RecentRound, type CourseFit, type PlayerProfile } from "@/lib/demo-players";
 import { DesktopAppBar, DesktopEventStrap, MobileTopBar, MobileBottomNav } from "@/components/edge/chrome";
+import { getPlayerHistory } from "@/lib/data/ownership";
 
 export function generateStaticParams() {
   return Object.keys(PLAYERS).map((slug) => ({ slug }));
@@ -40,6 +41,7 @@ export default function PlayerPage({ params }: { params: { slug: string } }) {
           </div>
           <div className="space-y-5">
             <SensitivityCard p={p} />
+            <OwnershipHistoryCard playerName={p.name} />
             <YourExposure p={p} />
           </div>
         </div>
@@ -458,4 +460,85 @@ function YourExposure({ p }: { p: PlayerProfile }) {
       )}
     </div>
   );
+}
+
+// ─── Ownership history ─────────────────────────────────────
+function OwnershipHistoryCard({ playerName }: { playerName: string }) {
+  const h = getPlayerHistory(playerName);
+  if (!h) return null;
+
+  const max = Math.max(...h.history.map((e) => e.own), 5);
+
+  return (
+    <div className="rounded-[14px] border border-line p-5 bg-surface-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <span
+          className="serif-italic text-text"
+          style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+        >
+          DFS ownership history
+        </span>
+        <Link
+          href="/dashboard/ownership"
+          className="text-text-dim hover:text-text num"
+          style={{ fontSize: 11, letterSpacing: 0.4 }}
+        >
+          Browse →
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        <Stat label="Apps" value={`${h.appearances}`} />
+        <Stat
+          label="Avg own"
+          value={`${h.avgOwn.toFixed(1)}%`}
+          accent={h.avgOwn >= 15 ? "#e07868" : h.avgOwn <= 5 ? "#8ee68e" : "#f0ebe0"}
+        />
+        <Stat label="Peak" value={`${h.maxOwn.toFixed(1)}%`} />
+      </div>
+
+      <div className="space-y-1.5">
+        {h.history.slice(0, 6).map((e) => {
+          const w = Math.max(2, (e.own / max) * 100);
+          const color =
+            e.own >= 20 ? "#e87c7c" : e.own >= 15 ? "#f5c558" : e.own >= 7 ? "#a8b3ac" : "#7fd49a";
+          return (
+            <div key={e.tournament} className="flex items-center gap-2.5">
+              <span
+                className="num text-text-dim shrink-0"
+                style={{ fontSize: 11, width: 120 }}
+              >
+                {shortenTourn(e.tournament)}
+              </span>
+              <div className="flex-1 h-[18px] relative bg-bg/60 rounded-[3px] overflow-hidden">
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${w}%`,
+                    background: color,
+                    opacity: 0.65,
+                  }}
+                />
+              </div>
+              <span
+                className="num text-right shrink-0"
+                style={{ fontSize: 11, width: 48, color }}
+              >
+                {e.own.toFixed(1)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function shortenTourn(name: string): string {
+  return name
+    .replace(/\s*Championship\s*/i, " Ch.")
+    .replace(/\s*Invitational\s*/i, " Inv.")
+    .replace(/\s+2026\s*$/, "")
+    .replace(/\s+Open\s*$/, " Op.")
+    .slice(0, 18);
 }
