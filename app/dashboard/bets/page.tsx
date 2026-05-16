@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookChip, StatusDot, type Book, type Status } from "@/components/edge/primitives";
 import { BreakdownBar, PnlSpark } from "@/components/edge/pnl";
 import { DEMO_BETS } from "@/lib/demo-data";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   SETTLED_BETS,
   groupBy,
@@ -430,6 +431,43 @@ function ImportedBets() {
     load();
   }, [load]);
 
+  // Realtime: re-fetch whenever a row in `bets` owned by the signed-in user
+  // changes. Catches email-imports, OCR saves, and cron grading transitions.
+  useEffect(() => {
+    if (state.kind !== "ready" && state.kind !== "loading") return;
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    )
+      return;
+    const supabase = supabaseBrowser();
+    let userId: string | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (cancelled || !data.user) return;
+      userId = data.user.id;
+      channel = supabase
+        .channel(`bets:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "bets",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => load(),
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [state.kind, load]);
+
   async function act(id: string, action: "confirm" | "dismiss") {
     await fetch("/api/bets/mine", {
       method: "PATCH",
@@ -457,11 +495,14 @@ function ImportedBets() {
             >
               <em>Pending confirmation ({pending.length})</em>
             </div>
-            <div
-              className="num font-semibold uppercase text-text-muted"
-              style={{ fontSize: 10, letterSpacing: 1.2 }}
-            >
-              From your inbox
+            <div className="flex items-center gap-2">
+              <LiveDot />
+              <div
+                className="num font-semibold uppercase text-text-muted"
+                style={{ fontSize: 10, letterSpacing: 1.2 }}
+              >
+                From your inbox
+              </div>
             </div>
           </div>
           <div className="space-y-2">
@@ -573,6 +614,23 @@ function ImportedRow({
         </div>
       )}
     </div>
+  );
+}
+
+function LiveDot() {
+  return (
+    <span
+      title="Realtime — auto-refreshes as bets change"
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: 99,
+        background: "#7fd49a",
+        boxShadow: "0 0 0 3px #7fd49a22",
+        display: "inline-block",
+        animation: "greensidePulse 2s ease-in-out infinite",
+      }}
+    />
   );
 }
 

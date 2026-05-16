@@ -2,6 +2,15 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Supabase realtime on Tickets
+
+- **`/dashboard/bets`** ImportedBets section now subscribes to a
+  realtime channel filtered by `user_id`, so email imports, OCR
+  saves, and cron-driven status transitions flow in without a
+  refresh. Pulsing green dot in the header signals the live link.
+- **`db/schema.sql`** adds `bets` to the `supabase_realtime`
+  publication (idempotent — safe to re-run).
+
 ## 2026-05-16 — Upload page wired to real ingestion
 
 - **`/dashboard/upload`** email card now shows the real

@@ -181,3 +181,26 @@ create table if not exists bet_slips (
 alter table bet_slips enable row level security;
 create policy "own slip" on bet_slips
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================================
+-- Realtime: publish bets so the Tickets page can subscribe to inserts /
+-- updates (email import lands, cron grader transitions live → won, etc.)
+-- ============================================================================
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication where pubname = 'supabase_realtime'
+  ) then
+    create publication supabase_realtime;
+  end if;
+end$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'bets'
+  ) then
+    alter publication supabase_realtime add table bets;
+  end if;
+end$$;
