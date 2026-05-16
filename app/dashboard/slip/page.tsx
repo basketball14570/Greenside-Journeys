@@ -10,6 +10,7 @@ import { useBetSlip } from "@/lib/bet-slip-store";
 import { describeLeg, legToOpenBet, type SlipLeg } from "@/lib/bet-slip";
 import { gradeBet } from "@/lib/grading";
 import { parseSlipText } from "@/lib/slip-parser";
+import { encodeSlipToken } from "@/lib/slip-share";
 
 type LegKind = SlipLeg["kind"];
 
@@ -134,6 +135,8 @@ export default function SlipPage() {
       </section>
 
       <AddLegForm fieldNames={fieldNames} onAdd={addLeg} />
+
+      <ShareSlip slip={slip} />
 
       <SlipList
         legs={slip.legs}
@@ -567,4 +570,87 @@ function parseAmerican(s: string): number {
   if (!m) return NaN;
   const sign = m[1] === "-" ? -1 : 1;
   return sign * parseInt(m[2], 10);
+}
+
+function ShareSlip({ slip }: { slip: ReturnType<typeof useBetSlip>["slip"] }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const mint = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (slip.legs.length === 0) return;
+    const token = encodeSlipToken(slip);
+    setUrl(`${window.location.origin}/slip/${token}`);
+    setCopied(false);
+  }, [slip]);
+
+  async function copy() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // Clipboard refused; the textarea below is still selectable.
+    }
+  }
+
+  if (slip.legs.length === 0) return null;
+
+  return (
+    <section className="rounded-[14px] border border-line p-5 bg-surface-1 space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h2 className="font-medium" style={{ fontSize: 18 }}>
+          Share this slip
+        </h2>
+        <span className="text-text-dim" style={{ fontSize: 11 }}>
+          Static link — encodes the slip itself, no account needed.
+        </span>
+      </div>
+      {!url ? (
+        <button
+          onClick={mint}
+          className="rounded-[10px] px-4 py-2"
+          style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 13, fontWeight: 600 }}
+        >
+          Generate share link
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <input
+            readOnly
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full rounded-[8px] border border-line bg-bg px-3 py-2 text-text"
+            style={{ fontSize: 12, fontFamily: "ui-monospace, monospace" }}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={copy}
+              className="rounded-[10px] px-3 py-1.5 border border-line hover:border-line-strong"
+              style={{ fontSize: 12 }}
+            >
+              {copied ? "Copied" : "Copy link"}
+            </button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-[10px] px-3 py-1.5 border border-line hover:border-line-strong"
+              style={{ fontSize: 12 }}
+            >
+              Open preview
+            </a>
+            <button
+              onClick={mint}
+              className="text-text-dim hover:text-text"
+              style={{ fontSize: 12 }}
+            >
+              Regenerate
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }

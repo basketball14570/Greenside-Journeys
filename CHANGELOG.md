@@ -2,6 +2,21 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Shareable slips, admin integrations panel
+
+- **Public slip view** at `/slip/[token]` — anyone with the link can see
+  the lineup live-graded against the leaderboard. The token is the slip
+  itself, base64url-encoded; no DB row, no expiry. The slip editor
+  gained a **Generate share link** button that mints the URL and offers
+  copy / open-preview / regenerate.
+- **/dashboard/admin** integrations panel — consumes `/api/health` and
+  paints a green/red dot for every external service (Supabase,
+  Anthropic, DataGolf, weather, odds, Postmark, push, webhooks, cron).
+  Re-check button re-probes on demand; never returns the secrets
+  themselves.
+- `lib/slip-share.ts` handles encode/decode with a one-byte version
+  prefix so future schema bumps can coexist with older links.
+
 ## 2026-05-16 — Slip paste, alert dispatch, bookmarklet
 
 - **Slip-paste import** on `/dashboard/slip` — heuristic parser

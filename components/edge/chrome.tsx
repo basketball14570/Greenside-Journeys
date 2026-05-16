@@ -203,6 +203,7 @@ const DESKTOP_TABS = [
   { label: "Model", href: "/dashboard/model" },
   { label: "Newsletter", href: "/dashboard/newsletter" },
   { label: "Bankroll", href: "/dashboard/account" },
+  { label: "Admin", href: "/dashboard/admin" },
 ];
 
 export function DesktopAppBar({ active = "Today" }: { active?: string }) {
