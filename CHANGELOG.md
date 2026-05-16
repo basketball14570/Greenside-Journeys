@@ -2,6 +2,15 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Persisted alert preferences
+
+- **`/api/account/preferences`** GET/PUT — backed by new
+  `profiles.alert_prefs` (jsonb) + `wind_cutoff_mph` / `ev_cutoff_pct`
+  columns. RLS lets users only read/write their own row.
+- **`/dashboard/account`** toggles, wind and EV sliders now auto-save
+  on change; "✓ Saved" / "Sign in to sync" indicator at the bottom.
+  Preferences hydrate on page load.
+
 ## 2026-05-16 — Postmark inbound persistence, per-user forwarding address
 
 - **`/api/email/inbound`** now writes parsed legs into the `bets` table

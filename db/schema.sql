@@ -15,6 +15,12 @@ create table if not exists profiles (
   -- Postmark inbound email parser. Random by default; the user can rotate
   -- it from /dashboard/account.
   bets_token text unique default replace(gen_random_uuid()::text, '-', ''),
+  -- Alert + threshold preferences. Schema is freeform JSON so the UI can
+  -- add toggles without a migration; the only contract is that keys
+  -- match the IDs in app/dashboard/account/page.tsx.
+  alert_prefs jsonb not null default '{}'::jsonb,
+  wind_cutoff_mph integer not null default 15,
+  ev_cutoff_pct integer not null default 5,
   created_at timestamptz not null default now()
 );
 create index if not exists profiles_bets_token_idx on profiles (bets_token);

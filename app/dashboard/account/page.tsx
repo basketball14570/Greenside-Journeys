@@ -55,11 +55,83 @@ export default function AccountPage() {
   const [pushPermission, setPushPermission] = useState<
     "default" | "granted" | "denied"
   >("default");
+  const [persistStatus, setPersistStatus] = useState<
+    "idle" | "loading" | "saved" | "anon" | "unconfigured"
+  >("idle");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/account/preferences", { cache: "no-store" });
+        const j = await r.json();
+        if (cancelled) return;
+        if (!j.configured) return setPersistStatus("unconfigured");
+        if (!j.signedIn) return setPersistStatus("anon");
+        setWindCutoff(j.wind_cutoff_mph ?? 15);
+        setEvCutoff(j.ev_cutoff_pct ?? 5);
+        if (j.alert_prefs && typeof j.alert_prefs === "object") {
+          setPrefs((p) =>
+            p.map((x) =>
+              x.id in j.alert_prefs ? { ...x, enabled: !!j.alert_prefs[x.id] } : x,
+            ),
+          );
+        }
+        setPersistStatus("idle");
+      } catch {
+        setPersistStatus("unconfigured");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function save(next: {
+    prefs?: typeof DEFAULT_PREFS;
+    windCutoff?: number;
+    evCutoff?: number;
+  }) {
+    if (persistStatus === "anon" || persistStatus === "unconfigured") return;
+    setPersistStatus("loading");
+    const payload: Record<string, unknown> = {};
+    if (next.prefs) {
+      payload.alert_prefs = Object.fromEntries(
+        next.prefs.map((p) => [p.id, p.enabled]),
+      );
+    }
+    if (typeof next.windCutoff === "number") payload.wind_cutoff_mph = next.windCutoff;
+    if (typeof next.evCutoff === "number") payload.ev_cutoff_pct = next.evCutoff;
+    try {
+      await fetch("/api/account/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setPersistStatus("saved");
+      setTimeout(() => setPersistStatus("idle"), 1500);
+    } catch {
+      setPersistStatus("idle");
+    }
+  }
 
   function toggle(id: string) {
-    setPrefs((p) =>
-      p.map((x) => (x.id === id ? { ...x, enabled: !x.enabled } : x)),
-    );
+    setPrefs((p) => {
+      const next = p.map((x) =>
+        x.id === id ? { ...x, enabled: !x.enabled } : x,
+      );
+      save({ prefs: next });
+      return next;
+    });
+  }
+
+  function commitWind(v: number) {
+    setWindCutoff(v);
+    save({ windCutoff: v });
+  }
+  function commitEv(v: number) {
+    setEvCutoff(v);
+    save({ evCutoff: v });
   }
 
   async function requestPush() {
@@ -170,7 +242,7 @@ export default function AccountPage() {
           label="Wind cutoff"
           hint="Notify when sustained wind crosses this (mph)"
           value={windCutoff}
-          onChange={setWindCutoff}
+          onChange={commitWind}
           min={5}
           max={30}
           unit="mph"
@@ -179,7 +251,7 @@ export default function AccountPage() {
           label="EV shift cutoff"
           hint="Notify when a single bet moves more than this (%)"
           value={evCutoff}
-          onChange={setEvCutoff}
+          onChange={commitEv}
           min={2}
           max={20}
           unit="%"
@@ -224,7 +296,12 @@ export default function AccountPage() {
       </div>
 
       <p className="text-text-muted text-center" style={{ fontSize: 11 }}>
-        Preferences sync to your account once Supabase auth is provisioned.
+        {persistStatus === "saved" && "✓ Saved"}
+        {persistStatus === "loading" && "Saving…"}
+        {persistStatus === "idle" && "Changes auto-save."}
+        {persistStatus === "anon" && "Sign in to sync preferences across devices."}
+        {persistStatus === "unconfigured" &&
+          "Supabase isn't configured on this deploy; preferences are local only."}
       </p>
     </div>
   );
