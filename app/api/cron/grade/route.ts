@@ -9,6 +9,7 @@ import { pushToUser, pushEnabled } from "@/lib/notify/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // Periodic settlement cron. Currently grades the demo open-bets list —
 // once user bets land in Supabase this same handler will iterate users

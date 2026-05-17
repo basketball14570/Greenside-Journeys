@@ -4,6 +4,7 @@ import { dispatchAll } from "@/lib/notify/webhooks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // Vercel cron handler — builds the daily digest and fans it out to every
 // configured webhook (Discord / Slack / generic). Schedule with vercel.json:

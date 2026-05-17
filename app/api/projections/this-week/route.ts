@@ -3,6 +3,7 @@ import { datagolfEnabled, getPreTournamentProjections } from "@/lib/data/datagol
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 15;
 
 // "This week's edge" — top players by win% from DataGolf's
 // pre-tournament model. Surfaces a graceful demo fallback when
