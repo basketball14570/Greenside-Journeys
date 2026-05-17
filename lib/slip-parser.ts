@@ -207,7 +207,11 @@ function matchRoundProp(
         ? ("bogeys" as const)
         : /eagle/i.test(line)
           ? ("eagles" as const)
-          : ("strokes" as const);
+          : /fairway|fir/i.test(line)
+            ? ("fairways" as const)
+            : /green.*regulation|\bgir\b/i.test(line)
+              ? ("greens" as const)
+              : ("strokes" as const);
   return {
     kind: "round_prop",
     ...base,

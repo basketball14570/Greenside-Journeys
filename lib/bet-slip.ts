@@ -40,7 +40,11 @@ export type ThreeBallLeg = SlipLegBase & {
 
 export type RoundPropLeg = SlipLegBase & {
   kind: "round_prop";
-  metric: "strokes" | "birdies" | "bogeys" | "eagles";
+  // ESPN provides strokes per round reliably. Birdies/bogeys/eagles are
+  // available when the boxscore feed populates them. Fairways hit and
+  // greens in regulation come from the detailed stats feed and may be
+  // null mid-round — those grade as "unknown" until the round closes.
+  metric: "strokes" | "birdies" | "bogeys" | "eagles" | "fairways" | "greens";
   side: "over" | "under";
   line: number;
   round: number;
@@ -143,9 +147,15 @@ export function legToOpenBet(leg: SlipLeg): OpenBet {
   }
 }
 
-function americanToDecimal(odds: number): number {
+export function americanToDecimal(odds: number): number {
   if (odds > 0) return odds / 100 + 1;
   return 100 / Math.abs(odds) + 1;
+}
+
+// Decimal odds → American (positive when underdog, negative when favorite).
+export function decimalToAmerican(decimal: number): number {
+  if (decimal >= 2) return Math.round((decimal - 1) * 100);
+  return Math.round(-100 / (decimal - 1));
 }
 
 function formatAmerican(odds: number): string {

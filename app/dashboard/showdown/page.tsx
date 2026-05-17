@@ -12,37 +12,49 @@ import {
 // DraftKings showdown lineup — six golfers to track live. Aliases cover
 // accent variations and ESPN's occasional name reshuffles. `excludes`
 // on Nicolai Hojgaard forces a clean disambiguation from Rasmus.
+// Today's roster. Rasmus + Aberg get accent variants; Rasmus's excludes
+// keep us from latching onto his brother Nicolai by accident.
 const ROSTER: TrackedPlayer[] = [
-  {
-    key: "nicolai-hojgaard",
-    display: "Nicolai Højgaard",
-    aliases: ["Nicolai Hojgaard", "Nicolai Højgaard", "N. Hojgaard"],
-    excludes: ["Rasmus Hojgaard", "Rasmus Højgaard"],
-  },
-  {
-    key: "michael-kim",
-    display: "Michael Kim",
-    aliases: ["Michael Kim"],
-  },
-  {
-    key: "chris-kirk",
-    display: "Chris Kirk",
-    aliases: ["Chris Kirk"],
-  },
-  {
-    key: "kristoffer-reitan",
-    display: "Kristoffer Reitan",
-    aliases: ["Kristoffer Reitan", "Kristoffer Reitan"],
-  },
-  {
-    key: "justin-rose",
-    display: "Justin Rose",
-    aliases: ["Justin Rose"],
-  },
   {
     key: "scottie-scheffler",
     display: "Scottie Scheffler",
     aliases: ["Scottie Scheffler"],
+  },
+  {
+    key: "ludvig-aberg",
+    display: "Ludvig Åberg",
+    aliases: ["Ludvig Aberg", "Ludvig Åberg", "L. Aberg"],
+  },
+  {
+    key: "rory-mcilroy",
+    display: "Rory McIlroy",
+    aliases: ["Rory McIlroy", "R. McIlroy"],
+  },
+  {
+    key: "cameron-young",
+    display: "Cameron Young",
+    aliases: ["Cameron Young"],
+  },
+  {
+    key: "john-parry",
+    display: "John Parry",
+    aliases: ["John Parry"],
+  },
+  {
+    key: "rasmus-hojgaard",
+    display: "Rasmus Højgaard",
+    aliases: ["Rasmus Hojgaard", "Rasmus Højgaard", "R. Hojgaard"],
+    excludes: ["Nicolai Hojgaard", "Nicolai Højgaard"],
+  },
+  {
+    key: "andrew-novak",
+    display: "Andrew Novak",
+    aliases: ["Andrew Novak"],
+  },
+  {
+    key: "sam-stevens",
+    display: "Sam Stevens",
+    aliases: ["Sam Stevens"],
   },
 ];
 

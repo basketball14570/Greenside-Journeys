@@ -278,6 +278,23 @@ export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision 
   if (m.includes("win") && !m.includes("over") && !m.includes("under")) return gradeToWin(bet, snapshot);
   if (m.includes("matchup") || m.includes("vs")) return gradeMatchup(bet, snapshot);
   if (m.includes("score") || m.includes("strokes") || m.includes("round")) return gradeRoundProp(bet, snapshot);
+  // Birdies / bogeys / eagles / fairways / greens: ESPN's free scoreboard
+  // feed doesn't expose these per-round, so we surface the bet but mark
+  // it for manual settlement once the round closes. The /dashboard/parlay
+  // UI flags these with a "manual" pill.
+  if (
+    m.includes("birdie") ||
+    m.includes("bogey") ||
+    m.includes("eagle") ||
+    m.includes("fairway") ||
+    m.includes("green")
+  ) {
+    return {
+      bet,
+      status: "unknown",
+      reason: "Per-round stat not in live ESPN feed — settle manually after round ends",
+    };
+  }
   return { bet, status: "unknown", reason: `No grader for market '${bet.market}'` };
 }
 

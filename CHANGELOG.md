@@ -2,6 +2,26 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Live parlay tracker + showdown roster refresh
+
+- **`/dashboard/parlay`** — live all-or-nothing tracker for the 9-leg
+  ticket: Reed to win, Rasmus / Lowry / Stevens O3.5 birdies, Spieth
+  O7.5 FIR, Novak / Fowler Top 20, Rose Top 10, Scheffler U5.5 birdies.
+  Refreshes every 30s
+  against ESPN. Parlay-level status (LOST > UNKNOWN > LIVE > WON),
+  computed parlay odds, and per-leg observed values.
+- **Showdown roster** updated to today's group: Scheffler, Åberg,
+  McIlroy, C. Young, Parry, Rasmus Højgaard, Novak, Stevens. Rasmus
+  gets accent variants + Nicolai exclude to keep the brothers
+  disambiguated.
+- **`SlipLeg.metric`** extended with `fairways` and `greens`. The
+  grader returns "manual settle" for any per-round stat the free
+  ESPN feed doesn't expose (birdies / bogeys / eagles / fairways /
+  greens) — the parlay UI flags these with a MANUAL pill.
+- **`americanToDecimal` / `decimalToAmerican`** exported from
+  bet-slip so the parlay summary can roll legs into combined odds.
+- Nav + command palette pick up Parlay entry.
+
 ## 2026-05-16 — Live event strap + full 2026 PGA schedule
 
 - **`lib/data/pga-schedule.ts`** — full 2026 PGA Tour season

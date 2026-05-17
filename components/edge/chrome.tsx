@@ -203,6 +203,7 @@ const DESKTOP_TABS = [
   { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Model", href: "/dashboard/model" },
   { label: "Newsletter", href: "/dashboard/newsletter" },
+  { label: "Parlay", href: "/dashboard/parlay" },
   { label: "Schedule", href: "/dashboard/schedule" },
   { label: "Ownership", href: "/dashboard/ownership" },
   { label: "Bankroll", href: "/dashboard/account" },
