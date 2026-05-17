@@ -2,6 +2,25 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Parlay payout hero + Scandinavian name match
+
+- **Bigger payout headline**: parlay page now leads with a dedicated
+  hero card — payout scales typographically with magnitude (5-figure
+  payouts render at 132px), glows yellow while live, green when won,
+  muted red when dead. Stake/odds/legs demoted to a smaller secondary
+  row. Pulls the "to win" number out of the stat-tile grid so the
+  upside actually feels like upside.
+- **Scandinavian / German name normalization** (`lib/grading.ts`):
+  `norm()` now folds `ø → o`, `å → a`, `æ → ae`, `ß → ss` before the
+  ASCII strip. Fixes `"Rasmus Hojgaard"` failing to match ESPN's
+  `"Højgaard"` and showing "Player not in field". Same fix unblocks
+  any future Aberg / Hovland / Højgaard props.
+- **Parlay legs default to current round (R4)**: hardcoded round on
+  the live ticket bumped from 2 → 4 so Sunday-final birdie props grade
+  against today's play instead of Friday's settled R2 line. Schema
+  fix tracked as a follow-up — eventually `roundIndex: "current"`
+  should resolve dynamically from the snapshot.
+
 ## 2026-05-16 — Course-fit weighting, PWA install, This-week's-edge
 
 - **Optimizer course-fit weighting**: `OptimizerPanel` gained a

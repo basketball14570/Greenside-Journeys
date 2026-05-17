@@ -51,7 +51,7 @@ const LEGS: SlipLeg[] = [
     metric: "birdies",
     side: "over",
     line: 3.5,
-    round: 2,
+    round: 4,
   },
   {
     id: "lowry-birdies",
@@ -64,7 +64,7 @@ const LEGS: SlipLeg[] = [
     metric: "birdies",
     side: "over",
     line: 3.5,
-    round: 2,
+    round: 4,
   },
   {
     id: "stevens-birdies",
@@ -77,7 +77,7 @@ const LEGS: SlipLeg[] = [
     metric: "birdies",
     side: "over",
     line: 3.5,
-    round: 2,
+    round: 4,
   },
   {
     id: "spieth-fir",
@@ -90,7 +90,7 @@ const LEGS: SlipLeg[] = [
     metric: "fairways",
     side: "over",
     line: 7.5,
-    round: 2,
+    round: 4,
   },
   {
     id: "novak-top20",
@@ -133,7 +133,7 @@ const LEGS: SlipLeg[] = [
     metric: "birdies",
     side: "under",
     line: 5.5,
-    round: 2,
+    round: 4,
   },
 ];
 
@@ -264,15 +264,15 @@ export default function ParlayPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Payout hero — the entire reason you placed the bet. Scaled to
+          dominate the screen at huge odds; shrinks gracefully when the
+          number is short. */}
+      <PayoutHero summary={summary} />
+
+      <div className="grid grid-cols-3 gap-3">
         <Stat
           label="Risk"
           value={`${summary.stake.toFixed(1)}u`}
-        />
-        <Stat
-          label="To win"
-          value={`${summary.profit.toFixed(2)}u`}
-          tone="good"
         />
         <Stat
           label="Parlay odds"
@@ -436,6 +436,98 @@ function StatusPill({
     >
       {status}
     </span>
+  );
+}
+
+function PayoutHero({
+  summary,
+}: {
+  summary: {
+    profit: number;
+    stake: number;
+    status: ParlayStatus;
+    legs: { won: number; lost: number; live: number; unknown: number };
+  };
+}) {
+  // Killed = at least one leg lost. Number goes muted red, no glow.
+  // Alive  = still chasing. Number is huge and pulses.
+  // Won    = settled green.
+  const killed = summary.status === "lost";
+  const won = summary.status === "won";
+  const headline = killed ? "WOULD HAVE WON" : won ? "PAID" : "TO WIN";
+  const color = killed ? "#e87c7c" : won ? "#7fd49a" : "#f5c558";
+  const glow = killed
+    ? "none"
+    : won
+      ? "0 0 60px rgba(127,212,154,0.45)"
+      : "0 0 80px rgba(245,197,88,0.35)";
+
+  // Scale typography to the magnitude — small profits feel small,
+  // huge ones explode off the screen.
+  const v = summary.profit;
+  const heroSize =
+    v >= 100_000 ? 132 : v >= 10_000 ? 108 : v >= 1_000 ? 88 : 64;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-[18px] border px-6 py-7"
+      style={{
+        borderColor: killed ? "rgba(232,124,124,0.25)" : "rgba(245,197,88,0.3)",
+        background: killed
+          ? "radial-gradient(ellipse at 30% 0%, rgba(232,124,124,0.08), transparent 60%), #14110e"
+          : won
+            ? "radial-gradient(ellipse at 30% 0%, rgba(127,212,154,0.12), transparent 60%), #14110e"
+            : "radial-gradient(ellipse at 30% 0%, rgba(245,197,88,0.13), transparent 60%), #14110e",
+      }}
+    >
+      <div
+        className="num font-semibold uppercase"
+        style={{ fontSize: 10.5, letterSpacing: 2, color, opacity: 0.9 }}
+      >
+        {headline}
+      </div>
+      <div
+        className="num mt-1 leading-none"
+        style={{
+          fontSize: heroSize,
+          letterSpacing: -3,
+          color,
+          textShadow: glow,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {v.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        <span
+          style={{
+            fontSize: heroSize * 0.42,
+            marginLeft: 8,
+            letterSpacing: 0,
+            opacity: 0.55,
+          }}
+        >
+          u
+        </span>
+      </div>
+      <div
+        className="mt-2 text-text-dim flex items-center gap-2 flex-wrap"
+        style={{ fontSize: 12.5 }}
+      >
+        Risking <span className="num text-text">{summary.stake.toFixed(1)}u</span>
+        <span className="text-text-muted">·</span>
+        <span className="num">
+          {summary.legs.won}/{LEGS.length} legs cashed
+        </span>
+        {!killed && !won && summary.legs.live + summary.legs.unknown > 0 && (
+          <>
+            <span className="text-text-muted">·</span>
+            <span style={{ color: "#f5c558" }} className="num">
+              {summary.legs.live + summary.legs.unknown} still live
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

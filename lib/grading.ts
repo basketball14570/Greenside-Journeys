@@ -39,6 +39,12 @@ function norm(s: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    // Scandinavian / German precomposed letters that NFD doesn't decompose.
+    // Without this, "Højgaard" → "hjgaard" and won't match "Hojgaard".
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .replace(/æ/g, "ae")
+    .replace(/ß/g, "ss")
     .replace(/[^a-z\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
