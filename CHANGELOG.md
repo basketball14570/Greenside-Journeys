@@ -2,6 +2,29 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Live motion: hole trail, pulse, position flash
+
+- **Hole-by-hole trail** on round-prop legs. Reads the per-hole
+  strokes ESPN already exposes in the snapshot, color-codes them
+  against course par: green chip for birdies, amber for bogeys, red
+  for doubles+, dim for par, ghost for unplayed. Eagle gets a solid
+  green E. Replaces "5 birdies+ thru 13" string-only feedback with
+  the actual sequence at a glance.
+- **LIVE pill pulse** (`.gs-live-pulse` in `globals.css`): leading
+  dot fades + scales on a 1.6s loop so live status feels alive
+  without the whole chip competing for attention. Applied
+  everywhere `StatusPill` renders with status=live.
+- **Position-change flash**: parlay rows track each leg's observed
+  value across snapshot refreshes. When it shifts in the bettor's
+  favor (e.g. Reed T7 → T5), the row tints green for 3.5s with a ▲
+  caret next to the player name; against the bettor, red with ▼.
+  Direction logic handles top-N (lower is better), over/under
+  round-props, and outrights.
+- **Settle imminence** under each live leg: "Need 3 in 6 holes" /
+  "2 spots clear" / "Just hold — 5 holes left" — parsed from the
+  grader's `reason` for round-props and computed from `n` minus
+  position for top-N. Amber when chasing, green when clinched.
+
 ## 2026-05-17 — Parlay payout hero + Scandinavian name match
 
 - **Bigger payout headline**: parlay page now leads with a dedicated

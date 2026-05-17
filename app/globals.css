@@ -45,3 +45,28 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
+
+/* Live-status pulse for grading pills. The leading dot pulses harder
+   than the chip itself so the eye locks on it without the whole chip
+   competing with the payout hero. */
+.gs-live-pulse {
+  position: relative;
+  padding-left: 16px !important;
+}
+.gs-live-pulse::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateY(-50%);
+  animation: greensideLiveDot 1.6s ease-in-out infinite;
+  box-shadow: 0 0 6px currentColor;
+}
+@keyframes greensideLiveDot {
+  0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+  50%      { opacity: 0.35; transform: translateY(-50%) scale(0.7); }
+}

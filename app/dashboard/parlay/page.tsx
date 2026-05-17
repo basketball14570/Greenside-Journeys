@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   describeLeg,
   legToOpenBet,
@@ -11,8 +11,11 @@ import {
 import { gradeBet, type Decision } from "@/lib/grading";
 import {
   fetchLeaderboard,
+  roundStats,
   type LeaderboardSnapshot,
+  type RoundLine,
 } from "@/lib/espn-leaderboard";
+import { holeParFor } from "@/lib/data/course-pars";
 
 // Live parlay tracker for the user's current week. Hardcoded today —
 // once we have a saved-parlays table this becomes /dashboard/parlay/[id]
@@ -172,6 +175,37 @@ export default function ParlayPage() {
     return LEGS.map((l) => gradeBet(legToOpenBet(l), snapshot));
   }, [snapshot]);
 
+  // Position / observed-value flash. We diff each leg's observedValue
+  // against its previous render and flash the row when it changes.
+  // For top-N the lower number is better, so we direction-tag the flash
+  // green (improved) or red (slipped). Flash auto-clears after 3.5s.
+  const prevObserved = useRef<Record<string, string | number | undefined>>({});
+  const [flashes, setFlashes] = useState<Record<string, "up" | "down" | null>>({});
+  useEffect(() => {
+    if (!decisions.length) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    decisions.forEach((d, i) => {
+      const leg = LEGS[i];
+      const key = leg.id;
+      const cur = d.observedValue;
+      const prev = prevObserved.current[key];
+      if (prev !== undefined && cur !== undefined && prev !== cur) {
+        const direction = directionOfChange(leg, prev, cur);
+        if (direction) {
+          setFlashes((f) => ({ ...f, [key]: direction }));
+          timers.push(
+            setTimeout(
+              () => setFlashes((f) => ({ ...f, [key]: null })),
+              3500,
+            ),
+          );
+        }
+      }
+      prevObserved.current[key] = cur;
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [decisions]);
+
   const summary = useMemo(() => {
     const parlayDecimal = LEGS.reduce(
       (acc, l) => acc * americanToDecimal(l.americanOdds),
@@ -309,6 +343,7 @@ export default function ParlayPage() {
               decision={d}
               snapshot={snapshot}
               isLast={i === LEGS.length - 1}
+              flash={flashes[l.id] ?? null}
             />
           );
         })}
@@ -336,19 +371,30 @@ function LegRow({
   decision,
   snapshot,
   isLast,
+  flash,
 }: {
   leg: SlipLeg;
   decision: Decision | undefined;
   snapshot: LeaderboardSnapshot | null;
   isLast: boolean;
+  flash: "up" | "down" | null;
 }) {
   const status = decision?.status ?? "live";
   const manual =
     status === "unknown" &&
     /settle manually|fir \/ gir|not in free espn/i.test(decision?.reason ?? "");
 
-  // For top-N: surface current position so the user knows how close.
   const observed = decision?.observedValue ?? "—";
+  const trail = trailForLeg(leg, snapshot);
+  const imminence = imminenceFor(leg, decision);
+
+  // Flash overlays a tinted background that animates from full → 0 over 3.5s.
+  const flashBg =
+    flash === "up"
+      ? "rgba(127,212,154,0.12)"
+      : flash === "down"
+        ? "rgba(232,124,124,0.12)"
+        : null;
 
   return (
     <div
@@ -358,15 +404,31 @@ function LegRow({
         fontSize: 13,
         borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
         background:
-          status === "won"
+          flashBg ??
+          (status === "won"
             ? "rgba(127,212,154,0.05)"
             : status === "lost"
               ? "rgba(232,124,124,0.05)"
-              : "transparent",
+              : "transparent"),
+        transition: "background 1200ms ease-out",
       }}
     >
       <div className="min-w-0">
-        <div className="text-text font-medium truncate">{leg.player}</div>
+        <div className="text-text font-medium truncate flex items-center gap-1.5">
+          {leg.player}
+          {flash && (
+            <span
+              className="num"
+              style={{
+                fontSize: 11,
+                color: flash === "up" ? "#7fd49a" : "#e87c7c",
+                opacity: 0.9,
+              }}
+            >
+              {flash === "up" ? "▲" : "▼"}
+            </span>
+          )}
+        </div>
         <div
           className="text-text-dim mt-0.5"
           style={{ fontSize: 11.5 }}
@@ -377,12 +439,25 @@ function LegRow({
             {leg.americanOdds}
           </span>
         </div>
+        {trail && <HoleTrail trail={trail} />}
       </div>
       <div
         className="text-text-dim truncate"
         style={{ fontSize: 12 }}
       >
         {decision?.reason ?? (snapshot ? "Loading…" : "Waiting for ESPN")}
+        {imminence && (
+          <div
+            className="num mt-0.5"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: 0.5,
+              color: imminence.tone === "good" ? "#7fd49a" : "#f5c558",
+            }}
+          >
+            {imminence.label}
+          </div>
+        )}
       </div>
       <div className="text-right">
         {manual ? (
@@ -413,6 +488,193 @@ function LegRow({
   );
 }
 
+// Hole-by-hole birdie/par/bogey trail for round-prop legs. Reads the
+// per-hole strokes ESPN already gave us in the snapshot and color-codes
+// against course par. Empty slots are unplayed holes.
+function HoleTrail({ trail }: { trail: HoleResult[] }) {
+  return (
+    <div className="mt-1.5 flex items-center gap-[3px]">
+      {trail.map((h, i) => {
+        const { color, glyph, title } = trailVisual(h);
+        return (
+          <span
+            key={i}
+            title={title}
+            className="num"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 14,
+              height: 14,
+              borderRadius: 3,
+              background: color.bg,
+              color: color.fg,
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: 0,
+              lineHeight: 1,
+              opacity: h.played ? 1 : 0.25,
+            }}
+          >
+            {glyph}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+type HoleResult = {
+  hole: number;
+  played: boolean;
+  diff: number | null; // strokes - par; null when unplayed
+};
+
+function trailForLeg(
+  leg: SlipLeg,
+  snapshot: LeaderboardSnapshot | null,
+): HoleResult[] | null {
+  if (!snapshot || leg.kind !== "round_prop") return null;
+  if (!["birdies", "bogeys", "eagles"].includes(leg.metric)) return null;
+  const norm = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
+      .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
+  const target = norm(leg.player);
+  const p =
+    snapshot.players.find((x) => norm(x.name) === target) ??
+    snapshot.players.find((x) => norm(x.name).includes(target));
+  if (!p) return null;
+  const round: RoundLine | undefined = p.rounds.find((r) => r.period === leg.round);
+  if (!round || round.holes.length === 0) return null;
+  return round.holes.map((h) => {
+    const par = h.par ?? holeParFor(snapshot.event?.course ?? null, h.hole);
+    const played = h.strokes !== null && h.strokes > 0;
+    return {
+      hole: h.hole,
+      played,
+      diff: played ? (h.strokes as number) - par : null,
+    };
+  });
+}
+
+function trailVisual(h: HoleResult): {
+  color: { bg: string; fg: string };
+  glyph: string;
+  title: string;
+} {
+  if (!h.played) {
+    return {
+      color: { bg: "rgba(255,255,255,0.04)", fg: "rgba(255,255,255,0.3)" },
+      glyph: "·",
+      title: `Hole ${h.hole} — not played`,
+    };
+  }
+  const d = h.diff ?? 0;
+  if (d <= -2)
+    return {
+      color: { bg: "rgba(127,212,154,0.35)", fg: "#0f1410" },
+      glyph: "E",
+      title: `Hole ${h.hole} — eagle`,
+    };
+  if (d === -1)
+    return {
+      color: { bg: "rgba(127,212,154,0.2)", fg: "#7fd49a" },
+      glyph: "B",
+      title: `Hole ${h.hole} — birdie`,
+    };
+  if (d === 0)
+    return {
+      color: { bg: "rgba(255,255,255,0.06)", fg: "rgba(255,255,255,0.7)" },
+      glyph: "·",
+      title: `Hole ${h.hole} — par`,
+    };
+  if (d === 1)
+    return {
+      color: { bg: "rgba(245,197,88,0.18)", fg: "#f5c558" },
+      glyph: "+",
+      title: `Hole ${h.hole} — bogey`,
+    };
+  return {
+    color: { bg: "rgba(232,124,124,0.2)", fg: "#e87c7c" },
+    glyph: "+",
+    title: `Hole ${h.hole} — double or worse`,
+  };
+}
+
+// "Reed clinches in 2 holes" / "Stevens needs 3 in 6" style urgency.
+// Computed off the grader's reason where possible; otherwise from
+// hole-trail data on round-prop legs.
+function imminenceFor(
+  leg: SlipLeg,
+  decision: Decision | undefined,
+): { label: string; tone: "good" | "warn" } | null {
+  if (!decision || decision.status !== "live") return null;
+  const r = decision.reason;
+  // Round-prop "need M more in X" — already in reason text. Promote it.
+  const m = r.match(/need (\d+) more in (\d+)/i);
+  if (m) {
+    const need = parseInt(m[1], 10);
+    const left = parseInt(m[2], 10);
+    if (need === 0)
+      return { label: `Just hold — ${left} holes left`, tone: "good" };
+    if (need <= left) return { label: `Need ${need} in ${left} holes`, tone: "warn" };
+  }
+  // Top-N: surface "inside top X by Y strokes" / "Y strokes from top X".
+  if (leg.kind === "top_n") {
+    // posDisplay like "T7" / "31" lives in observedValue
+    const pos = String(decision.observedValue ?? "");
+    const posNum = parseInt(pos.replace(/^T/, ""), 10);
+    if (!Number.isNaN(posNum)) {
+      const gap = leg.n - posNum;
+      if (gap >= 0) return { label: `${gap === 0 ? "On the bubble" : `${gap} spots clear`}`, tone: "good" };
+      return { label: `${Math.abs(gap)} spots short`, tone: "warn" };
+    }
+  }
+  return null;
+}
+
+// Direction-tag a change in observedValue. Lower position-numbers are
+// better for top-N; higher counts are better for over-birdie props, etc.
+function directionOfChange(
+  leg: SlipLeg,
+  prev: string | number,
+  cur: string | number,
+): "up" | "down" | null {
+  // top_n: parse "T7" / "31" — lower is better
+  if (leg.kind === "top_n") {
+    const a = parseInt(String(prev).replace(/^T/, ""), 10);
+    const b = parseInt(String(cur).replace(/^T/, ""), 10);
+    if (Number.isNaN(a) || Number.isNaN(b)) return null;
+    if (b < a) return "up";
+    if (b > a) return "down";
+    return null;
+  }
+  // round_prop (birdies / strokes etc.): numeric. For "under" lines a
+  // higher count is bad; for "over" lines higher is good. For strokes,
+  // lower is good. Direction is from the bettor's perspective.
+  if (leg.kind === "round_prop") {
+    const a = Number(prev);
+    const b = Number(cur);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    if (a === b) return null;
+    const higherIsGood =
+      leg.metric === "strokes" ? false : leg.side === "over";
+    const improved = higherIsGood ? b > a : b < a;
+    return improved ? "up" : "down";
+  }
+  // Outright: any move toward T1 is good, away from it is bad.
+  if (leg.kind === "winner") {
+    const a = parseInt(String(prev).replace(/^T/, ""), 10);
+    const b = parseInt(String(cur).replace(/^T/, ""), 10);
+    if (Number.isNaN(a) || Number.isNaN(b)) return null;
+    if (b < a) return "up";
+    if (b > a) return "down";
+  }
+  return null;
+}
+
 function StatusPill({
   status,
   small = false,
@@ -421,9 +683,10 @@ function StatusPill({
   small?: boolean;
 }) {
   const color = pillColor(status);
+  const live = status === "live";
   return (
     <span
-      className="num uppercase"
+      className={`num uppercase ${live ? "gs-live-pulse" : ""}`}
       style={{
         fontSize: small ? 9.5 : 10.5,
         letterSpacing: 0.8,
