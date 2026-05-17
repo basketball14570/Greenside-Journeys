@@ -33,6 +33,7 @@ const PAGE_COMMANDS: Command[] = [
   { kind: "page", label: "Newsletter", href: "/dashboard/newsletter", hint: "Daily digest preview" },
   { kind: "page", label: "Ownership Database", href: "/dashboard/ownership", hint: "DK ownership history" },
   { kind: "page", label: "Add Ownership Tournament", href: "/dashboard/ownership/upload", hint: "Paste new event JSON" },
+  { kind: "page", label: "PGA Schedule", href: "/dashboard/schedule", hint: "Full 2026 season" },
   { kind: "page", label: "Bankroll", href: "/dashboard/account", hint: "Settings + alerts" },
   { kind: "page", label: "Admin Integrations", href: "/dashboard/admin", hint: "Health probe" },
   { kind: "page", label: "Bookmarklet", href: "/bookmarklet", hint: "Sportsbook → slip" },

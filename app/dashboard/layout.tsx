@@ -1,9 +1,9 @@
 import {
   DesktopAppBar,
-  DesktopEventStrap,
   MobileBottomNav,
   MobileTopBar,
 } from "@/components/edge/chrome";
+import { LiveEventStrap } from "@/components/edge/LiveEventStrap";
 import { CommandPalette } from "@/components/edge/CommandPalette";
 
 // Responsive chrome: mobile (<lg) gets the top bar + bottom nav from the
@@ -19,7 +19,7 @@ export default function DashboardLayout({
       {/* Desktop chrome */}
       <div className="hidden lg:block">
         <DesktopAppBar />
-        <DesktopEventStrap />
+        <LiveEventStrap />
       </div>
 
       {/* Mobile chrome */}

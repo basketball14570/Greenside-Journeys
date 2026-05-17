@@ -2,6 +2,49 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Live event strap + full 2026 PGA schedule
+
+- **`lib/data/pga-schedule.ts`** — full 2026 PGA Tour season
+  (47 events, all tours): start/end dates, course, city, type
+  (major/signature/sig_cut/full_cut/limited/alternate). Helpers:
+  `statusOf`, `getActiveEvent`, `findEventByName`.
+- **`LiveEventStrap`** replaces the hardcoded "Quail Hollow R2 Live"
+  strap. Priority: ESPN snapshot → static schedule → off-season
+  fallback. Refreshes every 60s. Auto-updates as weeks roll.
+- **`/dashboard/schedule`** — full season view with past/live/upcoming
+  filters, Majors/Signature shortcuts. Rows that already have
+  ownership data attached get an "Own" chip linking back.
+- **Nav + command palette** gain Schedule entries.
+- **Ask Greenside**: `get_pga_schedule` tool ("what's next week",
+  "list the remaining signature events").
+
+## 2026-05-16 — Command palette (Cmd+K / Ctrl+K)
+
+- Fuzzy-search across pages, every player in ownership dataset,
+  every tournament. Arrow/Enter/Esc nav; mounted dashboard-wide.
+- Search chip in the desktop appbar now actually opens the palette.
+
+## 2026-05-16 — Monte Carlo DFS lineup optimizer
+
+- `lib/dfs-optimizer.ts`: 1500-candidate weighted pool, 200 sims
+  per lineup, AM/PM wave-correlated wind factors, z-scored
+  composite ranking on expected/ceiling/leverage weights.
+- `/dashboard/dfs` OptimizerPanel: three weight sliders, Run
+  button, top-20 expandable table.
+
+## 2026-05-16 — Marketing home: less AI-flavored
+
+- Rewritten hero with current-event sub-headline and player-named
+  body. Replaced 3-card symmetry with asymmetric capability slabs.
+  Added "A Sunday at Greenside" narrative with specific times and
+  scenarios. Removed "trusted by" / "AI-powered" phrasing.
+
+## 2026-05-16 — Live ESPN leaderboard on dashboard home
+
+- `LiveDashboardLeaderboard` wraps the existing widgets, fetches
+  ESPN top-N every 60s, falls back to demo data on cold paint
+  and network errors.
+
 ## 2026-05-16 — Real PnL on Tickets page
 
 - **`/dashboard/bets`** PnL chart, summary stats (settled / win-rate

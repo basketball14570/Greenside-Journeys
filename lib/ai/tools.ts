@@ -21,6 +21,7 @@ import {
   listCourses,
   TOURNAMENT_ORDER,
 } from "@/lib/data/ownership";
+import { SCHEDULE, getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 
 export type Tool = {
   name: string;
@@ -216,6 +217,30 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_pga_schedule",
+    description:
+      "Look up the 2026 PGA Tour schedule. Returns the active (live or next-up) event by default, or filter by status ('live', 'upcoming', 'past') and/or type ('major', 'signature', 'sig_cut', 'full_cut'). Use for 'what's this week', 'when's the next major', 'list signature events left this year'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["live", "upcoming", "past", "all"],
+          description: "Filter by event status. Default: live + upcoming.",
+        },
+        type: {
+          type: "string",
+          enum: ["major", "signature", "sig_cut", "full_cut", "limited", "alternate"],
+          description: "Filter by event type.",
+        },
+        limit: {
+          type: "number",
+          description: "Cap result count (default 20).",
+        },
+      },
+    },
+  },
+  {
     name: "get_course_ownership_history",
     description:
       "Look up every player's aggregated DK ownership at a specific course across the whole 2026 season (handles courses with multiple events — Pebble Beach, Torrey Pines). Returns repeat-field players sorted by avg ownership plus one-off appearances. Use to answer 'who's chalk at Quail Hollow' or 'find leverage plays at Riviera'.",
@@ -339,6 +364,8 @@ export async function runTool(name: string, input: Input): Promise<unknown> {
       return handleTournamentOwnership(input);
     case "get_course_ownership_history":
       return handleCourseOwnership(input);
+    case "get_pga_schedule":
+      return handleSchedule(input);
     default:
       return { error: `Unknown tool ${name}` };
   }
@@ -364,6 +391,51 @@ async function handlePlayerOwnership(input: Input) {
       tournament: e.tournament,
       ownership_pct: Number(e.own.toFixed(2)),
       salary: e.salary,
+    })),
+  };
+}
+
+async function handleSchedule(input: Input) {
+  const now = new Date();
+  const status = input.status as string | undefined;
+  const type = input.type as string | undefined;
+  const limit = Math.min(50, Number(input.limit) || 20);
+
+  let rows = SCHEDULE.map((e) => ({ event: e, status: statusOf(e, now) }));
+
+  if (status && status !== "all") {
+    rows = rows.filter((r) => r.status === status);
+  } else {
+    // Default: skip past events unless explicitly asked
+    rows = rows.filter((r) => r.status !== "past");
+  }
+
+  if (type) rows = rows.filter((r) => r.event.type === type);
+
+  const active = getActiveEvent(now);
+
+  return {
+    season: 2026,
+    active_event: active
+      ? {
+          name: active.name,
+          course: active.course,
+          city: active.city,
+          start_date: active.startDate,
+          end_date: active.endDate,
+          type: active.type,
+          status: statusOf(active, now),
+        }
+      : null,
+    total_matching: rows.length,
+    events: rows.slice(0, limit).map((r) => ({
+      name: r.event.name,
+      course: r.event.course,
+      city: r.event.city,
+      start_date: r.event.startDate,
+      end_date: r.event.endDate,
+      type: r.event.type,
+      status: r.status,
     })),
   };
 }
