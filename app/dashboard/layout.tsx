@@ -4,6 +4,7 @@ import {
   MobileBottomNav,
   MobileTopBar,
 } from "@/components/edge/chrome";
+import { CommandPalette } from "@/components/edge/CommandPalette";
 
 // Responsive chrome: mobile (<lg) gets the top bar + bottom nav from the
 // mobile design; desktop gets the AppBar + EventStrap. The active tab and
@@ -32,6 +33,8 @@ export default function DashboardLayout({
       <div className="lg:hidden">
         <MobileBottomNav active="home" />
       </div>
+
+      <CommandPalette />
     </div>
   );
 }

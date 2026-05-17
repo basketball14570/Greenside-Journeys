@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandMark, StatusDot } from "./primitives";
 import UserChip from "./UserChip";
+import { SearchChip } from "./SearchChip";
 
 // ─── Mobile top bar (settings + bell) ───────────────────────
 export function MobileTopBar() {
@@ -239,17 +240,7 @@ export function DesktopAppBar({ active = "Today" }: { active?: string }) {
         })}
       </div>
       <span className="flex-1" />
-      <div
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-1 border border-line num text-text-dim"
-        style={{ fontSize: 11.5, letterSpacing: 0.4 }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <circle cx="11" cy="11" r="7" stroke="#6c7a72" strokeWidth="2" />
-          <path d="M20 20l-3.5-3.5" stroke="#6c7a72" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        Search players, books, markets…
-        <span className="text-text-muted ml-3">⌘K</span>
-      </div>
+      <SearchChip />
       <UserChip />
     </div>
   );
