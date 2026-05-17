@@ -182,6 +182,101 @@ export default function MarketingHome() {
         </div>
       </section>
 
+      {/* ─── Pricing ─────────────────────────────────── */}
+      <section className="border-t border-line">
+        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-20">
+          <div
+            className="num font-semibold uppercase mb-3"
+            style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
+          >
+            ● Pricing
+          </div>
+          <h2
+            className="serif-italic mb-3"
+            style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+          >
+            <em>Free during beta.</em>
+            <br />
+            Paid tiers when the product earns it.
+          </h2>
+          <p
+            className="text-text-dim max-w-2xl mb-12"
+            style={{ fontSize: 15, lineHeight: 1.55 }}
+          >
+            Greenside is in open beta — every feature on this page is free
+            while we&apos;re shipping. Paid tiers below are what we&apos;ll
+            charge for once live grading, ownership data, and the AI parlay
+            coach have been battle-tested across a full season. Lock in
+            beta-pricing by signing up now; existing accounts keep their
+            grandfathered rate forever.
+          </p>
+
+          <div className="grid sm:grid-cols-3 gap-5">
+            <Tier
+              name="Free"
+              price="$0"
+              cadence="forever"
+              tagline="What works today."
+              cta="Open dashboard"
+              ctaHref="/dashboard"
+              features={[
+                "Live ESPN grading every 15 min",
+                "Email-forward bet ingestion (DK · FD · PP · UD · CZR · MGM)",
+                "Web-push alerts when legs transition",
+                "DFS ownership database (696 records, 14 events)",
+                "Live parlay tracker with hole-by-hole trail",
+                "Share parlay → X image previews",
+              ]}
+              accent="#a8b3ac"
+            />
+            <Tier
+              name="Pro"
+              price="$12"
+              cadence="per month"
+              tagline="For the every-week bettor."
+              cta="Join the waitlist"
+              ctaHref="/dashboard"
+              highlighted
+              features={[
+                "Everything in Free",
+                "Unlimited saved parlays + ticket history",
+                "Ask Greenside (Claude-backed parlay coach)",
+                "Cross-book best-line scanner (DK · FD · BR · Caesars)",
+                "Course-fit weighting on this-week's edge",
+                "Email + SMS alerts in addition to push",
+                "Lock in beta rate of $12/mo for life",
+              ]}
+              accent="#7fd49a"
+            />
+            <Tier
+              name="Sharp"
+              price="$39"
+              cadence="per month"
+              tagline="For the bankroll-management crowd."
+              cta="Talk to us"
+              ctaHref="/dashboard"
+              features={[
+                "Everything in Pro",
+                "Monte Carlo DFS optimizer (full ownership-aware sims)",
+                "Backtest your model against 14 historic events",
+                "Closing-line value tracking + Kelly sizing",
+                "Slack / Discord webhook alerts",
+                "Priority parlay-coach with longer context windows",
+                "Direct line for feature requests",
+              ]}
+              accent="#f5c558"
+            />
+          </div>
+
+          <p className="text-text-muted mt-8 max-w-2xl" style={{ fontSize: 12 }}>
+            Stripe checkout flips on when paid tiers ship. Until then, every
+            account is on Free with full feature access — we&apos;ll email
+            you a week before any paid tier becomes mandatory, and your
+            account keeps its grandfathered price.
+          </p>
+        </div>
+      </section>
+
       {/* ─── Footer note ─────────────────────────────── */}
       <section className="border-t border-line">
         <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16">
@@ -269,6 +364,92 @@ function Beat({
         </p>
       </div>
     </li>
+  );
+}
+
+function Tier({
+  name,
+  price,
+  cadence,
+  tagline,
+  cta,
+  ctaHref,
+  features,
+  highlighted = false,
+  accent,
+}: {
+  name: string;
+  price: string;
+  cadence: string;
+  tagline: string;
+  cta: string;
+  ctaHref: string;
+  features: string[];
+  highlighted?: boolean;
+  accent: string;
+}) {
+  return (
+    <div
+      className="rounded-[16px] p-6 lg:p-7 flex flex-col"
+      style={{
+        background: highlighted ? "rgba(127,212,154,0.04)" : "#0e1814",
+        border: `1px solid ${highlighted ? `${accent}66` : "rgba(255,255,255,0.08)"}`,
+        boxShadow: highlighted ? `0 0 0 1px ${accent}33, 0 8px 24px rgba(0,0,0,0.25)` : "none",
+      }}
+    >
+      <div
+        className="num font-semibold uppercase mb-1.5"
+        style={{ fontSize: 11, letterSpacing: 1.4, color: accent }}
+      >
+        ● {name}
+      </div>
+      <div className="flex items-baseline gap-2 mt-1">
+        <span
+          className="serif-italic"
+          style={{ fontSize: 44, letterSpacing: -0.8, color: "#f0ebe0", fontStyle: "normal" }}
+        >
+          <em>{price}</em>
+        </span>
+        <span className="num text-text-muted" style={{ fontSize: 12 }}>
+          {cadence}
+        </span>
+      </div>
+      <p
+        className="text-text-dim mt-3 mb-5"
+        style={{ fontSize: 14, lineHeight: 1.45 }}
+      >
+        {tagline}
+      </p>
+      <ul className="space-y-2.5 mb-7 flex-1">
+        {features.map((f, i) => (
+          <li
+            key={i}
+            className="flex items-baseline gap-2 text-text"
+            style={{ fontSize: 13.5, lineHeight: 1.4 }}
+          >
+            <span
+              className="num shrink-0"
+              style={{ color: accent, fontSize: 11, lineHeight: 1.4 }}
+            >
+              ●
+            </span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        href={ctaHref}
+        className="block text-center px-5 py-2.5 rounded font-semibold"
+        style={{
+          background: highlighted ? accent : "transparent",
+          border: highlighted ? "none" : `1px solid ${accent}66`,
+          color: highlighted ? "#06140c" : accent,
+          fontSize: 14,
+        }}
+      >
+        {cta}
+      </Link>
+    </div>
   );
 }
 

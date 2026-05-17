@@ -16,6 +16,21 @@ export const metadata: Metadata = {
     icon: "/brand/greenside-journeys-icon.svg",
     apple: "/brand/greenside-journeys-icon.svg",
   },
+  openGraph: {
+    title: "Greenside — Golf Bet Intelligence",
+    description:
+      "Forward your DK / FD / PrizePicks slips. Greenside grades them against the live ESPN scoreboard and pushes you the second a leg transitions.",
+    images: [{ url: "/api/og/home", width: 1200, height: 630 }],
+    type: "website",
+    siteName: "Greenside",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Greenside — Golf Bet Intelligence",
+    description:
+      "Forward your DK / FD / PrizePicks slips. Greenside grades them against the live ESPN scoreboard.",
+    images: ["/api/og/home"],
+  },
 };
 
 export const viewport: Viewport = {

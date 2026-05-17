@@ -16,6 +16,7 @@ import {
   type RoundLine,
 } from "@/lib/espn-leaderboard";
 import { holeParFor } from "@/lib/data/course-pars";
+import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
 
 // Live parlay tracker for the user's current week. Hardcoded today —
 // once we have a saved-parlays table this becomes /dashboard/parlay/[id]
@@ -274,14 +275,21 @@ export default function ParlayPage() {
             </span>
           </p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="rounded-[8px] px-3 py-1.5 border border-line hover:border-line-strong disabled:opacity-40"
-          style={{ fontSize: 12 }}
-        >
-          {loading ? "Refreshing…" : "Refresh now"}
-        </button>
+        <div className="flex items-center gap-2">
+          <ShareButton
+            decisions={decisions}
+            summary={summary}
+            event={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null}
+          />
+          <button
+            onClick={load}
+            disabled={loading}
+            className="rounded-[8px] px-3 py-1.5 border border-line hover:border-line-strong disabled:opacity-40"
+            style={{ fontSize: 12 }}
+          >
+            {loading ? "Refreshing…" : "Refresh now"}
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -837,4 +845,97 @@ function pillColor(status: string): string {
 
 function fmtAmerican(n: number): string {
   return n > 0 ? `+${n}` : `${n}`;
+}
+
+// Share button — encodes the current parlay into a /share/parlay URL,
+// copies it on click, and opens an X (Twitter) intent with a tight
+// pre-filled caption. The encoded blob also drives /api/og/parlay,
+// which is what X scrapes for the link preview image.
+function ShareButton({
+  decisions,
+  summary,
+  event,
+}: {
+  decisions: Decision[];
+  summary: {
+    stake: number;
+    payout: number;
+    status: ParlayStatus;
+  };
+  event: string | null;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const onClick = () => {
+    const sharedStatus: SharedLegStatus =
+      summary.status === "unknown" ? "pending" : (summary.status as SharedLegStatus);
+
+    const legs: SharedLeg[] = LEGS.map((l, i) => {
+      const d = decisions[i];
+      const rawStatus = d?.status;
+      const status: SharedLegStatus =
+        rawStatus === "won" || rawStatus === "lost" || rawStatus === "live"
+          ? rawStatus
+          : rawStatus === "push"
+            ? "live"
+            : "pending";
+      const line = l.kind === "round_prop" ? `${l.side === "over" ? "O" : "U"}${l.line} ${l.metric}` : undefined;
+      const market = describeLeg(l);
+      return { player: l.player, market, line, status };
+    });
+
+    const payload: SharedParlay = {
+      legs,
+      stake: summary.stake,
+      payout: summary.payout,
+      status: sharedStatus,
+      event: event ?? undefined,
+    };
+
+    const encoded = encodeShared(payload);
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/share/parlay?d=${encoded}`;
+
+    const headline =
+      summary.status === "won"
+        ? `Cashed +$${Math.round(summary.payout - summary.stake).toLocaleString()}`
+        : summary.status === "lost"
+          ? `Down $${Math.round(summary.stake).toLocaleString()}`
+          : `$${Math.round(summary.payout).toLocaleString()} live`;
+    const text = `${headline} on a ${legs.length}-leg parlay. Tracked live on Greenside.`;
+
+    const tweet = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      text,
+    )}&url=${encodeURIComponent(url)}`;
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(url).then(
+        () => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        },
+        () => {},
+      );
+    }
+    if (typeof window !== "undefined") {
+      window.open(tweet, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-[8px] px-3 py-1.5 border hover:bg-surface-2 transition-colors"
+      style={{
+        fontSize: 12,
+        borderColor: "#7fd49a55",
+        color: "#7fd49a",
+        background: "#7fd49a0d",
+      }}
+      title="Share this parlay"
+    >
+      {copied ? "Link copied ✓" : "Share parlay"}
+    </button>
+  );
 }

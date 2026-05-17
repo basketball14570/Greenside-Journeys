@@ -62,7 +62,7 @@ export function StatusDot({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span
-        className="shrink-0 rounded-full"
+        className={`shrink-0 rounded-full ${s.pulse ? "gs-status-pulse" : ""}`}
         style={{
           width: 7,
           height: 7,

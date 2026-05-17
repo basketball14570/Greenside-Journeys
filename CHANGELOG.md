@@ -2,6 +2,37 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Monetization scaffolding
+
+Three pieces that turn Greenside into something people can find,
+share, and pay for.
+
+- **Marketing-home pricing tiers** (`app/page.tsx`): Free / Pro
+  ($12/mo) / Sharp ($39/mo). All accounts stay on Free during beta,
+  Stripe checkout flips on later, beta signups grandfather forever.
+  Pricing copy is feature-specific, not generic ("Monte Carlo DFS
+  optimizer with full ownership-aware sims", not "advanced
+  analytics").
+- **Sharable parlay images** (`/api/og/parlay` + `/share/parlay`):
+  click the new green "Share parlay" button on `/dashboard/parlay`
+  and Greenside (a) copies a public share URL, (b) opens an X
+  intent pre-filled with a tight caption. The public page renders
+  with an `og:image` meta tag pointing at the edge-rendered 1200×630
+  PNG of the parlay — so when someone posts the link to X /
+  iMessage / Discord, the preview shows the actual parlay with
+  payout hero, leg list, and won/live counts. Edge runtime,
+  base64url-encoded payload so it works without DB access.
+- **Site-wide og:image** (`/api/og/home`) wired in
+  `app/layout.tsx`. The marketing home now renders a custom
+  1200×630 preview card in link unfurls instead of falling back
+  to a generic screenshot.
+- **`StatusDot` pulse** (`components/edge/primitives.tsx` +
+  `globals.css` `.gs-status-pulse` keyframe): the standalone live
+  dot now breathes everywhere it appears — bets page desktop table,
+  bets page mobile cards, anywhere `<StatusDot status="live">`
+  renders. Same logic as the parlay/showdown chip pulses but
+  retuned for a standalone dot.
+
 ## 2026-05-17 — Showdown gets the motion pass
 
 - **Hole-by-hole trail** under each roster name on

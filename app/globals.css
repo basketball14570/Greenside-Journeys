@@ -70,3 +70,14 @@
   0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
   50%      { opacity: 0.35; transform: translateY(-50%) scale(0.7); }
 }
+
+/* Pulse for the StatusDot primitive when a bet is mid-tournament.
+   Subtler than gs-live-pulse — this is a standalone dot, not a chip
+   leading-dot — so we just modulate opacity and a soft scale. */
+.gs-status-pulse {
+  animation: greensideStatusDot 1.8s ease-in-out infinite;
+}
+@keyframes greensideStatusDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
