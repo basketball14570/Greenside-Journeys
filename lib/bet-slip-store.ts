@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { EMPTY_SLIP, type Slip, type SlipLeg } from "@/lib/bet-slip";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { supabaseBrowser, isSupabaseConfigured } from "@/lib/supabase/client";
 
 // Slip persistence — localStorage first (works offline / signed-out),
 // Supabase second (syncs across devices when signed in). Conflicts resolve
@@ -55,9 +55,7 @@ export type UseBetSlipResult = {
 };
 
 export function useBetSlip(): UseBetSlipResult {
-  const supabaseConfigured =
-    !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseConfigured = isSupabaseConfigured();
   const [userId, setUserId] = useState<string | null>(null);
   const [slip, setSlip] = useState<Slip>(EMPTY_SLIP);
   const [ready, setReady] = useState(false);

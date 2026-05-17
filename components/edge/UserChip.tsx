@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { supabaseBrowser, isSupabaseConfigured } from "@/lib/supabase/client";
 
 // Header user widget. Shows the signed-in email (or initials) + a
 // sign-out menu when Supabase is configured; falls back to a "Sign in"
@@ -11,9 +11,7 @@ export default function UserChip() {
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
-  const supabaseConfigured =
-    !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseConfigured = isSupabaseConfigured();
 
   useEffect(() => {
     if (!supabaseConfigured) {

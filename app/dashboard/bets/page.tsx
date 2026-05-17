@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookChip, StatusDot, type Book, type Status } from "@/components/edge/primitives";
 import { BreakdownBar, PnlSpark } from "@/components/edge/pnl";
 import { DEMO_BETS } from "@/lib/demo-data";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { supabaseBrowser, isSupabaseConfigured } from "@/lib/supabase/client";
 
 // Map a row from /api/bets/mine to the HistoryBet shape the existing
 // PnL chart + breakdown bars consume. resolvedPayout is computed from
@@ -545,11 +545,7 @@ function ImportedBets() {
   // changes. Catches email-imports, OCR saves, and cron grading transitions.
   useEffect(() => {
     if (state.kind !== "ready" && state.kind !== "loading") return;
-    if (
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    )
-      return;
+    if (!isSupabaseConfigured()) return;
     const supabase = supabaseBrowser();
     let userId: string | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
