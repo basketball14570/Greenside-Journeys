@@ -2,6 +2,27 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Showdown gets the motion pass
+
+- **Hole-by-hole trail** under each roster name on
+  `/dashboard/showdown`, mirroring the parlay-page treatment. Same
+  visual language (green B for birdie, solid green E for eagle, amber +
+  for bogey, red + for double+). Reads the same per-hole ESPN linescore
+  as parlay so no extra fetch.
+- **Position-change flash** on every player row: a ▲/▼ caret pulses
+  next to `posDisplay` for 3.5 seconds when ESPN reports a new
+  position. Green up-caret = climbed leaderboard, red down-caret =
+  slipped. Compares against the previous tick via a `useRef` keyed by
+  the tracked-player slug.
+- **LIVE status pulse** (`gs-live-pulse`) applied to the status cell
+  when a player is mid-round. Same dot-pulse keyframe as the parlay
+  pills.
+
+Net effect: when you have the showdown tab open during a tournament,
+the leaderboard *moves* — you see who's making birdies in real time
+and who just dropped a spot, without having to compare numbers between
+30-second refreshes.
+
 ## 2026-05-17 — Deploy plumbing for Vercel
 
 - **`vercel.json`** gets `functions.maxDuration` overrides — 60s for

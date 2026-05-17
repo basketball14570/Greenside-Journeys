@@ -6,8 +6,10 @@ import {
   findTrackedPlayer,
   type LeaderboardPlayer,
   type LeaderboardSnapshot,
+  type RoundLine,
   type TrackedPlayer,
 } from "@/lib/espn-leaderboard";
+import { holeParFor } from "@/lib/data/course-pars";
 
 // DraftKings showdown lineup — six golfers to track live. Aliases cover
 // accent variations and ESPN's occasional name reshuffles. `excludes`
@@ -119,6 +121,35 @@ export default function ShowdownPage() {
     });
   }, [tracked]);
 
+  // Flash a ▲/▼ caret next to a player's position whenever ESPN reports
+  // a new posDisplay between ticks. Lower position number = better, so a
+  // T11 → T7 move is "up" (green). Clears after 3.5s.
+  const prevPos = useRef<Record<string, string>>({});
+  const [flashes, setFlashes] = useState<Record<string, "up" | "down" | null>>({});
+  useEffect(() => {
+    if (!tracked.length) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    tracked.forEach(({ tracked: t, player }) => {
+      if (!player) return;
+      const cur = player.posDisplay || "";
+      const prev = prevPos.current[t.key];
+      if (prev !== undefined && cur && prev !== cur) {
+        const dir = posDirection(prev, cur);
+        if (dir) {
+          setFlashes((f) => ({ ...f, [t.key]: dir }));
+          timers.push(
+            setTimeout(
+              () => setFlashes((f) => ({ ...f, [t.key]: null })),
+              3500,
+            ),
+          );
+        }
+      }
+      prevPos.current[t.key] = cur;
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [tracked]);
+
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-5xl mx-auto">
       <header>
@@ -164,7 +195,13 @@ export default function ShowdownPage() {
           <div className="text-right">Status</div>
         </div>
         {sorted.map(({ tracked, player }) => (
-          <PlayerRow key={tracked.key} tracked={tracked} player={player} />
+          <PlayerRow
+            key={tracked.key}
+            tracked={tracked}
+            player={player}
+            snapshot={snapshot}
+            flash={flashes[tracked.key] ?? null}
+          />
         ))}
       </div>
 
@@ -265,9 +302,13 @@ function EventStrap({
 function PlayerRow({
   tracked,
   player,
+  snapshot,
+  flash,
 }: {
   tracked: TrackedPlayer;
   player: LeaderboardPlayer | null;
+  snapshot: LeaderboardSnapshot | null;
+  flash: "up" | "down" | null;
 }) {
   if (!player) {
     return (
@@ -328,13 +369,33 @@ function PlayerRow({
     statusText = "Pre";
   }
 
+  const trail = trailForPlayer(player, snapshot);
+  const isLive = statusText === "Live";
+
   return (
     <div
       className="grid gap-2 px-4 py-3 border-b border-line/50 last:border-b-0 hover:bg-surface-2 transition-colors"
       style={{ gridTemplateColumns: "44px 1.6fr 70px 80px 70px 80px" }}
     >
-      <div className="num self-center" style={{ fontSize: 14 }}>
-        {player.posDisplay || "—"}
+      <div
+        className="num self-center flex items-baseline gap-1"
+        style={{ fontSize: 14 }}
+      >
+        <span>{player.posDisplay || "—"}</span>
+        {flash && (
+          <span
+            aria-hidden
+            style={{
+              fontSize: 10,
+              lineHeight: 1,
+              color: flash === "up" ? "#7fd49a" : "#e87c7c",
+              animation: "greensidePulse 1.4s ease-in-out infinite",
+            }}
+            title={flash === "up" ? "Moved up" : "Moved down"}
+          >
+            {flash === "up" ? "▲" : "▼"}
+          </span>
+        )}
       </div>
       <div className="self-center min-w-0">
         <div className="font-medium truncate" style={{ fontSize: 14 }}>
@@ -345,6 +406,7 @@ function PlayerRow({
             tracking as {tracked.display}
           </div>
         )}
+        {trail && <HoleTrail trail={trail} />}
       </div>
       <div
         className="text-right num self-center"
@@ -362,7 +424,7 @@ function PlayerRow({
         {today?.complete ? "F" : (today?.thru ?? "—")}
       </div>
       <div
-        className="text-right self-center num uppercase"
+        className={`text-right self-center num uppercase ${isLive ? "gs-live-pulse" : ""}`}
         style={{ fontSize: 11, color: statusColor, letterSpacing: 0.5 }}
       >
         {statusText}
@@ -414,4 +476,116 @@ function UnmatchedNotice({
       </div>
     </div>
   );
+}
+
+type HoleResult = {
+  hole: number;
+  played: boolean;
+  diff: number | null;
+};
+
+function trailForPlayer(
+  player: LeaderboardPlayer,
+  snapshot: LeaderboardSnapshot | null,
+): HoleResult[] | null {
+  if (!snapshot) return null;
+  const eventRound = snapshot.event?.period;
+  if (!eventRound) return null;
+  const round: RoundLine | undefined = player.rounds.find(
+    (r) => r.period === eventRound,
+  );
+  if (!round || round.holes.length === 0) return null;
+  return round.holes.map((h) => {
+    const par = h.par ?? holeParFor(snapshot.event?.course ?? null, h.hole);
+    const played = h.strokes !== null && h.strokes > 0;
+    return {
+      hole: h.hole,
+      played,
+      diff: played ? (h.strokes as number) - par : null,
+    };
+  });
+}
+
+function HoleTrail({ trail }: { trail: HoleResult[] }) {
+  return (
+    <div className="mt-1.5 flex items-center gap-[3px]">
+      {trail.map((h, i) => {
+        const { color, glyph, title } = trailVisual(h);
+        return (
+          <span
+            key={i}
+            title={title}
+            className="num"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 14,
+              height: 14,
+              borderRadius: 3,
+              background: color.bg,
+              color: color.fg,
+              fontSize: 9,
+              fontWeight: 700,
+              lineHeight: 1,
+              opacity: h.played ? 1 : 0.25,
+            }}
+          >
+            {glyph}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function trailVisual(h: HoleResult): {
+  color: { bg: string; fg: string };
+  glyph: string;
+  title: string;
+} {
+  if (!h.played) {
+    return {
+      color: { bg: "rgba(255,255,255,0.04)", fg: "rgba(255,255,255,0.3)" },
+      glyph: "·",
+      title: `Hole ${h.hole} — not played`,
+    };
+  }
+  const d = h.diff ?? 0;
+  if (d <= -2)
+    return {
+      color: { bg: "rgba(127,212,154,0.35)", fg: "#0f1410" },
+      glyph: "E",
+      title: `Hole ${h.hole} — eagle`,
+    };
+  if (d === -1)
+    return {
+      color: { bg: "rgba(127,212,154,0.2)", fg: "#7fd49a" },
+      glyph: "B",
+      title: `Hole ${h.hole} — birdie`,
+    };
+  if (d === 0)
+    return {
+      color: { bg: "rgba(255,255,255,0.06)", fg: "rgba(255,255,255,0.7)" },
+      glyph: "·",
+      title: `Hole ${h.hole} — par`,
+    };
+  if (d === 1)
+    return {
+      color: { bg: "rgba(245,197,88,0.18)", fg: "#f5c558" },
+      glyph: "+",
+      title: `Hole ${h.hole} — bogey`,
+    };
+  return {
+    color: { bg: "rgba(232,124,124,0.2)", fg: "#e87c7c" },
+    glyph: "+",
+    title: `Hole ${h.hole} — double or worse`,
+  };
+}
+
+function posDirection(prev: string, cur: string): "up" | "down" | null {
+  const a = parseInt(prev.replace(/^T/, ""), 10);
+  const b = parseInt(cur.replace(/^T/, ""), 10);
+  if (Number.isNaN(a) || Number.isNaN(b) || a === b) return null;
+  return b < a ? "up" : "down";
 }
