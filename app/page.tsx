@@ -281,6 +281,63 @@ export default function MarketingHome() {
         </div>
       </section>
 
+      {/* ─── FAQ ─────────────────────────────────────── */}
+      <section className="border-t border-line bg-surface-1/30">
+        <div className="max-w-3xl mx-auto px-6 lg:px-12 py-20">
+          <div
+            className="num font-semibold uppercase mb-3"
+            style={{ fontSize: 11, letterSpacing: 1.6, color: "#7fd49a" }}
+          >
+            ● Common questions
+          </div>
+          <h2
+            className="serif-italic mb-10"
+            style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+          >
+            <em>The stuff people ask</em>
+            <br />
+            before signing up.
+          </h2>
+
+          <div className="space-y-3">
+            <Faq
+              q="Do I have to give you my sportsbook passwords?"
+              a="No. Ever. Bet data comes in through email forwarding (the recommended path) or screenshot upload. Credential-based scraping gets users banned and violates every book's terms — we'd never put you in that position."
+            />
+            <Faq
+              q="Is this legal?"
+              a="Yes. Greenside is an analytics product. We don't accept wagers, don't process payments for bets, and don't take a cut of your wins or losses. You bet on licensed sportsbooks; we help you understand and optimize those bets. 21+, for entertainment only."
+            />
+            <Faq
+              q="What sportsbooks do you support?"
+              a="DraftKings, FanDuel, PrizePicks, Underdog, Caesars, and BetMGM today — via email forwarding and screenshot upload. Native share-sheet integration ships with the mobile app."
+            />
+            <Faq
+              q="How does the conditions-alert engine work?"
+              a="Every 10 minutes during tournament hours we pull weather for each course and diff against the previous snapshot. If wind or precip crosses a threshold, we use each player's fitted wind-sensitivity coefficient (from five years of DataGolf round data) to compute the EV shift on every bet you own. You get a push notification only for bets that actually moved."
+            />
+            <Faq
+              q="Are you taking affiliate kickbacks from sportsbooks?"
+              a="No. Zero affiliate links anywhere in the product. Our pricing page exists because that's how we keep the lights on without selling your data or steering you toward the book that pays us most."
+            />
+            <Faq
+              q="Can I cancel anytime?"
+              a="Yes. Monthly plans cancel at the end of the billing cycle, no questions. Annual plans get a prorated refund within the first 30 days. Pro comes with a 7-day free trial — no card required to start."
+            />
+          </div>
+
+          <div className="mt-8" style={{ fontSize: 13 }}>
+            <Link
+              href="/pricing#faq"
+              className="num font-semibold"
+              style={{ color: "#7fd49a", letterSpacing: 0.5 }}
+            >
+              More questions on the pricing page →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Footer note ─────────────────────────────── */}
       <section className="border-t border-line">
         <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16">
@@ -368,6 +425,39 @@ function Beat({
         </p>
       </div>
     </li>
+  );
+}
+
+function Faq({ q, a }: { q: string; a: string }) {
+  return (
+    <details
+      className="rounded-[12px] border border-line bg-bg overflow-hidden group"
+      style={{ transition: "border-color 0.15s" }}
+    >
+      <summary
+        className="cursor-pointer list-none flex items-baseline gap-3 px-5 py-4 hover:bg-surface-2 transition-colors"
+        style={{ fontSize: 15.5, lineHeight: 1.4 }}
+      >
+        <span
+          className="num shrink-0 group-open:rotate-90 transition-transform"
+          style={{
+            display: "inline-block",
+            fontSize: 11,
+            color: "#7fd49a",
+            width: 10,
+          }}
+        >
+          ▸
+        </span>
+        <span className="text-text font-medium flex-1">{q}</span>
+      </summary>
+      <div
+        className="px-5 pb-5 pt-1 text-text-dim"
+        style={{ fontSize: 14.5, lineHeight: 1.6, paddingLeft: 38 }}
+      >
+        {a}
+      </div>
+    </details>
   );
 }
 

@@ -10,6 +10,7 @@ import {
 import { useBetSlip } from "@/lib/bet-slip-store";
 import { legToOpenBet, describeLeg, type SlipLeg } from "@/lib/bet-slip";
 import { gradeBet, type Decision } from "@/lib/grading";
+import { SkeletonRow } from "@/components/edge/Skeleton";
 
 const REFRESH_MS = 30_000;
 
@@ -224,18 +225,23 @@ export default function LeaderboardPage() {
           <div>Bets</div>
         </div>
         <div className="max-h-[640px] overflow-y-auto">
-          {filtered.map((p) => (
-            <Row
-              key={p.id}
-              player={p}
-              decisions={decisionsByPlayer.get(p.name.toLowerCase()) ?? []}
-              flash={flashes[p.name.toLowerCase()] ?? null}
-            />
-          ))}
-          {filtered.length === 0 && (
+          {!snapshot && loading ? (
+            Array.from({ length: 12 }).map((_, i) => <SkeletonRow key={i} />)
+          ) : filtered.length === 0 ? (
             <div className="px-4 py-6 text-text-dim text-center" style={{ fontSize: 13 }}>
-              No matches.
+              {query || filter !== "all"
+                ? "No matches — try clearing filters."
+                : "No leaderboard data yet."}
             </div>
+          ) : (
+            filtered.map((p) => (
+              <Row
+                key={p.id}
+                player={p}
+                decisions={decisionsByPlayer.get(p.name.toLowerCase()) ?? []}
+                flash={flashes[p.name.toLowerCase()] ?? null}
+              />
+            ))
           )}
         </div>
       </div>

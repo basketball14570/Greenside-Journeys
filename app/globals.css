@@ -88,3 +88,21 @@
   0%   { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+/* Skeleton shimmer for loading placeholders. Subtle linear sweep —
+   keeps the loading state feeling alive without distracting. */
+.gs-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: greensideShimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes greensideShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

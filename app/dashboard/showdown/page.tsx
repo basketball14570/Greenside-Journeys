@@ -12,6 +12,7 @@ import {
 import { holeParFor } from "@/lib/data/course-pars";
 import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
 import { toast } from "@/components/edge/Toast";
+import { SkeletonRow } from "@/components/edge/Skeleton";
 
 // DraftKings showdown lineup — six golfers to track live. Aliases cover
 // accent variations and ESPN's occasional name reshuffles. `excludes`
@@ -199,15 +200,19 @@ export default function ShowdownPage() {
           <div className="text-right">Thru</div>
           <div className="text-right">Status</div>
         </div>
-        {sorted.map(({ tracked, player }) => (
-          <PlayerRow
-            key={tracked.key}
-            tracked={tracked}
-            player={player}
-            snapshot={snapshot}
-            flash={flashes[tracked.key] ?? null}
-          />
-        ))}
+        {!snapshot && loading
+          ? Array.from({ length: ROSTER.length }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))
+          : sorted.map(({ tracked, player }) => (
+              <PlayerRow
+                key={tracked.key}
+                tracked={tracked}
+                player={player}
+                snapshot={snapshot}
+                flash={flashes[tracked.key] ?? null}
+              />
+            ))}
       </div>
 
       <UnmatchedNotice tracked={tracked} />

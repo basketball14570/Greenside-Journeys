@@ -2,6 +2,28 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — FAQ, loading skeletons, off-week empty state
+
+- **FAQ on marketing home** (`app/page.tsx`): six condensed Q&As
+  addressing the real bettor objections (sportsbook passwords,
+  legality, supported books, conditions engine, affiliate
+  kickbacks, cancellation). Uses native `<details>` so it works
+  with no JS. Links out to the full FAQ on `/pricing#faq`.
+- **Skeleton primitive** (`components/edge/Skeleton.tsx` +
+  `.gs-skeleton` shimmer keyframe in `globals.css`). Composable
+  `<Skeleton>` rect plus pre-built `<SkeletonRow>` and
+  `<SkeletonCard>` shapes that mirror the production layouts so
+  the page doesn't jump on hydration.
+- **Showdown + leaderboard loading states**: both render skeleton
+  rows during the first ESPN fetch instead of showing a dashed-out
+  table. Leaderboard's empty state also got better copy — now
+  differentiates "no matches, try clearing filters" from "no
+  leaderboard data yet".
+- **Parlay off-week banner**: when ESPN reports the event is in
+  `post` state, a dim banner clarifies that grading is permanent
+  and live tracking resumes Thursday. Stops the page from
+  pretending to be live between tournaments.
+
 ## 2026-05-17 — UX polish pass: trust pages, toasts, leaderboard motion, showdown share
 
 Round-out of the polish bundle started this morning. No new dependencies, no API keys.

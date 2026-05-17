@@ -307,6 +307,30 @@ export default function ParlayPage() {
         </div>
       )}
 
+      {/* Off-week banner. ESPN says the tournament is over but legs are
+          all graded — frame it that way so the page doesn't pretend to
+          be live mid-week. */}
+      {snapshot?.event?.state === "post" && (
+        <div
+          className="rounded-[12px] border p-4 flex items-baseline gap-3"
+          style={{
+            borderColor: "rgba(168,179,172,0.25)",
+            background: "rgba(168,179,172,0.06)",
+          }}
+        >
+          <span style={{ color: "#a8b3ac", fontSize: 12 }}>●</span>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5 }} className="flex-1">
+            <strong className="text-text">
+              {snapshot.event.shortName ?? snapshot.event.name} has wrapped.
+            </strong>{" "}
+            <span className="text-text-dim">
+              Every leg below is graded permanently. Live parlay tracking
+              resumes Thursday when the next event tees off.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Payout hero — the entire reason you placed the bet. Scaled to
           dominate the screen at huge odds; shrinks gracefully when the
           number is short. */}
