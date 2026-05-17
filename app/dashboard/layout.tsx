@@ -6,6 +6,7 @@ import {
 import { LiveEventStrap } from "@/components/edge/LiveEventStrap";
 import { CommandPalette } from "@/components/edge/CommandPalette";
 import { PwaInstallPrompt } from "@/components/edge/PwaInstallPrompt";
+import { ToastProvider } from "@/components/edge/Toast";
 
 // Responsive chrome: mobile (<lg) gets the top bar + bottom nav from the
 // mobile design; desktop gets the AppBar + EventStrap. The active tab and
@@ -16,27 +17,29 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-bg text-text flex flex-col">
-      {/* Desktop chrome */}
-      <div className="hidden lg:block">
-        <DesktopAppBar />
-        <LiveEventStrap />
+    <ToastProvider>
+      <div className="min-h-screen bg-bg text-text flex flex-col">
+        {/* Desktop chrome */}
+        <div className="hidden lg:block">
+          <DesktopAppBar />
+          <LiveEventStrap />
+        </div>
+
+        {/* Mobile chrome */}
+        <div className="lg:hidden pt-3">
+          <MobileTopBar />
+        </div>
+
+        <main className="flex-1 min-w-0">{children}</main>
+
+        {/* Mobile bottom nav */}
+        <div className="lg:hidden">
+          <MobileBottomNav active="home" />
+        </div>
+
+        <CommandPalette />
+        <PwaInstallPrompt />
       </div>
-
-      {/* Mobile chrome */}
-      <div className="lg:hidden pt-3">
-        <MobileTopBar />
-      </div>
-
-      <main className="flex-1 min-w-0">{children}</main>
-
-      {/* Mobile bottom nav */}
-      <div className="lg:hidden">
-        <MobileBottomNav active="home" />
-      </div>
-
-      <CommandPalette />
-      <PwaInstallPrompt />
-    </div>
+    </ToastProvider>
   );
 }

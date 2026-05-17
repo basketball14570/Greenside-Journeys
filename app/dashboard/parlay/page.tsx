@@ -17,6 +17,7 @@ import {
 } from "@/lib/espn-leaderboard";
 import { holeParFor } from "@/lib/data/course-pars";
 import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
+import { toast } from "@/components/edge/Toast";
 
 // Live parlay tracker for the user's current week. Hardcoded today —
 // once we have a saved-parlays table this becomes /dashboard/parlay/[id]
@@ -864,8 +865,6 @@ function ShareButton({
   };
   event: string | null;
 }) {
-  const [copied, setCopied] = useState(false);
-
   const onClick = () => {
     const sharedStatus: SharedLegStatus =
       summary.status === "unknown" ? "pending" : (summary.status as SharedLegStatus);
@@ -911,11 +910,8 @@ function ShareButton({
 
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(url).then(
-        () => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1800);
-        },
-        () => {},
+        () => toast("Share link copied — and X is opening", "success"),
+        () => toast("Couldn't access clipboard — X is still opening", "warn"),
       );
     }
     if (typeof window !== "undefined") {
@@ -935,7 +931,7 @@ function ShareButton({
       }}
       title="Share this parlay"
     >
-      {copied ? "Link copied ✓" : "Share parlay"}
+      Share parlay
     </button>
   );
 }

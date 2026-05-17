@@ -10,6 +10,8 @@ import {
   type TrackedPlayer,
 } from "@/lib/espn-leaderboard";
 import { holeParFor } from "@/lib/data/course-pars";
+import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
+import { toast } from "@/components/edge/Toast";
 
 // DraftKings showdown lineup — six golfers to track live. Aliases cover
 // accent variations and ESPN's occasional name reshuffles. `excludes`
@@ -152,7 +154,8 @@ export default function ShowdownPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-5xl mx-auto">
-      <header>
+      <header className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
         <span
           className="num font-semibold uppercase"
           style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
@@ -171,6 +174,8 @@ export default function ShowdownPage() {
           overall tournament position — updated every 30 seconds. Round
           auto-detects from ESPN, so R3 today, R4 tomorrow.
         </p>
+        </div>
+        <ShowdownShareButton sorted={sorted} event={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null} />
       </header>
 
       <EventStrap
@@ -588,4 +593,94 @@ function posDirection(prev: string, cur: string): "up" | "down" | null {
   const b = parseInt(cur.replace(/^T/, ""), 10);
   if (Number.isNaN(a) || Number.isNaN(b) || a === b) return null;
   return b < a ? "up" : "down";
+}
+
+// Share the current roster as a 1200×630 card. We reuse the parlay
+// SharedParlay shape — each tracked player becomes a "leg" with their
+// current to-par as the line and won/live/lost mapped from their
+// today/cut status. Aggregate "status" is the worst across the
+// roster (lost > live > pending > won) so the card headline matches
+// what the user is actually feeling.
+function ShowdownShareButton({
+  sorted,
+  event,
+}: {
+  sorted: { tracked: TrackedPlayer; player: LeaderboardPlayer | null }[];
+  event: string | null;
+}) {
+  const onClick = () => {
+    const legs: SharedLeg[] = sorted.map(({ tracked, player }) => {
+      if (!player) {
+        return {
+          player: tracked.display,
+          market: "Off field",
+          status: "pending" as SharedLegStatus,
+        };
+      }
+      const today = player.todayLine;
+      const status: SharedLegStatus = player.isCut
+        ? "lost"
+        : today?.complete
+          ? "won"
+          : today?.thru
+            ? "live"
+            : "pending";
+      const line = player.totalToPar
+        ? `${player.totalToPar} · ${player.posDisplay || ""}`.trim()
+        : player.posDisplay || undefined;
+      return {
+        player: player.name,
+        market: today?.complete ? "Done" : today?.thru ? `Live · thru ${today.thru}` : "Pre",
+        line,
+        status,
+      };
+    });
+
+    // Aggregate roster status: worst wins for the headline color.
+    let status: SharedLegStatus = "won";
+    if (legs.some((l) => l.status === "lost")) status = "lost";
+    else if (legs.some((l) => l.status === "live")) status = "live";
+    else if (legs.some((l) => l.status === "pending")) status = "pending";
+
+    const payload: SharedParlay = {
+      legs,
+      stake: 0,
+      payout: 0,
+      status,
+      event: event ?? undefined,
+    };
+
+    const encoded = encodeShared(payload);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/share/parlay?d=${encoded}`;
+    const headline = `My DK Showdown · ${event ?? "live"}`;
+    const text = `${headline}. Tracked live on Greenside.`;
+    const tweet = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(url).then(
+        () => toast("Share link copied — and X is opening", "success"),
+        () => toast("Couldn't access clipboard — X is still opening", "warn"),
+      );
+    }
+    if (typeof window !== "undefined") {
+      window.open(tweet, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-[8px] px-3 py-1.5 border hover:bg-surface-2 transition-colors shrink-0"
+      style={{
+        fontSize: 12,
+        borderColor: "#7fd49a55",
+        color: "#7fd49a",
+        background: "#7fd49a0d",
+      }}
+      title="Share this roster"
+    >
+      Share roster
+    </button>
+  );
 }

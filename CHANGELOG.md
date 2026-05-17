@@ -2,6 +2,42 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — UX polish pass: trust pages, toasts, leaderboard motion, showdown share
+
+Round-out of the polish bundle started this morning. No new dependencies, no API keys.
+
+- **Custom 404** at `/not-found.tsx` — branded "off the green" page
+  with quick-pins to dashboard, parlay, ownership, pricing, and
+  changelog so misdirected visitors land somewhere useful instead
+  of bouncing.
+- **Error boundary** at `/error.tsx` — top-level catch with a "Try
+  again" button (uses Next's `reset()` so it re-renders without a
+  full reload), branded copy, and the error digest surfaced so
+  bug reports are actionable. Stack traces show only in dev.
+- **Global toast system** (`components/edge/Toast.tsx` +
+  `greensideToastIn` keyframe in `globals.css`). Provider mounted
+  once at `app/dashboard/layout.tsx`. Import `toast()` anywhere —
+  works from event handlers and `useEffect` without threading
+  context. Four tones (success/info/warn/error), bottom-center
+  stack, auto-dismiss at 3.2s, click-to-dismiss. Parlay & showdown
+  share buttons now toast instead of doing the inline
+  "Link copied ✓" state-flip hack.
+- **Showdown share** (`/dashboard/showdown` → green "Share roster"
+  button). Same plumbing as parlay share: encodes the live roster
+  into a `/share/parlay?d=...` URL, opens X intent with a tight
+  caption. Each tracked player becomes a "leg" — to-par + position
+  as the line, won/live/pending mapped from cut/today status.
+  Aggregate status drives the headline color.
+- **Leaderboard live motion** (`/dashboard/leaderboard`): ▲/▼
+  caret flashes on rows where the user has bets, scoped tightly so
+  the full 150-entrant table doesn't flicker. Live `BetPill`s now
+  pulse via `.gs-status-pulse`. Bet-owned rows still get the
+  subtle background tint so the eye locks on them.
+- **Home pricing aligned with `/pricing`**: home teaser was
+  $12/$39, canonical page was $14.99/$49 — fixed home to match,
+  pointed CTAs at `/login` and added a "See full pricing + FAQ →"
+  link below the tier grid.
+
 ## 2026-05-17 — Monetization scaffolding
 
 Three pieces that turn Greenside into something people can find,

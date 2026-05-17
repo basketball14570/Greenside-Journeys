@@ -58,6 +58,43 @@ export default function LeaderboardPage() {
     };
   }, [auto, load]);
 
+  // Flash a ▲/▼ caret on rows the user has bets on whenever ESPN
+  // reports a new position. Scoped to bet-owned rows to keep the
+  // leaderboard from flickering across all 150 entrants.
+  const prevPos = useRef<Record<string, string>>({});
+  const [flashes, setFlashes] = useState<Record<string, "up" | "down" | null>>({});
+  useEffect(() => {
+    if (!snapshot || !slip.legs.length) return;
+    const watched = new Set<string>();
+    for (const leg of slip.legs) {
+      watched.add(leg.player.toLowerCase());
+      if (leg.kind === "matchup") watched.add(leg.opponent.toLowerCase());
+    }
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (const p of snapshot.players) {
+      const key = p.name.toLowerCase();
+      if (!watched.has(key)) continue;
+      const cur = p.posDisplay || "";
+      const prev = prevPos.current[key];
+      if (prev !== undefined && cur && prev !== cur) {
+        const a = parseInt(prev.replace(/^T/, ""), 10);
+        const b = parseInt(cur.replace(/^T/, ""), 10);
+        if (!Number.isNaN(a) && !Number.isNaN(b) && a !== b) {
+          const dir: "up" | "down" = b < a ? "up" : "down";
+          setFlashes((f) => ({ ...f, [key]: dir }));
+          timers.push(
+            setTimeout(
+              () => setFlashes((f) => ({ ...f, [key]: null })),
+              3500,
+            ),
+          );
+        }
+      }
+      prevPos.current[key] = cur;
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [snapshot, slip.legs]);
+
   // Pre-compute bet decisions per player so we can decorate rows.
   const decisionsByPlayer = useMemo(() => {
     const map = new Map<string, { leg: SlipLeg; decision: Decision }[]>();
@@ -192,6 +229,7 @@ export default function LeaderboardPage() {
               key={p.id}
               player={p}
               decisions={decisionsByPlayer.get(p.name.toLowerCase()) ?? []}
+              flash={flashes[p.name.toLowerCase()] ?? null}
             />
           ))}
           {filtered.length === 0 && (
@@ -342,9 +380,11 @@ function EventStrap({
 function Row({
   player,
   decisions,
+  flash,
 }: {
   player: LeaderboardPlayer;
   decisions: { leg: SlipLeg; decision: Decision }[];
+  flash: "up" | "down" | null;
 }) {
   const today = player.todayLine;
   return (
@@ -354,8 +394,25 @@ function Row({
       }`}
       style={{ gridTemplateColumns: "44px 1.7fr 70px 80px 70px 1fr" }}
     >
-      <div className="num self-center" style={{ fontSize: 13, color: player.isCut ? "#a8b3ac" : undefined }}>
-        {player.posDisplay || "—"}
+      <div
+        className="num self-center flex items-baseline gap-1"
+        style={{ fontSize: 13, color: player.isCut ? "#a8b3ac" : undefined }}
+      >
+        <span>{player.posDisplay || "—"}</span>
+        {flash && (
+          <span
+            aria-hidden
+            style={{
+              fontSize: 9,
+              lineHeight: 1,
+              color: flash === "up" ? "#7fd49a" : "#e87c7c",
+              animation: "greensidePulse 1.4s ease-in-out infinite",
+            }}
+            title={flash === "up" ? "Moved up" : "Moved down"}
+          >
+            {flash === "up" ? "▲" : "▼"}
+          </span>
+        )}
       </div>
       <div className="self-center min-w-0">
         <div className="font-medium truncate" style={{ fontSize: 13 }}>
@@ -397,6 +454,7 @@ function BetPill({ leg, decision }: { leg: SlipLeg; decision: Decision }) {
           : decision.status === "live"
             ? "#f5c558"
             : "#a8b3ac";
+  const isLive = decision.status === "live";
   return (
     <span
       title={`${describeLeg(leg)} — ${decision.reason}`}
@@ -408,7 +466,10 @@ function BetPill({ leg, decision }: { leg: SlipLeg; decision: Decision }) {
         background: `${color}1a`,
       }}
     >
-      <span style={{ width: 5, height: 5, borderRadius: 99, background: color }} />
+      <span
+        className={isLive ? "gs-status-pulse" : ""}
+        style={{ width: 5, height: 5, borderRadius: 99, background: color }}
+      />
       {describeLeg(leg)}
     </span>
   );

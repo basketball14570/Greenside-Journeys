@@ -216,64 +216,68 @@ export default function MarketingHome() {
               name="Free"
               price="$0"
               cadence="forever"
-              tagline="What works today."
-              cta="Open dashboard"
-              ctaHref="/dashboard"
+              tagline="Track your bets. See the leaderboard."
+              cta="Get started"
+              ctaHref="/login"
               features={[
-                "Live ESPN grading every 15 min",
                 "Email-forward bet ingestion (DK · FD · PP · UD · CZR · MGM)",
-                "Web-push alerts when legs transition",
+                "Screenshot upload via Claude vision OCR",
+                "Live leaderboard with exposure overlay",
+                "Settled-bet history + P&L analytics",
                 "DFS ownership database (696 records, 14 events)",
-                "Live parlay tracker with hole-by-hole trail",
-                "Share parlay → X image previews",
               ]}
               accent="#a8b3ac"
             />
             <Tier
               name="Pro"
-              price="$12"
+              price="$14.99"
               cadence="per month"
-              tagline="For the every-week bettor."
-              cta="Join the waitlist"
-              ctaHref="/dashboard"
+              tagline="The product the serious golf bettor uses every Saturday."
+              cta="Start free trial"
+              ctaHref="/login"
               highlighted
               features={[
                 "Everything in Free",
-                "Unlimited saved parlays + ticket history",
-                "Ask Greenside (Claude-backed parlay coach)",
-                "Cross-book best-line scanner (DK · FD · BR · Caesars)",
-                "Course-fit weighting on this-week's edge",
-                "Email + SMS alerts in addition to push",
-                "Lock in beta rate of $12/mo for life",
+                "Personalized wave / wind / hedge push alerts",
+                "Per-player wind sensitivity model",
+                "Ask Greenside AI — unlimited questions",
+                "Wave-aware DFS optimizer (DraftKings)",
+                "Hedge calculator — live cross-book prices",
               ]}
               accent="#7fd49a"
             />
             <Tier
               name="Sharp"
-              price="$39"
+              price="$49"
               cadence="per month"
-              tagline="For the bankroll-management crowd."
+              tagline="Power users, syndicates, real bankrolls."
               cta="Talk to us"
-              ctaHref="/dashboard"
+              ctaHref="mailto:hello@greensidejourneys.com?subject=Sharp%20tier"
               features={[
                 "Everything in Pro",
-                "Monte Carlo DFS optimizer (full ownership-aware sims)",
-                "Backtest your model against 14 historic events",
-                "Closing-line value tracking + Kelly sizing",
-                "Slack / Discord webhook alerts",
-                "Priority parlay-coach with longer context windows",
-                "Direct line for feature requests",
+                "Custom alert thresholds per market + course",
+                "Webhook API — pipe into Slack / Discord",
+                "Pre-tournament prep reports (auto-generated)",
+                "Read-only API access for your own tools",
+                "Backtest harness for your own bet hypotheses",
               ]}
               accent="#f5c558"
             />
           </div>
 
-          <p className="text-text-muted mt-8 max-w-2xl" style={{ fontSize: 12 }}>
-            Stripe checkout flips on when paid tiers ship. Until then, every
-            account is on Free with full feature access — we&apos;ll email
-            you a week before any paid tier becomes mandatory, and your
-            account keeps its grandfathered price.
-          </p>
+          <div className="mt-8 flex items-baseline gap-4 flex-wrap">
+            <Link
+              href="/pricing"
+              className="num font-semibold"
+              style={{ fontSize: 13, color: "#7fd49a", letterSpacing: 0.5 }}
+            >
+              See full pricing + FAQ →
+            </Link>
+            <span className="text-text-muted" style={{ fontSize: 12 }}>
+              7-day free trial on Pro · cancel anytime · no card required to
+              start
+            </span>
+          </div>
         </div>
       </section>
 
