@@ -314,18 +314,18 @@ export default function ParlayPage() {
         })}
       </section>
 
-      <p
-        className="text-text-muted"
-        style={{ fontSize: 11, lineHeight: 1.55 }}
-      >
-        Birdies / fairways props are flagged{" "}
-        <span className="num" style={{ color: "#7cc0e8" }}>
-          MANUAL
-        </span>{" "}
-        — the free ESPN scoreboard doesn&apos;t expose per-round stat
-        counts. Settle those legs by hand after the round closes (the
-        boxscore on espn.com shows them). Top-N, outright, matchup,
-        round-strokes, and make-cut are all graded automatically.
+      <p className="text-text-muted" style={{ fontSize: 11, lineHeight: 1.55 }}>
+        <span className="num font-semibold uppercase" style={{ color: "#7fd49a", fontSize: 10, letterSpacing: 1 }}>
+          Auto-graded
+        </span>
+        : top-N, outright, matchup, round-strokes, make-cut, and
+        birdies / bogeys / eagles (derived from ESPN hole-by-hole vs
+        course par).{" "}
+        <span className="num font-semibold uppercase" style={{ color: "#7cc0e8", fontSize: 10, letterSpacing: 1 }}>
+          Manual
+        </span>
+        : fairways hit and greens in regulation — not in the free
+        ESPN feed, needs a DataGolf key to auto-grade.
       </p>
     </div>
   );
@@ -345,7 +345,7 @@ function LegRow({
   const status = decision?.status ?? "live";
   const manual =
     status === "unknown" &&
-    decision?.reason?.toLowerCase().includes("settle manually");
+    /settle manually|fir \/ gir|not in free espn/i.test(decision?.reason ?? "");
 
   // For top-N: surface current position so the user knows how close.
   const observed = decision?.observedValue ?? "—";

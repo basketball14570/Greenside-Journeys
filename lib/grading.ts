@@ -6,7 +6,11 @@
 // Each market type has a dedicated grader. Add new ones as you wire new
 // market types — the dispatch is by `bet.market` string match.
 
-import type { LeaderboardPlayer, LeaderboardSnapshot } from "@/lib/espn-leaderboard";
+import {
+  roundStats,
+  type LeaderboardPlayer,
+  type LeaderboardSnapshot,
+} from "@/lib/espn-leaderboard";
 
 export type OpenBet = {
   id?: string;
@@ -278,24 +282,105 @@ export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision 
   if (m.includes("win") && !m.includes("over") && !m.includes("under")) return gradeToWin(bet, snapshot);
   if (m.includes("matchup") || m.includes("vs")) return gradeMatchup(bet, snapshot);
   if (m.includes("score") || m.includes("strokes") || m.includes("round")) return gradeRoundProp(bet, snapshot);
-  // Birdies / bogeys / eagles / fairways / greens: ESPN's free scoreboard
-  // feed doesn't expose these per-round, so we surface the bet but mark
-  // it for manual settlement once the round closes. The /dashboard/parlay
-  // UI flags these with a "manual" pill.
-  if (
-    m.includes("birdie") ||
-    m.includes("bogey") ||
-    m.includes("eagle") ||
-    m.includes("fairway") ||
-    m.includes("green")
-  ) {
+  // Birdies / bogeys / eagles: derive from hole-by-hole scores in the
+  // ESPN snapshot vs course par.
+  if (m.includes("birdie") || m.includes("bogey") || m.includes("eagle")) {
+    return gradeRoundStatProp(bet, snapshot);
+  }
+  // Fairways hit / greens in regulation are NOT in the free ESPN feed.
+  // Surface as manual until DataGolf or a paid feed is wired.
+  if (m.includes("fairway") || m.includes("green")) {
     return {
       bet,
       status: "unknown",
-      reason: "Per-round stat not in live ESPN feed — settle manually after round ends",
+      reason: "FIR / GIR not in free ESPN feed — settle manually after round ends",
     };
   }
   return { bet, status: "unknown", reason: `No grader for market '${bet.market}'` };
+}
+
+function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
+  const round = bet.round ?? deriveRoundFromMarket(bet.market);
+  const { side, line } = parsePropLine(bet.line);
+  if (!round || !side || line === null) {
+    return { bet, status: "unknown", reason: "Could not parse round / line / side" };
+  }
+  const p = findPlayer(snapshot, bet.player);
+  if (!p) return { bet, status: "unknown", reason: "Player not in field" };
+  const rl = p.rounds.find((r) => r.period === round);
+  if (!rl) {
+    return { bet, status: "live", reason: `R${round} not started` };
+  }
+  const stats = roundStats(rl, snapshot.event?.course ?? null);
+  if (!stats || stats.played === 0) {
+    return { bet, status: "live", reason: `R${round} not started` };
+  }
+  const m = bet.market.toLowerCase();
+  // "birdies or better" = birdie + eagle; "birdies" alone = exact -1 birdies
+  // count. PrizePicks / DK both use the former phrasing for this market,
+  // so we treat "birdies" without further qualifier as birdies-or-better
+  // since that's by far the more common book offering.
+  const observed = m.includes("eagle")
+    ? stats.eagles
+    : m.includes("bogey")
+      ? stats.bogeys + stats.doublesOrWorse
+      : stats.birdiesOrBetter;
+
+  const label = m.includes("eagle") ? "eagles" : m.includes("bogey") ? "bogeys+" : "birdies+";
+  const remaining = 18 - stats.played;
+  const isFinal = rl.complete || stats.played >= 18;
+
+  if (side === "over") {
+    if (observed > line) {
+      return {
+        bet,
+        status: "won",
+        reason: `R${round} ${observed} ${label} thru ${stats.played} (need >${line})`,
+        observedValue: observed,
+        pnl: payoutOnWin(bet),
+      };
+    }
+    if (isFinal) {
+      return {
+        bet,
+        status: "lost",
+        reason: `R${round} final: ${observed} ${label} ≤ ${line}`,
+        observedValue: observed,
+        pnl: -bet.stake,
+      };
+    }
+    return {
+      bet,
+      status: "live",
+      reason: `R${round} ${observed} ${label} thru ${stats.played} · need ${Math.ceil(line - observed + 0.5)} more in ${remaining}`,
+      observedValue: observed,
+    };
+  }
+  // Under
+  if (observed > line) {
+    return {
+      bet,
+      status: "lost",
+      reason: `R${round} ${observed} ${label} already over ${line}`,
+      observedValue: observed,
+      pnl: -bet.stake,
+    };
+  }
+  if (isFinal) {
+    return {
+      bet,
+      status: "won",
+      reason: `R${round} final: ${observed} ${label} < ${line}`,
+      observedValue: observed,
+      pnl: payoutOnWin(bet),
+    };
+  }
+  return {
+    bet,
+    status: "live",
+    reason: `R${round} ${observed} ${label} thru ${stats.played} · ${remaining} holes left for line ${line}`,
+    observedValue: observed,
+  };
 }
 
 export type GradingReport = {

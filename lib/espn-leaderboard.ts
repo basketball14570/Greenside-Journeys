@@ -5,12 +5,19 @@
 const ENDPOINT =
   "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
 
+export type HoleScore = {
+  hole: number;          // 1..18
+  strokes: number | null; // null = not played
+  par: number | null;     // best-effort; null if ESPN omitted
+};
+
 export type RoundLine = {
   period: number;          // 1..4
   strokes: number | null;  // total strokes for the round
   toPar: string | null;    // pre-formatted "E", "-3", "+2"
   thru: number | null;     // holes completed (1-18, null = not started)
   complete: boolean;
+  holes: HoleScore[];      // hole-by-hole data when ESPN exposes it
 };
 
 export type LeaderboardPlayer = {
@@ -102,21 +109,34 @@ function pickEvent(json: any) {
 }
 
 function normalizeRound(l: any): RoundLine {
-  const holes = Array.isArray(l.linescores) ? l.linescores : [];
+  const rawHoles = Array.isArray(l.linescores) ? l.linescores : [];
   const strokesRaw = Number(l.value);
   const strokes = Number.isFinite(strokesRaw) && strokesRaw > 0 ? strokesRaw : null;
-  const holesPlayed = holes.filter(
+  const holesPlayed = rawHoles.filter(
     (h: any) => h?.value !== null && h?.value !== undefined,
   ).length;
-  const complete = holes.length >= 18 && strokes !== null;
+  const complete = rawHoles.length >= 18 && strokes !== null;
   // Don't surface a toPar string until the player has actually played holes.
   const hasPlay = strokes !== null || holesPlayed > 0;
+  // Capture per-hole detail when ESPN exposes it. `period` here is the
+  // hole number (1..18) on each linescore entry inside a round.
+  const holes: HoleScore[] = rawHoles.map((h: any, idx: number) => {
+    const v = h?.value;
+    const par = h?.par ?? h?.parDisplay;
+    return {
+      hole: Number(h?.period) || idx + 1,
+      strokes:
+        v === null || v === undefined ? null : Number.isFinite(Number(v)) ? Number(v) : null,
+      par: par !== null && par !== undefined && Number.isFinite(Number(par)) ? Number(par) : null,
+    };
+  });
   return {
     period: Number(l.period) || 0,
     strokes,
     toPar: hasPlay && typeof l.displayValue === "string" ? l.displayValue : null,
     thru: complete ? 18 : holesPlayed > 0 ? holesPlayed : null,
     complete,
+    holes,
   };
 }
 
@@ -238,6 +258,64 @@ export async function fetchLeaderboard(signal?: AbortSignal): Promise<Leaderboar
 // Each TrackedPlayer can list aliases to disambiguate (e.g. force "Nicolai
 // Hojgaard" to NOT match "Rasmus Hojgaard"). `excludes` rules out collisions
 // on lastname-only fallback matching.
+// Hole-by-hole scoring stats derived from RoundLine.holes. Course
+// hole-pars come from lib/data/course-pars.ts since ESPN's free feed
+// usually omits per-hole par. Returns null when no holes have been
+// played yet.
+
+export type RoundStats = {
+  played: number;          // holes played
+  strokes: number;
+  birdiesOrBetter: number; // birdie + eagle + albatross
+  birdies: number;         // exactly -1
+  eagles: number;          // -2 or better
+  pars: number;
+  bogeys: number;
+  doublesOrWorse: number;
+};
+
+export function roundStats(
+  round: RoundLine | null | undefined,
+  courseName: string | null | undefined,
+): RoundStats | null {
+  if (!round || round.holes.length === 0) return null;
+  // Lazy require so this file doesn't depend on data/ at module load.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { holeParFor } = require("@/lib/data/course-pars") as typeof import("@/lib/data/course-pars");
+
+  let played = 0;
+  let strokes = 0;
+  let birdies = 0;
+  let eagles = 0;
+  let pars = 0;
+  let bogeys = 0;
+  let doublesOrWorse = 0;
+
+  for (const h of round.holes) {
+    if (h.strokes === null || h.strokes <= 0) continue;
+    played++;
+    strokes += h.strokes;
+    const par = h.par ?? holeParFor(courseName, h.hole);
+    const diff = h.strokes - par;
+    if (diff <= -2) eagles++;
+    else if (diff === -1) birdies++;
+    else if (diff === 0) pars++;
+    else if (diff === 1) bogeys++;
+    else doublesOrWorse++;
+  }
+
+  return {
+    played,
+    strokes,
+    birdiesOrBetter: birdies + eagles,
+    birdies,
+    eagles,
+    pars,
+    bogeys,
+    doublesOrWorse,
+  };
+}
+
 export type TrackedPlayer = {
   key: string;             // stable id for React keys
   display: string;         // what to show in the UI

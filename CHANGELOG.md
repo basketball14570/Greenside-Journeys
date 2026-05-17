@@ -2,6 +2,25 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Auto-grade birdies / bogeys / eagles from hole-by-hole
+
+- **`RoundLine.holes`** — captures per-hole strokes from the ESPN
+  scoreboard feed (was being discarded). Each entry: hole number,
+  strokes, par when available.
+- **`lib/data/course-pars.ts`** — hardcoded hole-par maps for the
+  25 most common 2026 PGA courses (Quail Hollow, Augusta, Pebble,
+  Sawgrass, Riviera, etc.). Fallback is par-4 to avoid false
+  birdie counts on par-3s.
+- **`roundStats(round, course)`** in `espn-leaderboard.ts` returns
+  birdies / eagles / pars / bogeys / doublesOrWorse computed from
+  hole strokes vs hole par.
+- **Grader** now auto-grades round_prop bets on birdies / bogeys /
+  eagles using `roundStats`. Live status shows current count
+  thru holes played, plus "need N more in X remaining" math.
+  Fairways and greens still flagged manual (need DataGolf).
+- **Parlay page** legend updated to reflect new auto-grading
+  coverage; MANUAL pill now only shows on FIR / GIR legs.
+
 ## 2026-05-16 — Live parlay tracker + showdown roster refresh
 
 - **`/dashboard/parlay`** — live all-or-nothing tracker for the 9-leg
