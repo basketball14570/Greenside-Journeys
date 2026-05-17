@@ -205,3 +205,53 @@ export async function getPlayerProfile(slug: string): Promise<PlayerProfile | nu
     edge: demo?.edge ?? "",
   };
 }
+
+// ─── Pre-tournament projections ─────────────────────────────
+// DataGolf's /preds/pre-tournament endpoint returns probabilistic
+// finish projections for the current week's PGA event: win, top 5,
+// top 10, top 20, make cut. The site updates them as conditions /
+// commits change so polling once an hour is generous.
+
+export type DgProjection = {
+  player_name: string;        // "Last, First"
+  win: number;                // 0..1
+  top5: number;
+  top10: number;
+  top20: number;
+  makeCut: number;
+};
+
+type DgPreTournamentResponse = {
+  baseline?: {
+    win: number;
+    top_5: number;
+    top_10: number;
+    top_20: number;
+    make_cut: number;
+    player_name: string;
+  }[];
+  baseline_history_fit?: DgPreTournamentResponse["baseline"];
+};
+
+export async function getPreTournamentProjections(
+  tour = "pga",
+): Promise<DgProjection[] | null> {
+  const data = await safeFetch<DgPreTournamentResponse>("/preds/pre-tournament", {
+    tour,
+    odds_format: "percent",
+  });
+  if (!data) return null;
+  // Prefer the baseline + history fit model when present (better at
+  // course-specific weighting), else fall back to baseline.
+  const rows = data.baseline_history_fit ?? data.baseline ?? [];
+  return rows
+    .map((r) => ({
+      player_name: flipName(r.player_name),
+      win: r.win,
+      top5: r.top_5,
+      top10: r.top_10,
+      top20: r.top_20,
+      makeCut: r.make_cut,
+    }))
+    .sort((a, b) => b.win - a.win);
+}

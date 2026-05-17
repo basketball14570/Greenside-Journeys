@@ -24,6 +24,37 @@
 // matches that workflow.
 
 import type { DfsPlayer } from "@/lib/demo-dfs";
+import { PLAYERS } from "@/lib/demo-players";
+
+// Course archetypes we model. These match the strings used in the
+// PlayerProfile.fit array so a lookup is a string compare.
+export const COURSE_ARCHETYPES = [
+  "Parkland · long",
+  "Parkland · short",
+  "Coastal · wind",
+  "Links",
+  "Desert",
+] as const;
+export type CourseArchetype = (typeof COURSE_ARCHETYPES)[number];
+
+// Returns a multiplier on a player's baseline projection based on how
+// well they perform on the given archetype vs their overall mean. 1.0 =
+// neutral. Returns 1.0 if we have no fit data for the player or no
+// rounds in that archetype.
+export function fitMultiplier(playerId: string, archetype: CourseArchetype | null): number {
+  if (!archetype) return 1.0;
+  const profile = PLAYERS[playerId];
+  if (!profile) return 1.0;
+  const target = profile.fit.find((f) => f.archetype === archetype);
+  if (!target || target.rounds === 0) return 1.0;
+  const weightedMean =
+    profile.fit.reduce((acc, f) => acc + f.sgPerRound * f.rounds, 0) /
+    Math.max(1, profile.fit.reduce((acc, f) => acc + f.rounds, 0));
+  // Convert to multiplicative factor — cap the swing at ±20% so a single
+  // good (or bad) archetype doesn't dominate.
+  const ratio = weightedMean === 0 ? 1 : target.sgPerRound / weightedMean;
+  return Math.max(0.8, Math.min(1.2, ratio));
+}
 
 export type Lineup = {
   picks: DfsPlayer[];
@@ -59,6 +90,9 @@ export type OptimizerOptions = {
   // Wave wind volatility — std of the shared factor each sim. Larger =
   // wave-correlated outcomes swing harder together.
   waveSigma?: number;
+  // When set, each player's projection is multiplied by their fit factor
+  // for this archetype before scoring + sampling weights are computed.
+  archetype?: CourseArchetype | null;
 };
 
 export function optimizeLineups(
@@ -72,6 +106,19 @@ export function optimizeLineups(
   const topK = opts.topK ?? 20;
   const weights = opts.weights ?? DEFAULT_WEIGHTS;
   const waveSigma = opts.waveSigma ?? 0.06;
+  const archetype = opts.archetype ?? null;
+
+  // Apply course-fit multiplier to projections up-front so it cascades
+  // into both the sampling weights and the simulation means.
+  const adjusted: DfsPlayer[] = archetype
+    ? players.map((p) => ({
+        ...p,
+        projection: p.projection * fitMultiplier(p.id, archetype),
+        ceiling: p.ceiling * fitMultiplier(p.id, archetype),
+        floor: p.floor * fitMultiplier(p.id, archetype),
+      }))
+    : players;
+  players = adjusted;
 
   const medianOwnership = median(players.map((p) => p.ownership));
 

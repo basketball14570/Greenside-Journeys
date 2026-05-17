@@ -2,6 +2,26 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-16 — Course-fit weighting, PWA install, This-week's-edge
+
+- **Optimizer course-fit weighting**: `OptimizerPanel` gained a
+  Course fit dropdown (Parkland · long / short, Coastal · wind,
+  Links, Desert). When selected, each player's projection is
+  scaled by their fit multiplier — sgPerRound for that archetype
+  divided by their weighted-mean across all archetypes, clamped
+  ±20%. Cascades into both sampling weights and simulation means.
+- **PWA install prompt**: `PwaInstallPrompt` listens for
+  `beforeinstallprompt`, surfaces a bottom-right card with Install
+  / Not now actions. Dismissal persists for 14 days; skipped
+  entirely when already running standalone or recently dismissed.
+- **This Week's Edge widget**: new tile on the dashboard home
+  (both mobile + desktop) shows top players by win% from DataGolf's
+  pre-tournament model. Source badge flags DataGolf vs Demo;
+  graceful demo fallback when `DATAGOLF_API_KEY` isn't set.
+- **`getPreTournamentProjections()`** in `lib/data/datagolf.ts`
+  hits `/preds/pre-tournament` (baseline-history-fit preferred).
+- **`/api/projections/this-week`** route with 15-min CDN cache.
+
 ## 2026-05-16 — Auto-grade birdies / bogeys / eagles from hole-by-hole
 
 - **`RoundLine.holes`** — captures per-hole strokes from the ESPN

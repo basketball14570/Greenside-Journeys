@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { DFS_PLAYERS } from "@/lib/demo-dfs";
 import {
   optimizeLineups,
+  COURSE_ARCHETYPES,
   type Lineup,
   type OptimizerWeights,
+  type CourseArchetype,
   DEFAULT_WEIGHTS,
 } from "@/lib/dfs-optimizer";
 
@@ -17,6 +19,7 @@ import {
 
 export function OptimizerPanel() {
   const [weights, setWeights] = useState<OptimizerWeights>(DEFAULT_WEIGHTS);
+  const [archetype, setArchetype] = useState<CourseArchetype | "">("Parkland · long");
   const [results, setResults] = useState<Lineup[] | null>(null);
   const [pop, setPop] = useState<{ meanSim: number; meanCeiling: number } | null>(null);
   const [running, setRunning] = useState(false);
@@ -28,7 +31,11 @@ export function OptimizerPanel() {
     // sim itself is fast (<300ms for 1500 candidates × 200 sims on a
     // recent laptop) but rendering the spinner needs a frame to land.
     setTimeout(() => {
-      const out = optimizeLineups(DFS_PLAYERS, { weights, topK: 20 });
+      const out = optimizeLineups(DFS_PLAYERS, {
+        weights,
+        topK: 20,
+        archetype: archetype === "" ? null : (archetype as CourseArchetype),
+      });
       setResults(out.lineups);
       setPop(out.population);
       setRunning(false);
@@ -118,6 +125,27 @@ export function OptimizerPanel() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span
+              className="num font-semibold uppercase text-text-muted"
+              style={{ fontSize: 10, letterSpacing: 1.1 }}
+            >
+              Course fit
+            </span>
+            <select
+              value={archetype}
+              onChange={(e) => setArchetype(e.target.value as CourseArchetype | "")}
+              className="rounded-[6px] border border-line bg-bg px-2 py-1 text-text"
+              style={{ fontSize: 12 }}
+            >
+              <option value="">None (raw projections)</option>
+              {COURSE_ARCHETYPES.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             onClick={run}
             disabled={running}

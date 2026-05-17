@@ -5,6 +5,7 @@ import {
 } from "@/components/edge/chrome";
 import { LiveEventStrap } from "@/components/edge/LiveEventStrap";
 import { CommandPalette } from "@/components/edge/CommandPalette";
+import { PwaInstallPrompt } from "@/components/edge/PwaInstallPrompt";
 
 // Responsive chrome: mobile (<lg) gets the top bar + bottom nav from the
 // mobile design; desktop gets the AppBar + EventStrap. The active tab and
@@ -35,6 +36,7 @@ export default function DashboardLayout({
       </div>
 
       <CommandPalette />
+      <PwaInstallPrompt />
     </div>
   );
 }
