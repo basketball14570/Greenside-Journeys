@@ -9,5 +9,16 @@
       "path": "/api/cron/grade",
       "schedule": "*/15 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/cron/grade/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/newsletter/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/projections/this-week/route.ts": {
+      "maxDuration": 15
+    }
+  }
 }

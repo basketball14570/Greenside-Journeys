@@ -2,6 +2,19 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Deploy plumbing for Vercel
+
+- **`vercel.json`** gets `functions.maxDuration` overrides — 60s for
+  both crons (grade + newsletter) since they iterate Supabase users
+  + ESPN + push, and 15s for `/api/projections/this-week` so the
+  DataGolf fetch doesn't get clipped at the 10s default.
+- **`DEPLOY.md`** added at the repo root: one-page deploy checklist
+  with the full env-var table (16 vars, marked required vs optional
+  and which scope each one belongs to), Supabase redirect-URL setup,
+  custom-domain steps, post-deploy verification URLs, and the
+  Hobby-vs-Pro cron tier note (Hobby caps cron at daily; the
+  `*/15 * * * *` grade schedule needs Pro).
+
 ## 2026-05-17 — Live motion: hole trail, pulse, position flash
 
 - **Hole-by-hole trail** on round-prop legs. Reads the per-hole
