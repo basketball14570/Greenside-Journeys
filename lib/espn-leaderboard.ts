@@ -2,6 +2,8 @@
 // the endpoint is the same one ESPN's own scoreboard.com uses. CORS is
 // open for browsers — we call it client-side.
 
+import { holeParFor } from "@/lib/data/course-pars";
+
 const ENDPOINT =
   "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
 
@@ -279,9 +281,6 @@ export function roundStats(
   courseName: string | null | undefined,
 ): RoundStats | null {
   if (!round || round.holes.length === 0) return null;
-  // Lazy require so this file doesn't depend on data/ at module load.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { holeParFor } = require("@/lib/data/course-pars") as typeof import("@/lib/data/course-pars");
 
   let played = 0;
   let strokes = 0;

@@ -111,12 +111,14 @@ export function useBetSlip(): UseBetSlipResult {
 
   // Persist whenever slip changes (post-boot).
   const lastSavedRef = useRef<string>("");
+  const lastUpdatedAtRef = useRef<string>("");
   useEffect(() => {
     if (!ready) return;
     const scope = scopeRef.current;
     const serialized = JSON.stringify(slip);
     if (serialized === lastSavedRef.current) return;
     lastSavedRef.current = serialized;
+    lastUpdatedAtRef.current = slip.updatedAt;
     writeLocal(scope, slip);
     if (supabaseConfigured && userId) {
       const supabase = supabaseBrowser();
@@ -135,6 +137,48 @@ export function useBetSlip(): UseBetSlipResult {
         });
     }
   }, [slip, ready, userId, supabaseConfigured]);
+
+  // Realtime: subscribe to bet_slips changes for this user so an edit
+  // on device A flows to device B without a reload. The check against
+  // lastUpdatedAtRef de-dupes the echo of our own write coming back
+  // through the channel.
+  useEffect(() => {
+    if (!ready) return;
+    if (!supabaseConfigured || !userId) return;
+    const supabase = supabaseBrowser();
+    const channel = supabase
+      .channel(`bet_slips:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bet_slips",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as
+            | { bets: SlipLeg[] | null; updated_at: string }
+            | null;
+          if (!row || !Array.isArray(row.bets)) return;
+          // Skip our own write echoing back.
+          if (row.updated_at <= lastUpdatedAtRef.current) return;
+          const next: Slip = {
+            schemaVersion: 1,
+            updatedAt: row.updated_at,
+            legs: row.bets,
+          };
+          lastUpdatedAtRef.current = row.updated_at;
+          lastSavedRef.current = JSON.stringify(next);
+          writeLocal(scopeRef.current, next);
+          setSlip(next);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [ready, supabaseConfigured, userId]);
 
   const update = useCallback((next: Slip) => {
     setSlip({

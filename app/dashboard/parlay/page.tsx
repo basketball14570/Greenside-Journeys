@@ -14,6 +14,7 @@ import {
   type LeaderboardSnapshot,
 } from "@/lib/espn-leaderboard";
 import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
+import { encodeLeg, type SharedSingleLeg } from "@/lib/share/leg";
 import { toast } from "@/components/edge/Toast";
 import { useBetSlip } from "@/lib/bet-slip-store";
 import {
@@ -23,6 +24,7 @@ import {
   trailForPlayerRound,
   type HoleResult,
 } from "@/components/edge/LiveLegDetail";
+import { YourPlayersToday } from "@/components/edge/YourPlayersToday";
 
 // Live parlay tracker for the user's current week. Hardcoded today —
 // once we have a saved-parlays table this becomes /dashboard/parlay/[id]
@@ -390,6 +392,12 @@ export default function ParlayPage() {
         </div>
       )}
 
+      {/* Horizontal "your players today" strip — every player on your
+          slip plus the opponents in matchups / 3-balls, with live
+          leaderboard position. Lets users scan the field without
+          scrolling through every leg. */}
+      <YourPlayersToday legs={legs} snapshot={snapshot} />
+
       {/* Parlay container — wraps payout hero, stats, and legs in one
           thick-bordered card so a multi-leg parlay reads as ONE bet, not
           a list of independent bets. Border color picks up the rollup
@@ -457,6 +465,7 @@ export default function ParlayPage() {
               leg={l}
               decision={d}
               snapshot={snapshot}
+              event={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null}
               isLast={i === legs.length - 1}
               flash={flashes[l.id] ?? null}
             />
@@ -486,12 +495,14 @@ function LegRow({
   leg,
   decision,
   snapshot,
+  event,
   isLast,
   flash,
 }: {
   leg: SlipLeg;
   decision: Decision | undefined;
   snapshot: LeaderboardSnapshot | null;
+  event: string | null;
   isLast: boolean;
   flash: "up" | "down" | null;
 }) {
@@ -579,12 +590,15 @@ function LegRow({
             )}
           </div>
         </div>
-        <div className="text-text-dim" style={{ fontSize: 12 }}>
-          {describeLeg(leg)} ·{" "}
-          <span className="num">
-            {leg.americanOdds > 0 ? "+" : ""}
-            {leg.americanOdds}
+        <div className="text-text-dim flex items-center justify-between gap-2" style={{ fontSize: 12 }}>
+          <span className="min-w-0 truncate">
+            {describeLeg(leg)} ·{" "}
+            <span className="num">
+              {leg.americanOdds > 0 ? "+" : ""}
+              {leg.americanOdds}
+            </span>
           </span>
+          <ShareLegButton leg={leg} decision={decision} event={event} />
         </div>
         <div className="text-text-dim" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
           {decision?.reason ?? (snapshot ? "Loading…" : "Waiting for ESPN")}
@@ -669,7 +683,7 @@ function LegRow({
             </div>
           )}
         </div>
-        <div className="text-right">
+        <div className="text-right flex flex-col items-end gap-1">
           {manual ? (
             <span
               className="num uppercase"
@@ -687,6 +701,7 @@ function LegRow({
           ) : (
             <StatusPill status={status} small />
           )}
+          <ShareLegButton leg={leg} decision={decision} event={event} />
         </div>
         <span
           className="num text-right text-text-dim"
@@ -1047,4 +1062,95 @@ function ShareButton({
       Share parlay
     </button>
   );
+}
+
+// Per-leg share — generates a single-leg "trash talk" share card. Hero
+// text comes from the decision reason/observedValue so it reads
+// naturally ("Up 2 on Cantlay", "T7 · clear of top 10", "5 birdies
+// thru 11"). Same encode+tweet flow as the parlay share button.
+function ShareLegButton({
+  leg,
+  decision,
+  event,
+}: {
+  leg: SlipLeg;
+  decision: Decision | undefined;
+  event: string | null;
+}) {
+  const onClick = () => {
+    const rawStatus = decision?.status;
+    const status: SharedLegStatus =
+      rawStatus === "won" || rawStatus === "lost" || rawStatus === "live"
+        ? rawStatus
+        : rawStatus === "push"
+          ? "live"
+          : "pending";
+
+    const hero = heroForLeg(leg, decision);
+    const decimal = americanToDecimal(leg.americanOdds);
+    const payload: SharedSingleLeg = {
+      player: leg.player,
+      market: describeLeg(leg),
+      hero,
+      status,
+      americanOdds: leg.americanOdds,
+      stake: leg.stake,
+      toWin: leg.stake * decimal,
+      event: event ?? undefined,
+    };
+
+    const encoded = encodeLeg(payload);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/share/leg?d=${encoded}`;
+
+    const caption =
+      status === "won"
+        ? `${leg.player} cashed. ${hero}.`
+        : status === "lost"
+          ? `${leg.player} ${hero}.`
+          : `${leg.player} — ${hero}. Tracked live on Greenside.`;
+
+    const tweet = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      caption,
+    )}&url=${encodeURIComponent(url)}`;
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(url).then(
+        () => toast("Leg link copied — and X is opening", "success"),
+        () => toast("Couldn't access clipboard — X is still opening", "warn"),
+      );
+    }
+    if (typeof window !== "undefined") {
+      window.open(tweet, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="num uppercase hover:opacity-100 transition-opacity"
+      style={{
+        fontSize: 9.5,
+        letterSpacing: 0.6,
+        color: "#a8b3ac",
+        padding: "2px 6px",
+        borderRadius: 4,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        opacity: 0.7,
+      }}
+      title="Share this leg as a single-bet card"
+    >
+      ↗ Share
+    </button>
+  );
+}
+
+// Build the one-line live state that becomes the hero on the share
+// card. Falls back through decision.reason → observedValue → market
+// text so we always have something readable.
+function heroForLeg(leg: SlipLeg, decision: Decision | undefined): string {
+  if (decision?.reason && decision.reason.length > 0) return decision.reason;
+  if (decision?.observedValue !== undefined) return String(decision.observedValue);
+  return describeLeg(leg);
 }
