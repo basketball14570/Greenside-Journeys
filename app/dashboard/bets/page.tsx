@@ -211,6 +211,25 @@ export default function BetsPage() {
 
       <div className="flex flex-wrap gap-2">
         <a
+          href="/dashboard/parlay"
+          className="rounded-[10px] px-3 py-1.5 font-semibold transition"
+          style={{
+            fontSize: 12,
+            background: "#8ee68e",
+            color: "#06140c",
+          }}
+          title="Watch your active legs grade in real time"
+        >
+          ● Live tracker →
+        </a>
+        <a
+          href="/dashboard/upload"
+          className="rounded-[10px] border border-line px-3 py-1.5 hover:bg-surface-2"
+          style={{ fontSize: 12 }}
+        >
+          Upload slip
+        </a>
+        <a
           href="/api/bets/export?format=csv"
           download
           className="rounded-[10px] border border-line px-3 py-1.5 hover:bg-surface-2"

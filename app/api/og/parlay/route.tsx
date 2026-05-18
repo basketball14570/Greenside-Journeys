@@ -180,7 +180,7 @@ export async function GET(req: Request) {
 
 function LegRow({ leg }: { leg: SharedLeg }) {
   const p = PALETTE[leg.status] ?? PALETTE.pending;
-  const detail = leg.line ? `${leg.market} ${leg.line}` : leg.market;
+  const market = leg.line ? `${leg.market} ${leg.line}` : leg.market;
   return (
     <div
       style={{
@@ -210,12 +210,25 @@ function LegRow({ leg }: { leg: SharedLeg }) {
         {p.label}
       </span>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 24, color: "#f0ebe0", fontWeight: 600 }}>
+        <span style={{ fontSize: 22, color: "#f0ebe0", fontWeight: 600 }}>
           {leg.player}
         </span>
-        <span style={{ fontSize: 16, color: "#a8b3ac", marginTop: 2 }}>
-          {detail}
+        <span style={{ fontSize: 15, color: "#a8b3ac", marginTop: 2 }}>
+          {market}
         </span>
+        {leg.detail && (
+          <span
+            style={{
+              fontSize: 14,
+              color: p.fg,
+              marginTop: 2,
+              fontWeight: 600,
+              letterSpacing: 0.3,
+            }}
+          >
+            {leg.detail}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -18,6 +18,10 @@ import {
 } from "@/lib/espn-leaderboard";
 import { useBetSlip } from "@/lib/bet-slip-store";
 import { toast } from "@/components/edge/Toast";
+import {
+  MatchupDetail,
+  ThreeBallDetail,
+} from "@/components/edge/LiveLegDetail";
 
 type ParsedBet = {
   book: string;
@@ -529,18 +533,20 @@ function ResultsSection({
           bets={bets}
           legs={legs}
           decisions={decisions}
+          snapshot={snapshot}
         />
       ) : (
         bets.map((b, i) => (
           <div
             key={i}
-            className="rounded-[14px] border-2 p-1"
+            className="rounded-[14px] border-2 overflow-hidden"
             style={{ borderColor: "rgba(255,255,255,0.10)" }}
           >
             <ParsedBetCard
               bet={b}
               leg={legs[i]}
               decision={decisions[i] ?? undefined}
+              snapshot={snapshot}
             />
           </div>
         ))
@@ -557,10 +563,12 @@ function ParlayGroup({
   bets,
   legs,
   decisions,
+  snapshot,
 }: {
   bets: ParsedBet[];
   legs: (SlipLeg | null)[];
   decisions: (Decision | null)[];
+  snapshot: LeaderboardSnapshot | null;
 }) {
   const stake = bets[0].stake;
   const parlayDecimal = bets.reduce(
@@ -651,11 +659,12 @@ function ParlayGroup({
       </div>
       <div className="divide-y divide-line/40">
         {bets.map((b, i) => (
-          <div key={i} className="px-1">
+          <div key={i}>
             <ParsedBetCard
               bet={b}
               leg={legs[i]}
               decision={decisions[i] ?? undefined}
+              snapshot={snapshot}
             />
           </div>
         ))}
@@ -668,10 +677,12 @@ function ParsedBetCard({
   bet,
   leg,
   decision,
+  snapshot,
 }: {
   bet: ParsedBet;
   leg: SlipLeg | null;
   decision: Decision | null | undefined;
+  snapshot: LeaderboardSnapshot | null;
 }) {
   const bookChip = BOOK_MAP[bet.book.toLowerCase()] ?? null;
   const status = decision?.status;
@@ -758,6 +769,15 @@ function ParsedBetCard({
           </div>
         )}
       </div>
+      {/* Live match-play / 3-ball tracker rendered directly under the
+          parsed card so the user sees "Hovland 2 UP" or the 3-ball
+          standings the instant their slip is parsed. */}
+      {leg && leg.kind === "matchup" && (
+        <MatchupDetail leg={leg} snapshot={snapshot} />
+      )}
+      {leg && leg.kind === "three_ball" && (
+        <ThreeBallDetail leg={leg} snapshot={snapshot} />
+      )}
     </div>
   );
 }

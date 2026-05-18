@@ -10,6 +10,10 @@ export type SharedLeg = {
   market: string;
   line?: string;
   status: SharedLegStatus;
+  // Optional one-line live-state pulled from the decision. For matchup
+  // legs this is "Up 2 on Cantlay" / "1 DN to Cantlay". For 3-ball it's
+  // "1st in group · -2". OG card renders this as a third sub-line.
+  detail?: string;
 };
 
 export type SharedParlay = {

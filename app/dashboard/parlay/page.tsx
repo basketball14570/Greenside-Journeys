@@ -11,14 +11,18 @@ import {
 import { gradeBet, type Decision } from "@/lib/grading";
 import {
   fetchLeaderboard,
-  roundStats,
   type LeaderboardSnapshot,
-  type RoundLine,
 } from "@/lib/espn-leaderboard";
-import { holeParFor } from "@/lib/data/course-pars";
 import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
 import { toast } from "@/components/edge/Toast";
 import { useBetSlip } from "@/lib/bet-slip-store";
+import {
+  MatchupDetail,
+  ThreeBallDetail,
+  HoleTrail,
+  trailForPlayerRound,
+  type HoleResult,
+} from "@/components/edge/LiveLegDetail";
 
 // Live parlay tracker for the user's current week. Hardcoded today —
 // once we have a saved-parlays table this becomes /dashboard/parlay/[id]
@@ -291,7 +295,11 @@ export default function ParlayPage() {
           </span>
           <h1
             className="serif-italic mt-1.5 flex items-center gap-3 flex-wrap"
-            style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
+            style={{
+              fontSize: "clamp(24px, 7vw, 36px)",
+              letterSpacing: -0.4,
+              fontStyle: "normal",
+            }}
           >
             <em>This week&apos;s ticket.</em>
             <StatusPill status={summary.status} />
@@ -425,8 +433,10 @@ export default function ParlayPage() {
         </div>
 
         <section className="border-t border-line overflow-hidden">
+        {/* Column header — desktop only. On mobile each leg renders as a
+            stacked card so labels would just take up room. */}
         <div
-          className="grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
+          className="hidden md:grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
           style={{
             gridTemplateColumns: "1.6fr 1fr 110px 110px",
             fontSize: 10,
@@ -502,95 +512,188 @@ function LegRow({
         ? "rgba(232,124,124,0.12)"
         : null;
 
+  const rowBg =
+    flashBg ??
+    (status === "won"
+      ? "rgba(127,212,154,0.05)"
+      : status === "lost"
+        ? "rgba(232,124,124,0.05)"
+        : "transparent");
+
   return (
     <>
-    <div
-      className="grid gap-2 px-4 py-3 items-center"
-      style={{
-        gridTemplateColumns: "1.6fr 1fr 110px 110px",
-        fontSize: 13,
-        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
-        background:
-          flashBg ??
-          (status === "won"
-            ? "rgba(127,212,154,0.05)"
-            : status === "lost"
-              ? "rgba(232,124,124,0.05)"
-              : "transparent"),
-        transition: "background 1200ms ease-out",
-      }}
-    >
-      <div className="min-w-0">
-        <div className="text-text font-medium truncate flex items-center gap-1.5">
-          {leg.player}
-          {flash && (
+      {/* Mobile: stacked card. Status + observed move to a header strip
+          above the player name so the leg reads top-down on phone. */}
+      <div
+        className="md:hidden px-4 py-3 space-y-1.5"
+        style={{
+          borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
+          background: rowBg,
+          transition: "background 1200ms ease-out",
+        }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span
-              className="num"
-              style={{
-                fontSize: 11,
-                color: flash === "up" ? "#7fd49a" : "#e87c7c",
-                opacity: 0.9,
-              }}
+              className="text-text font-medium truncate"
+              style={{ fontSize: 14 }}
             >
-              {flash === "up" ? "▲" : "▼"}
+              {leg.player}
             </span>
-          )}
+            {flash && (
+              <span
+                className="num shrink-0"
+                style={{
+                  fontSize: 11,
+                  color: flash === "up" ? "#7fd49a" : "#e87c7c",
+                  opacity: 0.9,
+                }}
+              >
+                {flash === "up" ? "▲" : "▼"}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className="num text-text-dim"
+              style={{ fontSize: 11.5 }}
+            >
+              {String(observed)}
+            </span>
+            {manual ? (
+              <span
+                className="num uppercase"
+                style={{
+                  fontSize: 9.5,
+                  letterSpacing: 0.8,
+                  color: "#7cc0e8",
+                  background: "#7cc0e81a",
+                  padding: "3px 8px",
+                  borderRadius: 4,
+                }}
+              >
+                Manual
+              </span>
+            ) : (
+              <StatusPill status={status} small />
+            )}
+          </div>
         </div>
-        <div
-          className="text-text-dim mt-0.5"
-          style={{ fontSize: 11.5 }}
-        >
+        <div className="text-text-dim" style={{ fontSize: 12 }}>
           {describeLeg(leg)} ·{" "}
           <span className="num">
             {leg.americanOdds > 0 ? "+" : ""}
             {leg.americanOdds}
           </span>
         </div>
-        {trail && <HoleTrail trail={trail} />}
-      </div>
-      <div
-        className="text-text-dim truncate"
-        style={{ fontSize: 12 }}
-      >
-        {decision?.reason ?? (snapshot ? "Loading…" : "Waiting for ESPN")}
-        {imminence && (
-          <div
-            className="num mt-0.5"
-            style={{
-              fontSize: 10.5,
-              letterSpacing: 0.5,
-              color: imminence.tone === "good" ? "#7fd49a" : "#f5c558",
-            }}
-          >
-            {imminence.label}
+        <div className="text-text-dim" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
+          {decision?.reason ?? (snapshot ? "Loading…" : "Waiting for ESPN")}
+          {imminence && (
+            <div
+              className="num mt-0.5"
+              style={{
+                fontSize: 10.5,
+                letterSpacing: 0.5,
+                color: imminence.tone === "good" ? "#7fd49a" : "#f5c558",
+              }}
+            >
+              {imminence.label}
+            </div>
+          )}
+        </div>
+        {trail && (
+          <div className="pt-0.5">
+            <HoleTrail trail={trail} />
           </div>
         )}
       </div>
-      <div className="text-right">
-        {manual ? (
-          <span
-            className="num uppercase"
-            style={{
-              fontSize: 9.5,
-              letterSpacing: 0.8,
-              color: "#7cc0e8",
-              background: "#7cc0e81a",
-              padding: "3px 8px",
-              borderRadius: 4,
-            }}
-          >
-            Manual
-          </span>
-        ) : (
-          <StatusPill status={status} small />
-        )}
-      </div>
-      <span
-        className="num text-right text-text-dim"
-        style={{ fontSize: 12 }}
+
+      {/* Desktop: original 4-column grid. */}
+      <div
+        className="hidden md:grid gap-2 px-4 py-3 items-center"
+        style={{
+          gridTemplateColumns: "1.6fr 1fr 110px 110px",
+          fontSize: 13,
+          borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
+          background: rowBg,
+          transition: "background 1200ms ease-out",
+        }}
       >
-        {String(observed)}
-      </span>
+        <div className="min-w-0">
+          <div className="text-text font-medium truncate flex items-center gap-1.5">
+            {leg.player}
+            {flash && (
+              <span
+                className="num"
+                style={{
+                  fontSize: 11,
+                  color: flash === "up" ? "#7fd49a" : "#e87c7c",
+                  opacity: 0.9,
+                }}
+              >
+                {flash === "up" ? "▲" : "▼"}
+              </span>
+            )}
+          </div>
+          <div
+            className="text-text-dim mt-0.5"
+            style={{ fontSize: 11.5 }}
+          >
+            {describeLeg(leg)} ·{" "}
+            <span className="num">
+              {leg.americanOdds > 0 ? "+" : ""}
+              {leg.americanOdds}
+            </span>
+          </div>
+          {trail && (
+            <div className="mt-1.5">
+              <HoleTrail trail={trail} />
+            </div>
+          )}
+        </div>
+        <div
+          className="text-text-dim truncate"
+          style={{ fontSize: 12 }}
+        >
+          {decision?.reason ?? (snapshot ? "Loading…" : "Waiting for ESPN")}
+          {imminence && (
+            <div
+              className="num mt-0.5"
+              style={{
+                fontSize: 10.5,
+                letterSpacing: 0.5,
+                color: imminence.tone === "good" ? "#7fd49a" : "#f5c558",
+              }}
+            >
+              {imminence.label}
+            </div>
+          )}
+        </div>
+        <div className="text-right">
+          {manual ? (
+            <span
+              className="num uppercase"
+              style={{
+                fontSize: 9.5,
+                letterSpacing: 0.8,
+                color: "#7cc0e8",
+                background: "#7cc0e81a",
+                padding: "3px 8px",
+                borderRadius: 4,
+              }}
+            >
+              Manual
+            </span>
+          ) : (
+            <StatusPill status={status} small />
+          )}
+        </div>
+        <span
+          className="num text-right text-text-dim"
+          style={{ fontSize: 12 }}
+        >
+          {String(observed)}
+        </span>
       </div>
       {leg.kind === "matchup" && (
         <MatchupDetail leg={leg} snapshot={snapshot} />
@@ -602,369 +705,6 @@ function LegRow({
   );
 }
 
-// Match-state detail for a head-to-head matchup leg. Shows both
-// players' current to-par + hole trail + the big "X UP" / "AS" / "X DN"
-// indicator. Match-play language even though the underlying scoring is
-// stroke-play within the round — that's what golfers actually say.
-function MatchupDetail({
-  leg,
-  snapshot,
-}: {
-  leg: Extract<SlipLeg, { kind: "matchup" }>;
-  snapshot: LeaderboardSnapshot | null;
-}) {
-  const round = leg.round;
-  if (!snapshot || !round) return null;
-
-  const norm = (s: string) =>
-    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
-      .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
-      .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
-  const find = (name: string) => {
-    const t = norm(name);
-    return (
-      snapshot.players.find((x) => norm(x.name) === t) ??
-      snapshot.players.find((x) => norm(x.name).includes(t)) ??
-      null
-    );
-  };
-  const mine = find(leg.player);
-  const opp = find(leg.opponent);
-  if (!mine || !opp) return null;
-
-  const mineRound = mine.rounds.find((r) => r.period === round);
-  const oppRound = opp.rounds.find((r) => r.period === round);
-  const mineToPar = parseToParStr(mineRound?.toPar ?? null);
-  const oppToPar = parseToParStr(oppRound?.toPar ?? null);
-
-  // Match state — positive = leg-player is ahead. Stroke-play differential
-  // shown as "X UP" / "X DN" because that's what bettors say even on
-  // stroke-play h2h tickets.
-  const diff = mineToPar !== null && oppToPar !== null ? mineToPar - oppToPar : null;
-  const matchLabel = diff === null
-    ? "—"
-    : diff === 0
-      ? "AS"
-      : diff < 0
-        ? `${Math.abs(diff)} UP`
-        : `${diff} DN`;
-  const matchColor = diff === null
-    ? "#a8b3ac"
-    : diff === 0
-      ? "#a8b3ac"
-      : diff < 0
-        ? "#7fd49a"
-        : "#e87c7c";
-
-  return (
-    <div
-      className="px-4 pb-3 pt-1"
-      style={{
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(0,0,0,0.18)",
-      }}
-    >
-      <div className="flex items-center justify-between mb-2.5 gap-3">
-        <div
-          className="num uppercase"
-          style={{ fontSize: 10, letterSpacing: 1, color: "#a8b3ac" }}
-        >
-          ● Match state · R{round}
-        </div>
-        <span
-          className="num font-semibold"
-          style={{
-            fontSize: 16,
-            letterSpacing: 0.5,
-            color: matchColor,
-            background: `${matchColor}1a`,
-            padding: "3px 12px",
-            borderRadius: 4,
-            border: `1px solid ${matchColor}33`,
-          }}
-        >
-          {matchLabel}
-        </span>
-      </div>
-      <MatchupPlayerLine
-        name={mine.name}
-        toPar={mineRound?.toPar ?? null}
-        thru={mineRound?.complete ? "F" : (mineRound?.thru ?? "—")}
-        leading={diff !== null && diff < 0}
-        trail={trailForPlayerRound(leg.player, round, snapshot)}
-      />
-      <MatchupPlayerLine
-        name={opp.name}
-        toPar={oppRound?.toPar ?? null}
-        thru={oppRound?.complete ? "F" : (oppRound?.thru ?? "—")}
-        leading={diff !== null && diff > 0}
-        trail={trailForPlayerRound(leg.opponent, round, snapshot)}
-      />
-    </div>
-  );
-}
-
-function MatchupPlayerLine({
-  name,
-  toPar,
-  thru,
-  leading,
-  trail,
-}: {
-  name: string;
-  toPar: string | null;
-  thru: number | string | null;
-  leading: boolean;
-  trail: HoleResult[] | null;
-}) {
-  return (
-    <div className="flex items-center gap-3 py-1.5">
-      <div
-        className="flex items-baseline gap-2 min-w-0"
-        style={{ width: 220 }}
-      >
-        {leading && (
-          <span style={{ color: "#7fd49a", fontSize: 11 }}>●</span>
-        )}
-        <span
-          className="text-text font-medium truncate"
-          style={{ fontSize: 13 }}
-        >
-          {name}
-        </span>
-      </div>
-      <span
-        className="num"
-        style={{
-          fontSize: 14,
-          width: 40,
-          color: toParColor(toPar),
-        }}
-      >
-        {toPar ?? "—"}
-      </span>
-      <span
-        className="num text-text-dim"
-        style={{ fontSize: 11, width: 60 }}
-      >
-        thru {thru ?? "—"}
-      </span>
-      <div className="flex-1 min-w-0">
-        {trail && <HoleTrail trail={trail} />}
-      </div>
-    </div>
-  );
-}
-
-// 3-ball detail: three players, one of whom is "yours". Ranks them by
-// current to-par on the leg's round, marks position (1st / 2nd / 3rd),
-// shows each player's hole trail. The "your pick" gets a green dot in
-// front of their name regardless of position.
-function ThreeBallDetail({
-  leg,
-  snapshot,
-}: {
-  leg: Extract<SlipLeg, { kind: "three_ball" }>;
-  snapshot: LeaderboardSnapshot | null;
-}) {
-  if (!snapshot) return null;
-  const round = leg.round;
-  const norm = (s: string) =>
-    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
-      .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
-      .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
-  const find = (name: string) => {
-    const t = norm(name);
-    return (
-      snapshot.players.find((x) => norm(x.name) === t) ??
-      snapshot.players.find((x) => norm(x.name).includes(t)) ??
-      null
-    );
-  };
-  const mine = find(leg.player);
-  const a = find(leg.others[0]);
-  const b = find(leg.others[1]);
-  if (!mine || !a || !b) return null;
-
-  type Entry = {
-    name: string;
-    isMine: boolean;
-    round: RoundLine | undefined;
-    toParNum: number | null;
-  };
-  const entries: Entry[] = [mine, a, b].map((p, i) => {
-    const rl = p.rounds.find((r) => r.period === round);
-    return {
-      name: p.name,
-      isMine: i === 0,
-      round: rl,
-      toParNum: parseToParStr(rl?.toPar ?? null),
-    };
-  });
-
-  // Rank: lower to-par wins. Players who haven't started sort last.
-  const ranked = [...entries].sort((x, y) => {
-    const xn = x.toParNum ?? 999;
-    const yn = y.toParNum ?? 999;
-    return xn - yn;
-  });
-
-  return (
-    <div
-      className="px-4 pb-3 pt-1"
-      style={{
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(0,0,0,0.18)",
-      }}
-    >
-      <div className="flex items-center justify-between mb-2.5 gap-3">
-        <div
-          className="num uppercase"
-          style={{ fontSize: 10, letterSpacing: 1, color: "#a8b3ac" }}
-        >
-          ● 3-Ball · R{round}
-        </div>
-      </div>
-      {ranked.map((e, i) => (
-        <ThreeBallPlayerLine
-          key={e.name}
-          position={i + 1}
-          name={e.name}
-          isMine={e.isMine}
-          toPar={e.round?.toPar ?? null}
-          thru={e.round?.complete ? "F" : (e.round?.thru ?? "—")}
-          trail={trailForPlayerRound(e.name, round, snapshot)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ThreeBallPlayerLine({
-  position,
-  name,
-  isMine,
-  toPar,
-  thru,
-  trail,
-}: {
-  position: number;
-  name: string;
-  isMine: boolean;
-  toPar: string | null;
-  thru: number | string | null;
-  trail: HoleResult[] | null;
-}) {
-  const posLabel = position === 1 ? "1st" : position === 2 ? "2nd" : "3rd";
-  const posColor = position === 1 ? "#7fd49a" : "#a8b3ac";
-  return (
-    <div className="flex items-center gap-3 py-1.5">
-      <span
-        className="num font-semibold"
-        style={{
-          fontSize: 11,
-          letterSpacing: 0.5,
-          color: posColor,
-          width: 28,
-        }}
-      >
-        {posLabel}
-      </span>
-      <div
-        className="flex items-baseline gap-2 min-w-0"
-        style={{ width: 200 }}
-      >
-        {isMine && (
-          <span style={{ color: "#7fd49a", fontSize: 11 }}>●</span>
-        )}
-        <span
-          className={`truncate ${isMine ? "text-text font-semibold" : "text-text-dim"}`}
-          style={{ fontSize: 13 }}
-        >
-          {name}
-        </span>
-      </div>
-      <span
-        className="num"
-        style={{
-          fontSize: 14,
-          width: 40,
-          color: toParColor(toPar),
-        }}
-      >
-        {toPar ?? "—"}
-      </span>
-      <span
-        className="num text-text-dim"
-        style={{ fontSize: 11, width: 60 }}
-      >
-        thru {thru ?? "—"}
-      </span>
-      <div className="flex-1 min-w-0">
-        {trail && <HoleTrail trail={trail} />}
-      </div>
-    </div>
-  );
-}
-
-function parseToParStr(s: string | null): number | null {
-  if (s === null) return null;
-  if (s === "E") return 0;
-  const n = Number(s.replace("+", ""));
-  return Number.isNaN(n) ? null : n;
-}
-
-function toParColor(s: string | null): string {
-  const n = parseToParStr(s);
-  if (n === null) return "#a8b3ac";
-  if (n < 0) return "#7fd49a";
-  if (n > 0) return "#e87c7c";
-  return "#f0ebe0";
-}
-
-// Hole-by-hole birdie/par/bogey trail for round-prop legs. Reads the
-// per-hole strokes ESPN already gave us in the snapshot and color-codes
-// against course par. Empty slots are unplayed holes.
-function HoleTrail({ trail }: { trail: HoleResult[] }) {
-  return (
-    <div className="mt-1.5 flex items-center gap-[3px]">
-      {trail.map((h, i) => {
-        const { color, glyph, title } = trailVisual(h);
-        return (
-          <span
-            key={i}
-            title={title}
-            className="num"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 14,
-              height: 14,
-              borderRadius: 3,
-              background: color.bg,
-              color: color.fg,
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: 0,
-              lineHeight: 1,
-              opacity: h.played ? 1 : 0.25,
-            }}
-          >
-            {glyph}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-type HoleResult = {
-  hole: number;
-  played: boolean;
-  diff: number | null; // strokes - par; null when unplayed
-};
-
 function trailForLeg(
   leg: SlipLeg,
   snapshot: LeaderboardSnapshot | null,
@@ -972,81 +712,6 @@ function trailForLeg(
   if (!snapshot || leg.kind !== "round_prop") return null;
   if (!["birdies", "bogeys", "eagles"].includes(leg.metric)) return null;
   return trailForPlayerRound(leg.player, leg.round, snapshot);
-}
-
-// Hole-by-hole trail for any player on a specific round. Reused by
-// round-prop legs and by the matchup detail rows so both sides of an
-// h2h can render their own trail in the same visual language.
-function trailForPlayerRound(
-  playerName: string,
-  round: number,
-  snapshot: LeaderboardSnapshot | null,
-): HoleResult[] | null {
-  if (!snapshot) return null;
-  const norm = (s: string) =>
-    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
-      .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
-      .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
-  const target = norm(playerName);
-  const p =
-    snapshot.players.find((x) => norm(x.name) === target) ??
-    snapshot.players.find((x) => norm(x.name).includes(target));
-  if (!p) return null;
-  const rl: RoundLine | undefined = p.rounds.find((r) => r.period === round);
-  if (!rl || rl.holes.length === 0) return null;
-  return rl.holes.map((h) => {
-    const par = h.par ?? holeParFor(snapshot.event?.course ?? null, h.hole);
-    const played = h.strokes !== null && h.strokes > 0;
-    return {
-      hole: h.hole,
-      played,
-      diff: played ? (h.strokes as number) - par : null,
-    };
-  });
-}
-
-function trailVisual(h: HoleResult): {
-  color: { bg: string; fg: string };
-  glyph: string;
-  title: string;
-} {
-  if (!h.played) {
-    return {
-      color: { bg: "rgba(255,255,255,0.04)", fg: "rgba(255,255,255,0.3)" },
-      glyph: "·",
-      title: `Hole ${h.hole} — not played`,
-    };
-  }
-  const d = h.diff ?? 0;
-  if (d <= -2)
-    return {
-      color: { bg: "rgba(127,212,154,0.35)", fg: "#0f1410" },
-      glyph: "E",
-      title: `Hole ${h.hole} — eagle`,
-    };
-  if (d === -1)
-    return {
-      color: { bg: "rgba(127,212,154,0.2)", fg: "#7fd49a" },
-      glyph: "B",
-      title: `Hole ${h.hole} — birdie`,
-    };
-  if (d === 0)
-    return {
-      color: { bg: "rgba(255,255,255,0.06)", fg: "rgba(255,255,255,0.7)" },
-      glyph: "·",
-      title: `Hole ${h.hole} — par`,
-    };
-  if (d === 1)
-    return {
-      color: { bg: "rgba(245,197,88,0.18)", fg: "#f5c558" },
-      glyph: "+",
-      title: `Hole ${h.hole} — bogey`,
-    };
-  return {
-    color: { bg: "rgba(232,124,124,0.2)", fg: "#e87c7c" },
-    glyph: "+",
-    title: `Hole ${h.hole} — double or worse`,
-  };
 }
 
 // "Reed clinches in 2 holes" / "Stevens needs 3 in 6" style urgency.
@@ -1179,7 +844,7 @@ function PayoutHero({
 
   return (
     <div
-      className="relative overflow-hidden rounded-[18px] border px-6 py-7"
+      className="relative overflow-hidden rounded-[18px] border px-4 md:px-6 py-5 md:py-7"
       style={{
         borderColor: killed ? "rgba(232,124,124,0.25)" : "rgba(245,197,88,0.3)",
         background: killed
@@ -1198,8 +863,10 @@ function PayoutHero({
       <div
         className="num mt-1 leading-none"
         style={{
-          fontSize: heroSize,
-          letterSpacing: -3,
+          // Clamp on mobile so 132px hero doesn't blow past the viewport.
+          // Floor 40px, scale at 14vw, cap at heroSize.
+          fontSize: `clamp(40px, 14vw, ${heroSize}px)`,
+          letterSpacing: -2,
           color,
           textShadow: glow,
           fontWeight: 600,
@@ -1209,7 +876,7 @@ function PayoutHero({
         {v.toLocaleString(undefined, { maximumFractionDigits: 0 })}
         <span
           style={{
-            fontSize: heroSize * 0.42,
+            fontSize: `clamp(18px, 6vw, ${heroSize * 0.42}px)`,
             marginLeft: 8,
             letterSpacing: 0,
             opacity: 0.55,
@@ -1319,7 +986,14 @@ function ShareButton({
             : "pending";
       const line = l.kind === "round_prop" ? `${l.side === "over" ? "O" : "U"}${l.line} ${l.metric}` : undefined;
       const market = describeLeg(l);
-      return { player: l.player, market, line, status };
+      // For matchup / 3-ball, surface a one-line live state on the
+      // share card. The decision.reason already reads naturally
+      // ("Up 2 on Cantlay", "Beat Cantlay by 2 on R4") so reuse it.
+      const detail =
+        (l.kind === "matchup" || l.kind === "three_ball") && d?.reason
+          ? d.reason
+          : undefined;
+      return { player: l.player, market, line, status, detail };
     });
 
     const payload: SharedParlay = {
