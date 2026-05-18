@@ -66,6 +66,7 @@ function activeMobileTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/showdown")) return "dfs";
   if (pathname.startsWith("/dashboard/ownership")) return "dfs";
   if (pathname.startsWith("/dashboard/conditions")) return "course";
+  if (pathname.startsWith("/dashboard/guide")) return "course";
   if (pathname.startsWith("/courses/")) return "course";
   return "home";
 }
@@ -83,6 +84,7 @@ function activeDesktopTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/leaderboard")) return "Leaderboard";
   if (pathname.startsWith("/dashboard/ask")) return "Ask";
   if (pathname.startsWith("/dashboard/dfs")) return "DFS";
+  if (pathname.startsWith("/dashboard/guide")) return "Course Guide";
   if (pathname.startsWith("/dashboard/conditions")) return "Course Lab";
   if (pathname.startsWith("/dashboard/schedule")) return "Schedule";
   if (pathname.startsWith("/dashboard/preview")) return "Previews";

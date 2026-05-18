@@ -216,6 +216,7 @@ const PRIMARY_TABS = [
 // More dropdown — everything still accessible, just not occupying the
 // top bar. Order = how often we expect users to want them, roughly.
 const MORE_TABS = [
+  { label: "Course Guide", href: "/dashboard/guide" },
   { label: "Course Lab", href: "/dashboard/conditions" },
   { label: "Schedule", href: "/dashboard/schedule" },
   { label: "Previews", href: "/dashboard/preview" },
