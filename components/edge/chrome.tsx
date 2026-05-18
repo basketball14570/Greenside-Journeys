@@ -288,57 +288,9 @@ export function DesktopAppBar({ active = "Today" }: { active?: string }) {
 }
 
 // ─── Desktop event strap ────────────────────────────────────
-export function DesktopEventStrap() {
-  return (
-    <div className="flex items-center gap-6 px-8 py-3.5 border-b border-line">
-      <div className="flex flex-col gap-0.5">
-        <span
-          className="num font-semibold uppercase text-text-muted"
-          style={{ fontSize: 9.5, letterSpacing: 1.3 }}
-        >
-          This Week · PGA Tour
-        </span>
-        <span
-          className="serif-italic"
-          style={{ fontSize: 22, color: "#f0ebe0", letterSpacing: -0.3, fontStyle: "normal" }}
-        >
-          Quail Hollow Championship
-        </span>
-      </div>
-      <div className="h-7 w-px bg-line" />
-      <Mini label="Round" value="2 of 4" />
-      <Mini
-        label="Status"
-        value={
-          <>
-            <StatusDot status="live" />
-            <span className="font-semibold" style={{ color: "#8ee68e" }}>
-              R2 Live
-            </span>
-          </>
-        }
-      />
-      <Mini label="Cut Line" value="−1 (proj.)" />
-      <Mini label="Course" value="Quail Hollow Club · Charlotte, NC" />
-      <span className="flex-1" />
-      <div
-        className="flex items-center gap-2 px-3 py-1.5 rounded-md"
-        style={{ background: "rgba(245,197,88,0.1)", border: "1px solid rgba(245,197,88,0.27)" }}
-      >
-        <span
-          className="rounded-full bg-amber"
-          style={{ width: 6, height: 6, boxShadow: "0 0 8px rgba(245,197,88,0.53)" }}
-        />
-        <span
-          className="num font-semibold"
-          style={{ fontSize: 11.5, color: "#f5c558", letterSpacing: 0.4 }}
-        >
-          3 NEW ALERTS
-        </span>
-      </div>
-    </div>
-  );
-}
+// Thin re-export so older pages (players/, courses/) keep working but get
+// the live-data treatment instead of the stale "Quail Hollow R2" hardcode.
+export { LiveEventStrap as DesktopEventStrap } from "./LiveEventStrap";
 
 function Mini({ label, value }: { label: string; value: React.ReactNode }) {
   return (

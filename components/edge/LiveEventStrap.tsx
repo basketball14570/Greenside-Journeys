@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { StatusDot } from "./primitives";
 import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
-import { getActiveEvent, findEventByName, type PgaEvent } from "@/lib/data/pga-schedule";
+import { getActiveEvent, findEventByName, SCHEDULE, statusOf, type PgaEvent } from "@/lib/data/pga-schedule";
 
 // Live event strap — replaces the static "Quail Hollow R2 Live" hardcode.
 // Order of preference for "what tournament are we showing":
@@ -34,7 +34,19 @@ export function LiveEventStrap() {
         const snap = await fetchLeaderboard();
         if (cancelled) return;
         const next = fromSnapshot(snap);
-        if (next) setStrap(next);
+        if (!next) return;
+        // ESPN often returns the just-finished event for several days after
+        // Sunday. If that event is Final and the schedule has the next one
+        // starting within a week, prefer the upcoming one — that's what the
+        // bettor cares about on a Mon/Tue/Wed.
+        if (next.statusLabel === "Final") {
+          const upcoming = nextUpcomingWithinDays(7);
+          if (upcoming) {
+            setStrap(fromSchedule(upcoming));
+            return;
+          }
+        }
+        setStrap(next);
       } catch {
         // Network failed — leave the schedule-derived strap in place.
       }
@@ -138,6 +150,16 @@ function fromSnapshot(snap: LeaderboardSnapshot): Strap | null {
     statusColor,
     cutLine: null,
   };
+}
+
+function nextUpcomingWithinDays(days: number): PgaEvent | null {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() + days * 86_400_000);
+  for (const e of SCHEDULE) {
+    if (statusOf(e, now) !== "upcoming") continue;
+    if (new Date(e.startDate) <= cutoff) return e;
+  }
+  return null;
 }
 
 function fromSchedule(event: PgaEvent | null): Strap {
