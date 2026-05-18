@@ -118,11 +118,12 @@ export function legToOpenBet(leg: SlipLeg): OpenBet {
       return {
         id: leg.id,
         player: leg.player,
-        market: `R${leg.round} 3-Ball Matchup`,
+        market: `R${leg.round} 3-Ball`,
         line: formatAmerican(leg.americanOdds),
         stake: stakeStr,
         payout: decimalOdds,
         round: leg.round,
+        others: leg.others.slice(),
       };
     case "round_prop":
       return {

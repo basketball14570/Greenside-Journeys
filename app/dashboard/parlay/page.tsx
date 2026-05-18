@@ -140,6 +140,34 @@ const LEGS: SlipLeg[] = [
     line: 5.5,
     round: 4,
   },
+  // Round-narrowed matchup — head-to-head against a single opponent on
+  // R4. Lower round-strokes wins. The matchup detail row beneath shows
+  // both players' to-par + hole trail + the "X UP" / "AS" indicator.
+  {
+    id: "hovland-vs-cantlay-r4",
+    createdAt: new Date().toISOString(),
+    kind: "matchup",
+    player: "Viktor Hovland",
+    opponent: "Patrick Cantlay",
+    stake: PARLAY_STAKE,
+    americanOdds: -115,
+    book: "DK",
+    round: 4,
+  },
+  // 3-ball — pick the lowest round score from a group of three.
+  // Detail row shows each player's to-par + trail + leaderboard
+  // position (1st / 2nd / 3rd) within the group.
+  {
+    id: "scheffler-3ball-r4",
+    createdAt: new Date().toISOString(),
+    kind: "three_ball",
+    player: "Scottie Scheffler",
+    others: ["Matt Fitzpatrick", "Justin Rose"],
+    stake: PARLAY_STAKE,
+    americanOdds: 109,
+    book: "DK",
+    round: 4,
+  },
 ];
 
 type ParlayStatus = "won" | "lost" | "live" | "unknown";
@@ -430,6 +458,7 @@ function LegRow({
         : null;
 
   return (
+    <>
     <div
       className="grid gap-2 px-4 py-3 items-center"
       style={{
@@ -517,8 +546,335 @@ function LegRow({
       >
         {String(observed)}
       </span>
+      </div>
+      {leg.kind === "matchup" && (
+        <MatchupDetail leg={leg} snapshot={snapshot} />
+      )}
+      {leg.kind === "three_ball" && (
+        <ThreeBallDetail leg={leg} snapshot={snapshot} />
+      )}
+    </>
+  );
+}
+
+// Match-state detail for a head-to-head matchup leg. Shows both
+// players' current to-par + hole trail + the big "X UP" / "AS" / "X DN"
+// indicator. Match-play language even though the underlying scoring is
+// stroke-play within the round — that's what golfers actually say.
+function MatchupDetail({
+  leg,
+  snapshot,
+}: {
+  leg: Extract<SlipLeg, { kind: "matchup" }>;
+  snapshot: LeaderboardSnapshot | null;
+}) {
+  const round = leg.round;
+  if (!snapshot || !round) return null;
+
+  const norm = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
+      .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
+  const find = (name: string) => {
+    const t = norm(name);
+    return (
+      snapshot.players.find((x) => norm(x.name) === t) ??
+      snapshot.players.find((x) => norm(x.name).includes(t)) ??
+      null
+    );
+  };
+  const mine = find(leg.player);
+  const opp = find(leg.opponent);
+  if (!mine || !opp) return null;
+
+  const mineRound = mine.rounds.find((r) => r.period === round);
+  const oppRound = opp.rounds.find((r) => r.period === round);
+  const mineToPar = parseToParStr(mineRound?.toPar ?? null);
+  const oppToPar = parseToParStr(oppRound?.toPar ?? null);
+
+  // Match state — positive = leg-player is ahead. Stroke-play differential
+  // shown as "X UP" / "X DN" because that's what bettors say even on
+  // stroke-play h2h tickets.
+  const diff = mineToPar !== null && oppToPar !== null ? mineToPar - oppToPar : null;
+  const matchLabel = diff === null
+    ? "—"
+    : diff === 0
+      ? "AS"
+      : diff < 0
+        ? `${Math.abs(diff)} UP`
+        : `${diff} DN`;
+  const matchColor = diff === null
+    ? "#a8b3ac"
+    : diff === 0
+      ? "#a8b3ac"
+      : diff < 0
+        ? "#7fd49a"
+        : "#e87c7c";
+
+  return (
+    <div
+      className="px-4 pb-3 pt-1"
+      style={{
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(0,0,0,0.18)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2.5 gap-3">
+        <div
+          className="num uppercase"
+          style={{ fontSize: 10, letterSpacing: 1, color: "#a8b3ac" }}
+        >
+          ● Match state · R{round}
+        </div>
+        <span
+          className="num font-semibold"
+          style={{
+            fontSize: 16,
+            letterSpacing: 0.5,
+            color: matchColor,
+            background: `${matchColor}1a`,
+            padding: "3px 12px",
+            borderRadius: 4,
+            border: `1px solid ${matchColor}33`,
+          }}
+        >
+          {matchLabel}
+        </span>
+      </div>
+      <MatchupPlayerLine
+        name={mine.name}
+        toPar={mineRound?.toPar ?? null}
+        thru={mineRound?.complete ? "F" : (mineRound?.thru ?? "—")}
+        leading={diff !== null && diff < 0}
+        trail={trailForPlayerRound(leg.player, round, snapshot)}
+      />
+      <MatchupPlayerLine
+        name={opp.name}
+        toPar={oppRound?.toPar ?? null}
+        thru={oppRound?.complete ? "F" : (oppRound?.thru ?? "—")}
+        leading={diff !== null && diff > 0}
+        trail={trailForPlayerRound(leg.opponent, round, snapshot)}
+      />
     </div>
   );
+}
+
+function MatchupPlayerLine({
+  name,
+  toPar,
+  thru,
+  leading,
+  trail,
+}: {
+  name: string;
+  toPar: string | null;
+  thru: number | string | null;
+  leading: boolean;
+  trail: HoleResult[] | null;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <div
+        className="flex items-baseline gap-2 min-w-0"
+        style={{ width: 220 }}
+      >
+        {leading && (
+          <span style={{ color: "#7fd49a", fontSize: 11 }}>●</span>
+        )}
+        <span
+          className="text-text font-medium truncate"
+          style={{ fontSize: 13 }}
+        >
+          {name}
+        </span>
+      </div>
+      <span
+        className="num"
+        style={{
+          fontSize: 14,
+          width: 40,
+          color: toParColor(toPar),
+        }}
+      >
+        {toPar ?? "—"}
+      </span>
+      <span
+        className="num text-text-dim"
+        style={{ fontSize: 11, width: 60 }}
+      >
+        thru {thru ?? "—"}
+      </span>
+      <div className="flex-1 min-w-0">
+        {trail && <HoleTrail trail={trail} />}
+      </div>
+    </div>
+  );
+}
+
+// 3-ball detail: three players, one of whom is "yours". Ranks them by
+// current to-par on the leg's round, marks position (1st / 2nd / 3rd),
+// shows each player's hole trail. The "your pick" gets a green dot in
+// front of their name regardless of position.
+function ThreeBallDetail({
+  leg,
+  snapshot,
+}: {
+  leg: Extract<SlipLeg, { kind: "three_ball" }>;
+  snapshot: LeaderboardSnapshot | null;
+}) {
+  if (!snapshot) return null;
+  const round = leg.round;
+  const norm = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
+      .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
+  const find = (name: string) => {
+    const t = norm(name);
+    return (
+      snapshot.players.find((x) => norm(x.name) === t) ??
+      snapshot.players.find((x) => norm(x.name).includes(t)) ??
+      null
+    );
+  };
+  const mine = find(leg.player);
+  const a = find(leg.others[0]);
+  const b = find(leg.others[1]);
+  if (!mine || !a || !b) return null;
+
+  type Entry = {
+    name: string;
+    isMine: boolean;
+    round: RoundLine | undefined;
+    toParNum: number | null;
+  };
+  const entries: Entry[] = [mine, a, b].map((p, i) => {
+    const rl = p.rounds.find((r) => r.period === round);
+    return {
+      name: p.name,
+      isMine: i === 0,
+      round: rl,
+      toParNum: parseToParStr(rl?.toPar ?? null),
+    };
+  });
+
+  // Rank: lower to-par wins. Players who haven't started sort last.
+  const ranked = [...entries].sort((x, y) => {
+    const xn = x.toParNum ?? 999;
+    const yn = y.toParNum ?? 999;
+    return xn - yn;
+  });
+
+  return (
+    <div
+      className="px-4 pb-3 pt-1"
+      style={{
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(0,0,0,0.18)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2.5 gap-3">
+        <div
+          className="num uppercase"
+          style={{ fontSize: 10, letterSpacing: 1, color: "#a8b3ac" }}
+        >
+          ● 3-Ball · R{round}
+        </div>
+      </div>
+      {ranked.map((e, i) => (
+        <ThreeBallPlayerLine
+          key={e.name}
+          position={i + 1}
+          name={e.name}
+          isMine={e.isMine}
+          toPar={e.round?.toPar ?? null}
+          thru={e.round?.complete ? "F" : (e.round?.thru ?? "—")}
+          trail={trailForPlayerRound(e.name, round, snapshot)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ThreeBallPlayerLine({
+  position,
+  name,
+  isMine,
+  toPar,
+  thru,
+  trail,
+}: {
+  position: number;
+  name: string;
+  isMine: boolean;
+  toPar: string | null;
+  thru: number | string | null;
+  trail: HoleResult[] | null;
+}) {
+  const posLabel = position === 1 ? "1st" : position === 2 ? "2nd" : "3rd";
+  const posColor = position === 1 ? "#7fd49a" : "#a8b3ac";
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <span
+        className="num font-semibold"
+        style={{
+          fontSize: 11,
+          letterSpacing: 0.5,
+          color: posColor,
+          width: 28,
+        }}
+      >
+        {posLabel}
+      </span>
+      <div
+        className="flex items-baseline gap-2 min-w-0"
+        style={{ width: 200 }}
+      >
+        {isMine && (
+          <span style={{ color: "#7fd49a", fontSize: 11 }}>●</span>
+        )}
+        <span
+          className={`truncate ${isMine ? "text-text font-semibold" : "text-text-dim"}`}
+          style={{ fontSize: 13 }}
+        >
+          {name}
+        </span>
+      </div>
+      <span
+        className="num"
+        style={{
+          fontSize: 14,
+          width: 40,
+          color: toParColor(toPar),
+        }}
+      >
+        {toPar ?? "—"}
+      </span>
+      <span
+        className="num text-text-dim"
+        style={{ fontSize: 11, width: 60 }}
+      >
+        thru {thru ?? "—"}
+      </span>
+      <div className="flex-1 min-w-0">
+        {trail && <HoleTrail trail={trail} />}
+      </div>
+    </div>
+  );
+}
+
+function parseToParStr(s: string | null): number | null {
+  if (s === null) return null;
+  if (s === "E") return 0;
+  const n = Number(s.replace("+", ""));
+  return Number.isNaN(n) ? null : n;
+}
+
+function toParColor(s: string | null): string {
+  const n = parseToParStr(s);
+  if (n === null) return "#a8b3ac";
+  if (n < 0) return "#7fd49a";
+  if (n > 0) return "#e87c7c";
+  return "#f0ebe0";
 }
 
 // Hole-by-hole birdie/par/bogey trail for round-prop legs. Reads the
@@ -570,18 +926,30 @@ function trailForLeg(
 ): HoleResult[] | null {
   if (!snapshot || leg.kind !== "round_prop") return null;
   if (!["birdies", "bogeys", "eagles"].includes(leg.metric)) return null;
+  return trailForPlayerRound(leg.player, leg.round, snapshot);
+}
+
+// Hole-by-hole trail for any player on a specific round. Reused by
+// round-prop legs and by the matchup detail rows so both sides of an
+// h2h can render their own trail in the same visual language.
+function trailForPlayerRound(
+  playerName: string,
+  round: number,
+  snapshot: LeaderboardSnapshot | null,
+): HoleResult[] | null {
+  if (!snapshot) return null;
   const norm = (s: string) =>
     s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
       .replace(/ø/g, "o").replace(/å/g, "a").replace(/æ/g, "ae")
       .replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
-  const target = norm(leg.player);
+  const target = norm(playerName);
   const p =
     snapshot.players.find((x) => norm(x.name) === target) ??
     snapshot.players.find((x) => norm(x.name).includes(target));
   if (!p) return null;
-  const round: RoundLine | undefined = p.rounds.find((r) => r.period === leg.round);
-  if (!round || round.holes.length === 0) return null;
-  return round.holes.map((h) => {
+  const rl: RoundLine | undefined = p.rounds.find((r) => r.period === round);
+  if (!rl || rl.holes.length === 0) return null;
+  return rl.holes.map((h) => {
     const par = h.par ?? holeParFor(snapshot.event?.course ?? null, h.hole);
     const played = h.strokes !== null && h.strokes > 0;
     return {

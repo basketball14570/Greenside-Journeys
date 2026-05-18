@@ -24,6 +24,7 @@ export type OpenBet = {
   round?: number;
   side?: "over" | "under" | "to-win" | "top-5" | "top-10" | "top-20" | "matchup";
   opponent?: string;
+  others?: string[];  // 3-ball: the other two players in the group
 };
 
 export type Decision = {
@@ -147,6 +148,56 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   if (!mine || !opp) {
     return { bet, status: "unknown", reason: "Could not find one or both matchup players" };
   }
+
+  // Round-narrowed matchup: compare strokes on the specified round only.
+  // Most h2h golf bets are round-specific ("R3 matchup: Hovland vs Cantlay")
+  // rather than tournament-long. Fall back to total comparison when no
+  // round is set.
+  if (bet.round) {
+    const mineRound = mine.rounds.find((r) => r.period === bet.round);
+    const oppRound = opp.rounds.find((r) => r.period === bet.round);
+    const mineStrokes = mineRound?.strokes ?? null;
+    const oppStrokes = oppRound?.strokes ?? null;
+    if (mineStrokes === null && oppStrokes === null) {
+      return { bet, status: "live", reason: `R${bet.round} not started` };
+    }
+    // While the round is in progress, par-relative through-current-hole
+    // is what we want. ESPN gives us toPar on each round line for that.
+    const mineToPar = mineRound?.toPar ?? null;
+    const oppToPar = oppRound?.toPar ?? null;
+    const mineNum = parseToParNum(mineToPar);
+    const oppNum = parseToParNum(oppToPar);
+    if (mineNum === null || oppNum === null) {
+      return { bet, status: "live", reason: `R${bet.round} not started` };
+    }
+    const diff = mineNum - oppNum;
+    const ahead = diff < 0;
+    const tied = diff === 0;
+    const roundComplete = !!mineRound?.complete && !!oppRound?.complete;
+    if (roundComplete) {
+      if (tied) return { bet, status: "push", reason: "Tied on R" + bet.round + " — push", pnl: 0 };
+      return {
+        bet,
+        status: ahead ? "won" : "lost",
+        reason: ahead
+          ? `Beat ${bet.opponent} by ${Math.abs(diff)} on R${bet.round}`
+          : `Lost to ${bet.opponent} by ${Math.abs(diff)} on R${bet.round}`,
+        observedValue: `${mineToPar} vs ${oppToPar}`,
+        pnl: ahead ? payoutOnWin(bet) : -bet.stake,
+      };
+    }
+    return {
+      bet,
+      status: "live",
+      reason: tied
+        ? `Tied on R${bet.round}`
+        : ahead
+          ? `Up ${Math.abs(diff)} on ${bet.opponent}`
+          : `Down ${Math.abs(diff)} to ${bet.opponent}`,
+      observedValue: `${mineToPar} vs ${oppToPar}`,
+    };
+  }
+
   if (mine.totalScoreNum === null || opp.totalScoreNum === null) {
     return { bet, status: "live", reason: "Matchup not yet started" };
   }
@@ -175,6 +226,121 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Up ${Math.abs(diff)} on ${bet.opponent}`
         : `Down ${Math.abs(diff)} to ${bet.opponent}`,
     observedValue: `${mine.totalToPar} vs ${opp.totalToPar}`,
+  };
+}
+
+function parseToParNum(s: string | null): number | null {
+  if (s === null) return null;
+  if (s === "E") return 0;
+  const n = Number(s.replace("+", ""));
+  return Number.isNaN(n) ? null : n;
+}
+
+// 3-ball matchup grader. Three players in a group, pick which one
+// posts the lowest round score. Round-specific (3-balls are always
+// per-round). Position 1st = won, 2nd or 3rd = lost. Ties at the top
+// push (most books).
+function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
+  if (!bet.others || bet.others.length < 2 || !bet.round) {
+    return { bet, status: "unknown", reason: "3-ball bet missing group members or round" };
+  }
+  const round = bet.round;
+  const mine = findPlayer(snapshot, bet.player);
+  const a = findPlayer(snapshot, bet.others[0]);
+  const b = findPlayer(snapshot, bet.others[1]);
+  if (!mine || !a || !b) {
+    return { bet, status: "unknown", reason: "Could not find all three players in field" };
+  }
+  const mineRound = mine.rounds.find((r) => r.period === round);
+  const aRound = a.rounds.find((r) => r.period === round);
+  const bRound = b.rounds.find((r) => r.period === round);
+  const mineNum = parseToParNum(mineRound?.toPar ?? null);
+  const aNum = parseToParNum(aRound?.toPar ?? null);
+  const bNum = parseToParNum(bRound?.toPar ?? null);
+
+  // Pre-tee for the whole group.
+  if (mineNum === null && aNum === null && bNum === null) {
+    return { bet, status: "live", reason: `R${round} not started` };
+  }
+
+  const allComplete =
+    !!mineRound?.complete && !!aRound?.complete && !!bRound?.complete;
+
+  // Rank using whatever totals we have so far. Players who haven't
+  // started yet sort below everyone with a score in match-state but
+  // get the optimistic "incomplete" status until the round is done.
+  const ranking = [
+    { name: mine.name, score: mineNum, isMine: true },
+    { name: a.name, score: aNum, isMine: false },
+    { name: b.name, score: bNum, isMine: false },
+  ];
+
+  if (allComplete) {
+    const min = Math.min(mineNum!, aNum!, bNum!);
+    const winners = ranking.filter((r) => r.score === min);
+    const minePos = ranking
+      .slice()
+      .sort((x, y) => (x.score ?? 999) - (y.score ?? 999))
+      .findIndex((r) => r.isMine) + 1;
+    if (winners.length > 1 && winners.some((w) => w.isMine)) {
+      return {
+        bet,
+        status: "push",
+        reason: `Tied for 1st on R${round} — push`,
+        pnl: 0,
+      };
+    }
+    const won = winners.length === 1 && winners[0].isMine;
+    return {
+      bet,
+      status: won ? "won" : "lost",
+      reason: won
+        ? `Won the 3-ball outright on R${round}`
+        : `Finished ${minePos} of 3 on R${round}`,
+      observedValue: `${mineRound?.toPar ?? "—"} vs ${aRound?.toPar ?? "—"} / ${bRound?.toPar ?? "—"}`,
+      pnl: won ? payoutOnWin(bet) : -bet.stake,
+    };
+  }
+
+  // Live state: rank by current to-par among players who have started.
+  // "Leading by N" / "trails by N" / "T1 with X".
+  const scored = ranking.filter((r) => r.score !== null) as {
+    name: string;
+    score: number;
+    isMine: boolean;
+  }[];
+  if (scored.length === 0) {
+    return { bet, status: "live", reason: `R${round} not started` };
+  }
+  scored.sort((x, y) => x.score - y.score);
+  const top = scored[0];
+  const next = scored[1];
+  const mineEntry = scored.find((r) => r.isMine);
+
+  let reason: string;
+  if (!mineEntry) {
+    reason = `Pre-tee — group leader at ${top.score === 0 ? "E" : top.score < 0 ? top.score : `+${top.score}`}`;
+  } else if (mineEntry === top) {
+    if (scored.filter((r) => r.score === top.score).length > 1) {
+      reason = `T1 of 3 on R${round}`;
+    } else if (next) {
+      const lead = next.score - top.score;
+      reason = `Leading by ${lead} on R${round}`;
+    } else {
+      reason = `Leading R${round}`;
+    }
+  } else {
+    const back = mineEntry.score - top.score;
+    const pos =
+      scored.findIndex((r) => r.isMine) === 1 ? "2nd" : "3rd";
+    reason = `${pos} of 3 · ${back} back of ${top.name.split(" ").slice(-1)[0]}`;
+  }
+
+  return {
+    bet,
+    status: "live",
+    reason,
+    observedValue: `${mineRound?.toPar ?? "—"} vs ${aRound?.toPar ?? "—"} / ${bRound?.toPar ?? "—"}`,
   };
 }
 
@@ -286,6 +452,7 @@ export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision 
   if (m.includes("make cut") || m.includes("miss cut")) return gradeMakeCut(bet, snapshot);
   if (m.includes("top")) return gradeTopN(bet, snapshot);
   if (m.includes("win") && !m.includes("over") && !m.includes("under")) return gradeToWin(bet, snapshot);
+  if (m.includes("3-ball") || m.includes("3 ball")) return gradeThreeBall(bet, snapshot);
   if (m.includes("matchup") || m.includes("vs")) return gradeMatchup(bet, snapshot);
   if (m.includes("score") || m.includes("strokes") || m.includes("round")) return gradeRoundProp(bet, snapshot);
   // Birdies / bogeys / eagles: derive from hole-by-hole scores in the
