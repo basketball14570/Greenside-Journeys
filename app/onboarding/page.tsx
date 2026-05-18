@@ -32,13 +32,13 @@ const ALERT_TYPES = [
 ];
 
 const TOURNAMENTS = [
-  { id: "quail", name: "Quail Hollow Championship", date: "May 15–18", tour: "PGA", default: true },
-  { id: "pebble", name: "AT&T Pebble Beach Pro-Am", date: "Feb 6–9", tour: "PGA", default: true },
-  { id: "torrey", name: "Genesis Invitational", date: "Feb 13–16", tour: "PGA", default: false },
+  { id: "byron", name: "CJ Cup Byron Nelson", date: "May 21–24", tour: "PGA", default: true },
+  { id: "pebble", name: "AT&T Pebble Beach Pro-Am", date: "Jan 29–Feb 1", tour: "PGA", default: true },
+  { id: "torrey", name: "Genesis Invitational", date: "Feb 12–15", tour: "PGA", default: false },
   { id: "masters", name: "The Masters", date: "Apr 9–12", tour: "Majors", default: true },
-  { id: "pga", name: "PGA Championship", date: "May 15–18", tour: "Majors", default: true },
-  { id: "us-open", name: "U.S. Open", date: "Jun 12–15", tour: "Majors", default: true },
-  { id: "open", name: "The Open Championship", date: "Jul 17–20", tour: "Majors", default: true },
+  { id: "pga", name: "PGA Championship", date: "May 14–17", tour: "Majors", default: true },
+  { id: "us-open", name: "U.S. Open", date: "Jun 18–21", tour: "Majors", default: true },
+  { id: "open", name: "The Open Championship", date: "Jul 16–19", tour: "Majors", default: true },
 ];
 
 export default function OnboardingPage() {
