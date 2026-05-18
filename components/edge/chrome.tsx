@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BrandMark, StatusDot } from "./primitives";
 import UserChip from "./UserChip";
 import { SearchChip } from "./SearchChip";
+import { MoreDropdown } from "./MoreDropdown";
 
 // ─── Mobile top bar (settings + bell) ───────────────────────
 export function MobileTopBar() {
@@ -190,22 +191,32 @@ export function MobileBottomNav({ active }: { active: string }) {
 }
 
 // ─── Desktop app bar ────────────────────────────────────────
-const DESKTOP_TABS = [
+//
+// Primary nav — the six tabs that earn screen real estate every session.
+// Showdown + Slip + Parlay used to be top-level; they were consolidated
+// because each was a different view of "your bet". Live, Tickets, and
+// Today now own that surface and host the parlay/showdown/slip flows
+// as sections or filters inside them.
+const PRIMARY_TABS = [
   { label: "Today", href: "/dashboard" },
   { label: "Tickets", href: "/dashboard/bets" },
-  { label: "Ask", href: "/dashboard/ask" },
-  { label: "DFS Optimizer", href: "/dashboard/dfs" },
-  { label: "Course Lab", href: "/dashboard/conditions" },
+  { label: "Live", href: "/dashboard/parlay" },
   { label: "Leaderboard", href: "/dashboard/leaderboard" },
-  { label: "Slip", href: "/dashboard/slip" },
-  { label: "Showdown", href: "/dashboard/showdown" },
+  { label: "Ask", href: "/dashboard/ask" },
+  { label: "DFS", href: "/dashboard/dfs" },
+];
+
+// More dropdown — everything still accessible, just not occupying the
+// top bar. Order = how often we expect users to want them, roughly.
+const MORE_TABS = [
+  { label: "Course Lab", href: "/dashboard/conditions" },
+  { label: "Schedule", href: "/dashboard/schedule" },
   { label: "Previews", href: "/dashboard/preview" },
+  { label: "Ownership", href: "/dashboard/ownership" },
+  { label: "Showdown", href: "/dashboard/showdown" },
   { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Model", href: "/dashboard/model" },
   { label: "Newsletter", href: "/dashboard/newsletter" },
-  { label: "Parlay", href: "/dashboard/parlay" },
-  { label: "Schedule", href: "/dashboard/schedule" },
-  { label: "Ownership", href: "/dashboard/ownership" },
   { label: "Bankroll", href: "/dashboard/account" },
   { label: "Admin", href: "/dashboard/admin" },
 ];
@@ -222,8 +233,8 @@ export function DesktopAppBar({ active = "Today" }: { active?: string }) {
           Greenside
         </span>
       </Link>
-      <div className="flex gap-1">
-        {DESKTOP_TABS.map((t) => {
+      <div className="flex gap-1 items-center">
+        {PRIMARY_TABS.map((t) => {
           const isActive = t.label === active;
           return (
             <Link
@@ -240,6 +251,7 @@ export function DesktopAppBar({ active = "Today" }: { active?: string }) {
             </Link>
           );
         })}
+        <MoreDropdown active={active} tabs={MORE_TABS} />
       </div>
       <span className="flex-1" />
       <SearchChip />

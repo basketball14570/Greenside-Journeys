@@ -105,14 +105,50 @@ function gradeTopN(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
       pnl: meets ? payoutOnWin(bet) : -bet.stake,
     };
   }
+
+  // Cutoff math — surface "X strokes clear of top N" / "Y strokes back of
+  // top N" so the bettor sees their actual margin, not just position.
+  // This is the Underdog-style display that's more actionable than "T8".
+  const cutoff = cutoffForTopN(snapshot, target);
+  const myScore = p.totalScoreNum;
+  let detail = "";
+  if (cutoff !== null && myScore !== null) {
+    const diff = myScore - cutoff;
+    if (meets) {
+      detail = diff === 0
+        ? "on the bubble"
+        : `${Math.abs(diff)} stroke${Math.abs(diff) === 1 ? "" : "s"} clear of top ${target}`;
+    } else {
+      detail = diff === 0
+        ? "tied with top-" + target + " cutoff"
+        : `${Math.abs(diff)} back of top ${target}`;
+    }
+  }
+
   return {
     bet,
     status: "live",
-    reason: meets
-      ? `Currently ${p.posDisplay}, inside top ${target}`
-      : `Currently ${p.posDisplay}, outside top ${target}`,
+    reason: detail
+      ? `${p.posDisplay} — ${detail}`
+      : meets
+        ? `Currently ${p.posDisplay}, inside top ${target}`
+        : `Currently ${p.posDisplay}, outside top ${target}`,
     observedValue: p.posDisplay,
   };
+}
+
+// The score of the Nth-ranked player on the current leaderboard.
+// Returns null when fewer than N players have a posted total. Ties at
+// the boundary use the score of whoever is currently ranked at position
+// N (which is the score the (N+1)th player would need to *beat* to
+// claim a top-N spot).
+function cutoffForTopN(snapshot: LeaderboardSnapshot, n: number): number | null {
+  const scored = snapshot.players
+    .filter((p) => !p.isCut && p.totalScoreNum !== null)
+    .map((p) => p.totalScoreNum as number)
+    .sort((a, b) => a - b);
+  if (scored.length < n) return null;
+  return scored[n - 1];
 }
 
 function gradeToWin(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {

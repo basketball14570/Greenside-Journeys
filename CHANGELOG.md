@@ -2,6 +2,45 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Matchup + 3-ball live tracking, upload-to-tracker, IA consolidation
+
+Big batch driven by sportsbook ticket research and user feedback on
+what's actually missing.
+
+- **3-ball grader** (`lib/grading.ts`): new `gradeThreeBall` ranks the
+  three players by current to-par on the leg's round. 1st = won,
+  T1 = push, anywhere else = lost. Live reason text reads natural:
+  "Leading by 2 on R4", "T1 of 3 on R4", "3rd of 3 · 4 back of
+  Scheffler". Dispatched before the generic `matchup` branch so 3-ball
+  market strings don't get misrouted.
+- **Round-aware matchup grader**: `gradeMatchup` now uses `bet.round`
+  when present to compare R{n} strokes only, instead of always falling
+  back to tournament total. Fixes round-specific h2h bets that were
+  being graded against 4-round totals.
+- **MatchupDetail + ThreeBallDetail UI**: rich rows under each matchup
+  / 3-ball leg on `/dashboard/parlay`. Each player gets their name +
+  to-par + thru + hole trail. Matchups show a big "X UP" / "AS" /
+  "X DN" state chip. 3-balls rank 1st/2nd/3rd with green dot on the
+  user's pick.
+- **Top-N cutoff display**: gradeTopN now computes the score of the
+  Nth-ranked player and surfaces "1 stroke clear of top 10" or
+  "3 back of top 10" instead of just the position. Underdog-style
+  margin-aware feedback.
+- **Upload → live tracker** (`/dashboard/upload`): vision-parsed bets
+  now flow through a classifier (`lib/parsers/to-slip-leg.ts`) that
+  pattern-matches the market string into typed `SlipLeg` shapes
+  (3-ball, 2-ball, top_n, round_prop, winner, make_cut). The page
+  fetches a live ESPN snapshot, grades each parsed bet, and shows
+  the LIVE / WON / LOST status pill right under the bet card before
+  the user clicks Save. Unclassifiable bets render as "manual review"
+  cards instead of dropping silently.
+- **IA consolidation**: desktop nav cut from 16 top-level tabs to 6
+  primary + a More dropdown. Today / Tickets / Live / Leaderboard /
+  Ask / DFS stay top-level; Course Lab, Schedule, Previews, Ownership,
+  Showdown, Backtest, Model, Newsletter, Bankroll, Admin live under
+  More. "Parlay" relabeled to "Live" since that's what the page
+  actually is.
+
 ## 2026-05-17 — FAQ, loading skeletons, off-week empty state
 
 - **FAQ on marketing home** (`app/page.tsx`): six condensed Q&As

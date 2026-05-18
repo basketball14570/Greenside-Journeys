@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookChip, type Book } from "@/components/edge/primitives";
+import { parsedBetToSlipLeg } from "@/lib/parsers/to-slip-leg";
+import type { SlipLeg } from "@/lib/bet-slip";
+import { legToOpenBet, describeLeg } from "@/lib/bet-slip";
+import { gradeBet, type Decision } from "@/lib/grading";
+import {
+  fetchLeaderboard,
+  type LeaderboardSnapshot,
+} from "@/lib/espn-leaderboard";
 
 type ParsedBet = {
   book: string;
@@ -404,54 +412,194 @@ function ScreenshotCard() {
       )}
 
       {result && result.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={saveToBets}
-              disabled={saving}
-              className="rounded-[8px] px-3 py-1.5 font-semibold disabled:opacity-40"
-              style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 12 }}
-            >
-              {saving ? "Saving…" : `Save ${result.length} to my bets`}
-            </button>
-            {saved && (
-              <span className="text-text-dim" style={{ fontSize: 11 }}>
-                {saved}
-              </span>
-            )}
-          </div>
-          {result.map((b, i) => {
-            const bookChip = BOOK_MAP[b.book.toLowerCase()] ?? null;
-            return (
-              <div
-                key={i}
-                className="rounded-[10px] border border-line p-3"
-                style={{ background: "rgba(0,0,0,0.18)" }}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  {bookChip && <BookChip book={bookChip} />}
-                  <span
-                    className="text-text font-semibold flex-1 truncate"
-                    style={{ fontSize: 13.5 }}
-                  >
-                    {b.player}
-                  </span>
-                  <span
-                    className="num text-text"
-                    style={{ fontSize: 12 }}
-                  >
-                    {b.americanOdds > 0 ? "+" : ""}
-                    {b.americanOdds}
-                  </span>
-                </div>
-                <div className="text-text-dim" style={{ fontSize: 12 }}>
-                  {b.market}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <ResultsSection
+          bets={result}
+          saving={saving}
+          saved={saved}
+          onSave={saveToBets}
+        />
       )}
     </div>
   );
+}
+
+// Renders parsed bets with a live tracker preview attached to each.
+// Converts the generic ParsedBet into the typed SlipLeg so it can be
+// graded against the live ESPN snapshot — that gives the user instant
+// feedback like "Currently T8, 1 stroke clear of top 10" right under
+// the bet they just uploaded, before they even click "Save".
+function ResultsSection({
+  bets,
+  saving,
+  saved,
+  onSave,
+}: {
+  bets: ParsedBet[];
+  saving: boolean;
+  saved: string | null;
+  onSave: () => void;
+}) {
+  const [snapshot, setSnapshot] = useState<LeaderboardSnapshot | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchLeaderboard()
+      .then((s) => {
+        if (!cancelled) setSnapshot(s);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Convert + grade each parsed bet. legs[i] is null when our
+  // classifier couldn't determine the bet kind — those still render
+  // as a card but with "manual review needed" instead of live status.
+  const legs = useMemo(
+    () => bets.map((b, i) => parsedBetToSlipLeg(b, i)),
+    [bets],
+  );
+  const decisions = useMemo(() => {
+    if (!snapshot) return [];
+    return legs.map((l) => (l ? gradeBet(legToOpenBet(l), snapshot) : null));
+  }, [legs, snapshot]);
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="rounded-[8px] px-3 py-1.5 font-semibold disabled:opacity-40"
+          style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 12 }}
+        >
+          {saving ? "Saving…" : `Save ${bets.length} to my tickets`}
+        </button>
+        {saved && (
+          <span className="text-text-dim" style={{ fontSize: 11 }}>
+            {saved}
+          </span>
+        )}
+        <span className="num text-text-muted" style={{ fontSize: 10.5, letterSpacing: 0.5 }}>
+          {snapshot ? `● Live · ${snapshot.event?.shortName ?? ""}` : "Loading live data…"}
+        </span>
+      </div>
+      {bets.map((b, i) => (
+        <ParsedBetCard
+          key={i}
+          bet={b}
+          leg={legs[i]}
+          decision={decisions[i] ?? undefined}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ParsedBetCard({
+  bet,
+  leg,
+  decision,
+}: {
+  bet: ParsedBet;
+  leg: SlipLeg | null;
+  decision: Decision | null | undefined;
+}) {
+  const bookChip = BOOK_MAP[bet.book.toLowerCase()] ?? null;
+  const status = decision?.status;
+  const pillColor =
+    status === "won"
+      ? "#7fd49a"
+      : status === "lost"
+        ? "#e87c7c"
+        : status === "live"
+          ? "#f5c558"
+          : "#a8b3ac";
+  const pillLabel =
+    status === "won"
+      ? "WON"
+      : status === "lost"
+        ? "LOST"
+        : status === "live"
+          ? "LIVE"
+          : status === "push"
+            ? "PUSH"
+            : leg === null
+              ? "MANUAL"
+              : "PRE";
+
+  return (
+    <div
+      className="rounded-[10px] border border-line"
+      style={{ background: "rgba(0,0,0,0.18)" }}
+    >
+      <div className="p-3">
+        <div className="flex items-center gap-2 mb-1">
+          {bookChip && <BookChip book={bookChip} />}
+          <span
+            className="text-text font-semibold flex-1 truncate"
+            style={{ fontSize: 13.5 }}
+          >
+            {leg ? describeBetTitle(leg, bet) : bet.player}
+          </span>
+          <span
+            className="num"
+            style={{ fontSize: 11.5, color: "#a8b3ac" }}
+          >
+            {bet.americanOdds > 0 ? "+" : ""}
+            {bet.americanOdds}
+          </span>
+          <span
+            className="num uppercase"
+            style={{
+              fontSize: 9.5,
+              letterSpacing: 0.8,
+              color: pillColor,
+              background: `${pillColor}1a`,
+              border: `1px solid ${pillColor}33`,
+              padding: "3px 8px",
+              borderRadius: 4,
+            }}
+          >
+            {pillLabel}
+          </span>
+        </div>
+        <div className="text-text-dim" style={{ fontSize: 12 }}>
+          {leg ? describeLeg(leg) : bet.market}
+        </div>
+        {decision && (
+          <div
+            className="text-text-dim mt-1.5"
+            style={{ fontSize: 11.5, lineHeight: 1.4 }}
+          >
+            {decision.reason}
+          </div>
+        )}
+        {!leg && (
+          <div
+            className="num text-text-muted mt-1.5"
+            style={{ fontSize: 10.5, letterSpacing: 0.4 }}
+          >
+            Couldn&apos;t auto-classify this market — it&apos;ll save as a
+            generic ticket. Confirm + edit on the Tickets page.
+          </div>
+        )}
+        {bet.confidence < 0.7 && (
+          <div
+            className="num mt-1.5"
+            style={{ fontSize: 10.5, letterSpacing: 0.4, color: "#f5c558" }}
+          >
+            Low OCR confidence ({Math.round(bet.confidence * 100)}%) — double-check the values.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function describeBetTitle(leg: SlipLeg, fallback: ParsedBet): string {
+  if (leg.kind === "matchup") return `${leg.player} vs ${leg.opponent}`;
+  if (leg.kind === "three_ball")
+    return `${leg.player} (3-ball vs ${leg.others.join(" / ")})`;
+  return fallback.player;
 }
