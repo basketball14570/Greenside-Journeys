@@ -43,7 +43,7 @@ const BOOK_MAP: Record<string, Book> = {
 
 // Fallback shown until the per-user address resolves. The forwarding API
 // returns the real bets+<token>@<domain> when the user is signed in.
-const FALLBACK_INBOUND = "bets+yourtoken@greensidejourneys.com";
+const FALLBACK_INBOUND = "bets+yourtoken@greensideedge.com";
 
 export default function UploadPage() {
   return (

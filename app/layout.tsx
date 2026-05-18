@@ -3,12 +3,12 @@ import "./globals.css";
 import { PWARegister } from "@/components/edge/PWARegister";
 
 // Resolved at build time. NEXT_PUBLIC_SITE_URL on Vercel should be set
-// to https://greensidejourneys.com once the domain is pointed at the
+// to https://greensideedge.com once the domain is pointed at the
 // project; locally and on preview deploys it falls back to the auto-
 // assigned URL so social-preview images resolve correctly there too.
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://greensidejourneys.com");
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://greensideedge.com");
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

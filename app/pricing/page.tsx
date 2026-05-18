@@ -62,7 +62,7 @@ const TIERS: Tier[] = [
     monthly: 49,
     annual: 490,
     cta: "Talk to us",
-    ctaHref: "mailto:hello@greensidejourneys.com?subject=Sharp%20tier",
+    ctaHref: "mailto:hello@greensideedge.com?subject=Sharp%20tier",
     features: [
       { included: true, label: "Everything in Pro" },
       { included: true, label: "Custom alert thresholds per market + course" },

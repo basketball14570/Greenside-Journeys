@@ -19,7 +19,7 @@ function ensureConfigured(): boolean {
   if (configured !== null) return configured;
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-  const sub = process.env.VAPID_SUBJECT || "mailto:alerts@greensidejourneys.com";
+  const sub = process.env.VAPID_SUBJECT || "mailto:alerts@greensideedge.com";
   if (!pub || !priv) {
     configured = false;
     return false;

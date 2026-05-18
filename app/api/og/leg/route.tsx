@@ -164,7 +164,7 @@ export async function GET(req: Request) {
               : "Tracked live on Greenside"}
           </span>
           <span style={{ fontSize: 18, color: "#7fd49a", letterSpacing: 1, fontWeight: 700 }}>
-            greensidejourneys.com
+            greensideedge.com
           </span>
         </div>
       </div>

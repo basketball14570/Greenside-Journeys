@@ -5,7 +5,7 @@ const PILLARS = [
   {
     label: "Aggregation",
     title: "Every bet, every book, one screen",
-    body: "Forward a confirmation email to your personal bets+token@greensidejourneys.com address. Claude vision reads the HTML, extracts the line/odds/stake, and the bet appears in your dashboard within 30 seconds. Screenshots work as a fallback for slips that don't email — drop the image, get structured data back.",
+    body: "Forward a confirmation email to your personal bets+token@greensideedge.com address. Claude vision reads the HTML, extracts the line/odds/stake, and the bet appears in your dashboard within 30 seconds. Screenshots work as a fallback for slips that don't email — drop the image, get structured data back.",
     bullets: [
       "Email forwarding (recommended path) — set up once",
       "Screenshot upload with Claude vision OCR",

@@ -82,10 +82,10 @@ export default function AboutPage() {
           <p>
             Press, partnerships, or sharp tier inquiries:{" "}
             <a
-              href="mailto:hello@greensidejourneys.com"
+              href="mailto:hello@greensideedge.com"
               className="text-text underline underline-offset-4"
             >
-              hello@greensidejourneys.com
+              hello@greensideedge.com
             </a>
             . Product feedback from active users always reaches a founder.
           </p>

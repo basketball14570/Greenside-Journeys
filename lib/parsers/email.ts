@@ -1,7 +1,7 @@
 // Inbound-email bet parser.
 //
 // Postmark / SendGrid Inbound POSTs a JSON payload when a user forwards a bet
-// confirmation email to bets+<userToken>@greensidejourneys.com. We use the
+// confirmation email to bets+<userToken>@greensideedge.com. We use the
 // userToken to identify the account, then hand the email body to Claude to
 // extract structured bets — same schema as the screenshot parser.
 
@@ -22,7 +22,7 @@ export const PostmarkInboundSchema = z.object({
 });
 export type PostmarkInbound = z.infer<typeof PostmarkInboundSchema>;
 
-// User token extraction — bets+abc123@greensidejourneys.com → "abc123"
+// User token extraction — bets+abc123@greensideedge.com → "abc123"
 export function extractUserToken(toAddress: string): string | null {
   const match = toAddress.match(/bets\+([a-zA-Z0-9_-]+)@/i);
   return match ? match[1] : null;

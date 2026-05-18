@@ -100,7 +100,7 @@ export default function MarketingHome() {
             <Beat
               time="06:48"
               title="You forward a slip."
-              body="A DK confirmation for Scheffler Top 10 +250, Hovland vs Cantlay −115 R3 matchup, and a Justin Rose make-cut. Inbox → bets+token@greensidejourneys.com. Claude parses each leg. By 06:48:23 they're in your Tickets queue with a Confirm / Dismiss prompt."
+              body="A DK confirmation for Scheffler Top 10 +250, Hovland vs Cantlay −115 R3 matchup, and a Justin Rose make-cut. Inbox → bets+token@greensideedge.com. Claude parses each leg. By 06:48:23 they're in your Tickets queue with a Confirm / Dismiss prompt."
             />
             <Beat
               time="09:12"
@@ -252,7 +252,7 @@ export default function MarketingHome() {
               cadence="per month"
               tagline="Power users, syndicates, real bankrolls."
               cta="Talk to us"
-              ctaHref="mailto:hello@greensidejourneys.com?subject=Sharp%20tier"
+              ctaHref="mailto:hello@greensideedge.com?subject=Sharp%20tier"
               features={[
                 "Everything in Pro",
                 "Custom alert thresholds per market + course",

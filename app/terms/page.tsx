@@ -154,10 +154,10 @@ export default function TermsPage() {
       <p>
         Questions about these Terms? Email{" "}
         <a
-          href="mailto:legal@greensidejourneys.com"
+          href="mailto:legal@greensideedge.com"
           className="text-text underline underline-offset-4"
         >
-          legal@greensidejourneys.com
+          legal@greensideedge.com
         </a>
         .
       </p>

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // — used by /dashboard/account. Creates the profile row + token on first
 // visit so users don't have to mash a "generate" button.
 export async function GET() {
-  const domain = process.env.POSTMARK_INBOUND_DOMAIN || "greensidejourneys.com";
+  const domain = process.env.POSTMARK_INBOUND_DOMAIN || "greensideedge.com";
 
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -85,7 +85,7 @@ export async function GET() {
 
 // POST rotates the token — invalidates the old forwarding address.
 export async function POST() {
-  const domain = process.env.POSTMARK_INBOUND_DOMAIN || "greensidejourneys.com";
+  const domain = process.env.POSTMARK_INBOUND_DOMAIN || "greensideedge.com";
   const supabase = supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;

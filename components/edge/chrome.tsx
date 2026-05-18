@@ -3,6 +3,7 @@ import { BrandMark, StatusDot } from "./primitives";
 import UserChip from "./UserChip";
 import { SearchChip } from "./SearchChip";
 import { MoreDropdown } from "./MoreDropdown";
+import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 
 // ─── Mobile top bar (settings + bell) ───────────────────────
 export function MobileTopBar() {
@@ -72,30 +73,47 @@ function IconButton({
 }
 
 // ─── Tournament strap ───────────────────────────────────────
+// Dynamic mobile event strap. Reads from the static PGA Tour schedule
+// (lib/data/pga-schedule) so it follows the calendar automatically —
+// switches to the next week's tournament after Sunday, flips to "Live"
+// when Thursday rolls around.
 export function EventStrap() {
+  const event = getActiveEvent();
+  if (!event) return null;
+  const status = statusOf(event);
+  const statusLabel =
+    status === "live" ? "LIVE" : status === "upcoming" ? "UPCOMING" : "FINAL";
+  const cadenceLabel =
+    status === "live"
+      ? "This Week"
+      : status === "upcoming"
+        ? "Up Next"
+        : "Just Finished";
+  const accent =
+    status === "live" ? "#8ee68e" : status === "upcoming" ? "#f5c558" : "#7cc0e8";
   return (
     <div className="mx-5 mb-4 p-3.5 rounded-xl bg-surface-1 border border-line flex items-center justify-between">
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 min-w-0">
         <span
           className="num font-semibold uppercase text-text-muted"
           style={{ fontSize: 9.5, letterSpacing: 1.3 }}
         >
-          This Week · Round 2
+          {cadenceLabel} · {event.course}
         </span>
         <span
-          className="serif-italic"
+          className="serif-italic truncate"
           style={{ fontSize: 18, color: "#f0ebe0", letterSpacing: -0.2, fontStyle: "normal" }}
         >
-          Quail Hollow Championship
+          {event.name}
         </span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <StatusDot status="live" />
+      <div className="flex items-center gap-1.5 shrink-0">
+        <StatusDot status={status === "live" ? "live" : "pending"} />
         <span
           className="num font-semibold"
-          style={{ fontSize: 10.5, color: "#8ee68e", letterSpacing: 0.8 }}
+          style={{ fontSize: 10.5, color: accent, letterSpacing: 0.8 }}
         >
-          R2 LIVE
+          {statusLabel}
         </span>
       </div>
     </div>
@@ -208,6 +226,7 @@ const PRIMARY_TABS = [
   { label: "Today", href: "/dashboard" },
   { label: "Tickets", href: "/dashboard/bets" },
   { label: "Live", href: "/dashboard/parlay" },
+  { label: "Odds", href: "/dashboard/odds" },
   { label: "Leaderboard", href: "/dashboard/leaderboard" },
   { label: "Ask", href: "/dashboard/ask" },
   { label: "DFS", href: "/dashboard/dfs" },

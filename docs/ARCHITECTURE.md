@@ -4,7 +4,7 @@ The intelligence layer for serious golf bettors and DFS players. Sub-product of 
 
 ## Design system
 
-Locked in by the Claude Design handoff (`dfs-bet-dashboard`). Dark fairway aesthetic, NOT the original light cream palette from greensidejourneys.com — this dashboard is a distinct surface.
+Locked in by the Claude Design handoff (`dfs-bet-dashboard`). Dark fairway aesthetic, NOT the original light cream palette from greensideedge.com — this dashboard is a distinct surface.
 
 - **Palette:** `#0a1f14` background, `#f0ebe0` warm off-white text, fairway green (`#8ee68e`) for live/positive, amber (`#f5c558`) for wind warnings, red (`#e07868`) for negative EV / hedge.
 - **Typography:** Instrument Serif (italic display for big stats), Instrument Sans (UI), JetBrains Mono (numerics + labels).
@@ -37,7 +37,7 @@ Locked in by the Claude Design handoff (`dfs-bet-dashboard`). Dark fairway aesth
 Direct API integration with sportsbooks is not available — books don't expose consumer APIs for bet history. We use three legal paths, in order of UX preference:
 
 1. **Screenshot upload (primary)** — user snaps a bet slip, Claude vision extracts structured fields with confidence scoring. Low-confidence parses prompt for one-tap confirmation. `app/api/bets/parse/route.ts` + `lib/parsers/screenshot.ts`.
-2. **Email forwarding (secondary)** — user forwards bet confirmation emails to `bets@greensidejourneys.com`. Postmark Inbound webhook parses the HTML. Industry-standard approach (Pikkit, BettorEdge).
+2. **Email forwarding (secondary)** — user forwards bet confirmation emails to `bets@greensideedge.com`. Postmark Inbound webhook parses the HTML. Industry-standard approach (Pikkit, BettorEdge).
 3. **Manual entry (fallback)** — for books that don't email and slips the user can't screenshot.
 
 What we explicitly do NOT do: credential-based scraping. It violates every book's ToS, exposes users to account bans, and creates legal risk.

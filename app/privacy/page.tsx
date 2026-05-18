@@ -72,7 +72,7 @@ export default function PrivacyPage() {
         We retain account and bet data for as long as your account is active,
         plus a reasonable period after closure for tax and compliance purposes.
         You can request export or deletion of your data at any time from
-        settings or by emailing privacy@greensidejourneys.com.
+        settings or by emailing privacy@greensideedge.com.
       </p>
 
       <H2>Your rights</H2>
@@ -81,10 +81,10 @@ export default function PrivacyPage() {
         delete, or port your personal data, and to opt out of certain
         processing. To exercise these rights, email{" "}
         <a
-          href="mailto:privacy@greensidejourneys.com"
+          href="mailto:privacy@greensideedge.com"
           className="text-text underline underline-offset-4"
         >
-          privacy@greensidejourneys.com
+          privacy@greensideedge.com
         </a>
         .
       </p>
@@ -114,10 +114,10 @@ export default function PrivacyPage() {
       <p>
         Questions?{" "}
         <a
-          href="mailto:privacy@greensidejourneys.com"
+          href="mailto:privacy@greensideedge.com"
           className="text-text underline underline-offset-4"
         >
-          privacy@greensidejourneys.com
+          privacy@greensideedge.com
         </a>
         .
       </p>

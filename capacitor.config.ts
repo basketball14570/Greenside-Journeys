@@ -33,7 +33,7 @@ type CapacitorConfig = {
 // extension that sends DraftKings / FanDuel screenshots into the parser.
 
 const config: CapacitorConfig = {
-  appId: "com.greensidejourneys.app",
+  appId: "com.greensideedge.app",
   appName: "Greenside",
   // No `webDir` because we live-load from a hosted URL instead of bundling
   // a static export. The Next.js server-rendered routes (Ask AI, parse,

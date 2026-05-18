@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// Site-wide og:image for greensidejourneys.com. Rendered fresh on each
+// Site-wide og:image for greensideedge.com. Rendered fresh on each
 // scraper hit so we can tune copy without a redeploy gating it. The
 // dimensions match the X / iMessage / LinkedIn large-image preview.
 
@@ -119,7 +119,7 @@ export async function GET() {
               fontWeight: 700,
             }}
           >
-            greensidejourneys.com
+            greensideedge.com
           </span>
         </div>
       </div>
