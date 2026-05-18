@@ -14,8 +14,11 @@ export default function PlayersIndex() {
         <DesktopAppBar active="Tickets" />
         <DesktopEventStrap />
       </div>
-      <div className="lg:hidden pt-3">
-        <MobileTopBar />
+      <div className="lg:hidden">
+        <div className="pt-3">
+          <MobileTopBar />
+        </div>
+        <MobileBottomNav active="bets" />
       </div>
 
       <main className="flex-1 px-5 lg:px-8 py-6 max-w-5xl mx-auto w-full">
@@ -108,10 +111,6 @@ export default function PlayersIndex() {
           })}
         </div>
       </main>
-
-      <div className="lg:hidden">
-        <MobileBottomNav active="bets" />
-      </div>
     </div>
   );
 }

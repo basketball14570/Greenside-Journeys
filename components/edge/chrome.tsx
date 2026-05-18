@@ -164,9 +164,16 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
   ),
 };
 
+// Mobile tab bar. Was at the bottom originally; moved to the top under
+// the brand bar because users said the bottom placement was hard to
+// find. Sticky so it stays visible while scrolling, with a subtle blur
+// so content underneath shows through faintly.
 export function MobileBottomNav({ active }: { active: string }) {
   return (
-    <div className="flex justify-around px-2 pt-2.5 pb-7 border-t border-line bg-bgDeep">
+    <div
+      className="sticky top-0 z-30 flex justify-around px-2 pt-1.5 pb-2 border-b border-line bg-bgDeep"
+      style={{ backdropFilter: "blur(6px)" }}
+    >
       {TABS.map((t) => {
         const isActive = t.id === active;
         const c = isActive ? "#8ee68e" : "#6c7a72";
@@ -174,7 +181,7 @@ export function MobileBottomNav({ active }: { active: string }) {
           <Link
             key={t.id}
             href={t.href}
-            className="flex flex-col items-center gap-1 flex-1"
+            className="flex flex-col items-center gap-0.5 flex-1"
           >
             {ICONS[t.id](c)}
             <span

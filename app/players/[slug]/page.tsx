@@ -19,8 +19,11 @@ export default function PlayerPage({ params }: { params: { slug: string } }) {
         <DesktopAppBar active="Tickets" />
         <DesktopEventStrap />
       </div>
-      <div className="lg:hidden pt-3">
-        <MobileTopBar />
+      <div className="lg:hidden">
+        <div className="pt-3">
+          <MobileTopBar />
+        </div>
+        <MobileBottomNav active="bets" />
       </div>
 
       <main className="flex-1 px-5 lg:px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
@@ -46,10 +49,6 @@ export default function PlayerPage({ params }: { params: { slug: string } }) {
           </div>
         </div>
       </main>
-
-      <div className="lg:hidden">
-        <MobileBottomNav active="bets" />
-      </div>
     </div>
   );
 }

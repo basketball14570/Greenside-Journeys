@@ -22,17 +22,21 @@ export default function DashboardHome() {
   return (
     <>
       {/* ─── Mobile ─── */}
+      {/* Order is deliberate: the live leaderboard sits up top because
+          that's the thing users open the app to check during a round.
+          Weather + alerts + edges come below — important but secondary
+          to "where does my golfer stand right now". */}
       <div className="lg:hidden">
         <EventStrap />
-        <MobileWeatherHero />
-        <AlertsFeed alerts={DEMO_ALERTS} />
-        <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
-        <ThisWeeksEdge limit={6} />
         <LiveDashboardLeaderboard
           layout="mobile"
           fallback={DEMO_LEADERBOARD.slice(0, 8)}
           limit={8}
         />
+        <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
+        <AlertsFeed alerts={DEMO_ALERTS} />
+        <MobileWeatherHero />
+        <ThisWeeksEdge limit={6} />
       </div>
 
       {/* ─── Desktop ─── */}
