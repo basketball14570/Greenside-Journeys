@@ -18,6 +18,7 @@ import {
 import { holeParFor } from "@/lib/data/course-pars";
 import { encodeShared, type SharedLeg, type SharedLegStatus, type SharedParlay } from "@/lib/share/parlay";
 import { toast } from "@/components/edge/Toast";
+import { useBetSlip } from "@/lib/bet-slip-store";
 
 // Live parlay tracker for the user's current week. Hardcoded today —
 // once we have a saved-parlays table this becomes /dashboard/parlay/[id]
@@ -200,10 +201,18 @@ export default function ParlayPage() {
     return () => clearInterval(id);
   }, [load]);
 
+  // Prefer the user's actual uploaded slip when it has legs — that's
+  // what they want tracked live. Fall back to the hardcoded demo
+  // parlay so the page still shows something meaningful when the
+  // slip is empty (new users, signed-out demos, etc).
+  const { slip, clear: clearSlip, ready: slipReady } = useBetSlip();
+  const legs: SlipLeg[] = slipReady && slip.legs.length > 0 ? slip.legs : LEGS;
+  const usingUserSlip = slipReady && slip.legs.length > 0;
+
   const decisions: Decision[] = useMemo(() => {
     if (!snapshot) return [];
-    return LEGS.map((l) => gradeBet(legToOpenBet(l), snapshot));
-  }, [snapshot]);
+    return legs.map((l) => gradeBet(legToOpenBet(l), snapshot));
+  }, [snapshot, legs]);
 
   // Position / observed-value flash. We diff each leg's observedValue
   // against its previous render and flash the row when it changes.
@@ -215,7 +224,7 @@ export default function ParlayPage() {
     if (!decisions.length) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     decisions.forEach((d, i) => {
-      const leg = LEGS[i];
+      const leg = legs[i];
       const key = leg.id;
       const cur = d.observedValue;
       const prev = prevObserved.current[key];
@@ -237,7 +246,7 @@ export default function ParlayPage() {
   }, [decisions]);
 
   const summary = useMemo(() => {
-    const parlayDecimal = LEGS.reduce(
+    const parlayDecimal = legs.reduce(
       (acc, l) => acc * americanToDecimal(l.americanOdds),
       1,
     );
@@ -291,7 +300,7 @@ export default function ParlayPage() {
             className="text-text-dim mt-2 max-w-2xl"
             style={{ fontSize: 13.5 }}
           >
-            {LEGS.length}-leg parlay · {snapshot?.event?.name ?? "live event"}{" "}
+            {legs.length}-leg parlay · {usingUserSlip ? "your slip" : snapshot?.event?.name ?? "live event"}{" "}
             ·{" "}
             <span className="num">
               {lastFetched
@@ -306,10 +315,24 @@ export default function ParlayPage() {
         </div>
         <div className="flex items-center gap-2">
           <ShareButton
+            legs={legs}
             decisions={decisions}
             summary={summary}
             event={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null}
           />
+          {usingUserSlip && (
+            <button
+              onClick={() => {
+                clearSlip();
+                toast("Cleared your slip — back to demo parlay", "info");
+              }}
+              className="rounded-[8px] px-3 py-1.5 border border-line hover:bg-surface-2"
+              style={{ fontSize: 12 }}
+              title="Clear your uploaded slip and return to the demo parlay"
+            >
+              Clear slip
+            </button>
+          )}
           <button
             onClick={load}
             disabled={loading}
@@ -359,28 +382,49 @@ export default function ParlayPage() {
         </div>
       )}
 
-      {/* Payout hero — the entire reason you placed the bet. Scaled to
-          dominate the screen at huge odds; shrinks gracefully when the
-          number is short. */}
-      <PayoutHero summary={summary} />
+      {/* Parlay container — wraps payout hero, stats, and legs in one
+          thick-bordered card so a multi-leg parlay reads as ONE bet, not
+          a list of independent bets. Border color picks up the rollup
+          status (green when winning, amber live, red losing) so the
+          ticket "feels" alive at a glance. */}
+      <div
+        className="rounded-[18px] border-2 overflow-hidden"
+        style={{
+          borderColor:
+            summary.status === "won"
+              ? "rgba(127,212,154,0.5)"
+              : summary.status === "lost"
+                ? "rgba(232,124,124,0.5)"
+                : summary.status === "live"
+                  ? "rgba(245,197,88,0.4)"
+                  : "rgba(255,255,255,0.14)",
+          background: "rgba(0,0,0,0.18)",
+        }}
+      >
+        <div className="p-4 lg:p-5 space-y-4">
+          {/* Payout hero — the entire reason you placed the bet. Scaled to
+              dominate the screen at huge odds; shrinks gracefully when the
+              number is short. */}
+          <PayoutHero summary={summary} />
 
-      <div className="grid grid-cols-3 gap-3">
-        <Stat
-          label="Risk"
-          value={`${summary.stake.toFixed(1)}u`}
-        />
-        <Stat
-          label="Parlay odds"
-          value={fmtAmerican(summary.parlayAmerican)}
-          tone={summary.parlayAmerican > 0 ? "good" : "neutral"}
-        />
-        <Stat
-          label="Legs"
-          value={`${summary.legs.won}W · ${summary.legs.live + summary.legs.unknown}L · ${summary.legs.lost}X`}
-        />
-      </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Stat
+              label="Risk"
+              value={`${summary.stake.toFixed(1)}u`}
+            />
+            <Stat
+              label="Parlay odds"
+              value={fmtAmerican(summary.parlayAmerican)}
+              tone={summary.parlayAmerican > 0 ? "good" : "neutral"}
+            />
+            <Stat
+              label="Legs"
+              value={`${summary.legs.won}W · ${summary.legs.live + summary.legs.unknown}L · ${summary.legs.lost}X`}
+            />
+          </div>
+        </div>
 
-      <section className="rounded-[14px] border border-line overflow-hidden">
+        <section className="border-t border-line overflow-hidden">
         <div
           className="grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
           style={{
@@ -395,7 +439,7 @@ export default function ParlayPage() {
           <span className="text-right">Live status</span>
           <span className="text-right">Observed</span>
         </div>
-        {LEGS.map((l, i) => {
+        {legs.map((l, i) => {
           const d = decisions[i];
           return (
             <LegRow
@@ -403,12 +447,13 @@ export default function ParlayPage() {
               leg={l}
               decision={d}
               snapshot={snapshot}
-              isLast={i === LEGS.length - 1}
+              isLast={i === legs.length - 1}
               flash={flashes[l.id] ?? null}
             />
           );
         })}
-      </section>
+        </section>
+      </div>
 
       <p className="text-text-muted" style={{ fontSize: 11, lineHeight: 1.55 }}>
         <span className="num font-semibold uppercase" style={{ color: "#7fd49a", fontSize: 10, letterSpacing: 1 }}>
@@ -1180,7 +1225,7 @@ function PayoutHero({
         Risking <span className="num text-text">{summary.stake.toFixed(1)}u</span>
         <span className="text-text-muted">·</span>
         <span className="num">
-          {summary.legs.won}/{LEGS.length} legs cashed
+          {summary.legs.won}/{summary.legs.won + summary.legs.lost + summary.legs.live + summary.legs.unknown} legs cashed
         </span>
         {!killed && !won && summary.legs.live + summary.legs.unknown > 0 && (
           <>
@@ -1245,10 +1290,12 @@ function fmtAmerican(n: number): string {
 // pre-filled caption. The encoded blob also drives /api/og/parlay,
 // which is what X scrapes for the link preview image.
 function ShareButton({
+  legs: sourceLegs,
   decisions,
   summary,
   event,
 }: {
+  legs: SlipLeg[];
   decisions: Decision[];
   summary: {
     stake: number;
@@ -1261,7 +1308,7 @@ function ShareButton({
     const sharedStatus: SharedLegStatus =
       summary.status === "unknown" ? "pending" : (summary.status as SharedLegStatus);
 
-    const legs: SharedLeg[] = LEGS.map((l, i) => {
+    const legs: SharedLeg[] = sourceLegs.map((l, i) => {
       const d = decisions[i];
       const rawStatus = d?.status;
       const status: SharedLegStatus =

@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BookChip, type Book } from "@/components/edge/primitives";
 import { parsedBetToSlipLeg } from "@/lib/parsers/to-slip-leg";
 import type { SlipLeg } from "@/lib/bet-slip";
-import { legToOpenBet, describeLeg } from "@/lib/bet-slip";
+import {
+  legToOpenBet,
+  describeLeg,
+  americanToDecimal,
+  decimalToAmerican,
+} from "@/lib/bet-slip";
 import { gradeBet, type Decision } from "@/lib/grading";
 import {
   fetchLeaderboard,
   type LeaderboardSnapshot,
 } from "@/lib/espn-leaderboard";
+import { useBetSlip } from "@/lib/bet-slip-store";
+import { toast } from "@/components/edge/Toast";
 
 type ParsedBet = {
   book: string;
@@ -439,6 +447,8 @@ function ResultsSection({
   saved: string | null;
   onSave: () => void;
 }) {
+  const router = useRouter();
+  const { importLegs } = useBetSlip();
   const [snapshot, setSnapshot] = useState<LeaderboardSnapshot | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -452,9 +462,6 @@ function ResultsSection({
     };
   }, []);
 
-  // Convert + grade each parsed bet. legs[i] is null when our
-  // classifier couldn't determine the bet kind — those still render
-  // as a card but with "manual review needed" instead of live status.
   const legs = useMemo(
     () => bets.map((b, i) => parsedBetToSlipLeg(b, i)),
     [bets],
@@ -464,34 +471,195 @@ function ResultsSection({
     return legs.map((l) => (l ? gradeBet(legToOpenBet(l), snapshot) : null));
   }, [legs, snapshot]);
 
+  // Parlay detection: more than one bet AND every bet has the same stake
+  // is overwhelmingly a parlay (DK / FD / Hard Rock all do this). Mixed
+  // stakes = list of singles. Single bet = single, obviously.
+  const isParlay =
+    bets.length > 1 &&
+    bets.every((b) => b.stake === bets[0].stake) &&
+    bets[0].stake > 0;
+
+  const trackOnLive = () => {
+    const validLegs = legs.filter((l): l is SlipLeg => l !== null);
+    if (validLegs.length === 0) {
+      toast("Couldn't classify any legs — fix the parsed cards first", "warn");
+      return;
+    }
+    importLegs(validLegs);
+    toast(
+      `Tracking ${validLegs.length} leg${validLegs.length === 1 ? "" : "s"} on the Live page`,
+      "success",
+    );
+    router.push("/dashboard/parlay");
+  };
+
   return (
     <div className="mt-4 space-y-3">
       <div className="flex items-center gap-3 flex-wrap">
         <button
+          onClick={trackOnLive}
+          className="rounded-[8px] px-3 py-1.5 font-semibold"
+          style={{ background: "#8ee68e", color: "#06140c", fontSize: 12 }}
+        >
+          Track on Live page →
+        </button>
+        <button
           onClick={onSave}
           disabled={saving}
-          className="rounded-[8px] px-3 py-1.5 font-semibold disabled:opacity-40"
-          style={{ background: "#8ee68e", color: "#0a1f14", fontSize: 12 }}
+          className="rounded-[8px] px-3 py-1.5 border border-line hover:bg-surface-2 disabled:opacity-40"
+          style={{ fontSize: 12 }}
         >
-          {saving ? "Saving…" : `Save ${bets.length} to my tickets`}
+          {saving ? "Saving…" : "Save to my tickets"}
         </button>
         {saved && (
           <span className="text-text-dim" style={{ fontSize: 11 }}>
             {saved}
           </span>
         )}
-        <span className="num text-text-muted" style={{ fontSize: 10.5, letterSpacing: 0.5 }}>
+        <span
+          className="num text-text-muted ml-auto"
+          style={{ fontSize: 10.5, letterSpacing: 0.5 }}
+        >
           {snapshot ? `● Live · ${snapshot.event?.shortName ?? ""}` : "Loading live data…"}
         </span>
       </div>
-      {bets.map((b, i) => (
-        <ParsedBetCard
-          key={i}
-          bet={b}
-          leg={legs[i]}
-          decision={decisions[i] ?? undefined}
+
+      {isParlay ? (
+        <ParlayGroup
+          bets={bets}
+          legs={legs}
+          decisions={decisions}
         />
-      ))}
+      ) : (
+        bets.map((b, i) => (
+          <div
+            key={i}
+            className="rounded-[14px] border-2 p-1"
+            style={{ borderColor: "rgba(255,255,255,0.10)" }}
+          >
+            <ParsedBetCard
+              bet={b}
+              leg={legs[i]}
+              decision={decisions[i] ?? undefined}
+            />
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// Parlay wrapper — visually groups every leg under one outer border
+// with a header summarizing total stake + combined odds + payout.
+// Mirrors the way DK / Hard Rock present 6-leg parlay slips so the
+// user can instantly tell "this is one bet, not six."
+function ParlayGroup({
+  bets,
+  legs,
+  decisions,
+}: {
+  bets: ParsedBet[];
+  legs: (SlipLeg | null)[];
+  decisions: (Decision | null)[];
+}) {
+  const stake = bets[0].stake;
+  const parlayDecimal = bets.reduce(
+    (acc, b) => acc * americanToDecimal(b.americanOdds),
+    1,
+  );
+  const parlayAmerican = decimalToAmerican(parlayDecimal);
+  const payout = stake * parlayDecimal;
+
+  // Roll up status: any lost → LOST. Any unknown/manual → PENDING.
+  // Any live → LIVE. All won → WON.
+  let rollup: "won" | "lost" | "live" | "pending" = "won";
+  let wonCount = 0;
+  let liveCount = 0;
+  let lostCount = 0;
+  for (const d of decisions) {
+    if (!d) {
+      rollup = "pending";
+      continue;
+    }
+    if (d.status === "won") wonCount++;
+    else if (d.status === "lost") {
+      lostCount++;
+      rollup = "lost";
+    } else if (d.status === "live") {
+      liveCount++;
+      if (rollup !== "lost") rollup = "live";
+    } else if (rollup !== "lost") {
+      rollup = "pending";
+    }
+  }
+  const rollupColor =
+    rollup === "won"
+      ? "#7fd49a"
+      : rollup === "lost"
+        ? "#e87c7c"
+        : rollup === "live"
+          ? "#f5c558"
+          : "#a8b3ac";
+
+  return (
+    <div
+      className="rounded-[14px] border-2 overflow-hidden"
+      style={{
+        borderColor: rollup === "live"
+          ? "rgba(245,197,88,0.5)"
+          : rollup === "won"
+            ? "rgba(127,212,154,0.5)"
+            : rollup === "lost"
+              ? "rgba(232,124,124,0.5)"
+              : "rgba(255,255,255,0.18)",
+        background: "rgba(0,0,0,0.18)",
+      }}
+    >
+      <div
+        className="flex items-baseline justify-between px-4 py-3 border-b border-line"
+        style={{ background: "rgba(0,0,0,0.25)" }}
+      >
+        <div className="flex items-baseline gap-3">
+          <span
+            className="num font-semibold uppercase"
+            style={{ fontSize: 10, letterSpacing: 1.2, color: rollupColor }}
+          >
+            ● {bets.length}-leg parlay
+          </span>
+          <span
+            className="num"
+            style={{ fontSize: 11, color: "#a8b3ac" }}
+          >
+            {wonCount}W · {liveCount}L · {lostCount}X
+          </span>
+        </div>
+        <div className="flex items-baseline gap-3">
+          <span
+            className="num text-text-dim"
+            style={{ fontSize: 11 }}
+          >
+            {stake}u → {payout.toFixed(2)}u
+          </span>
+          <span
+            className="num"
+            style={{ fontSize: 13, color: "#f0ebe0", fontWeight: 600 }}
+          >
+            {parlayAmerican > 0 ? "+" : ""}
+            {parlayAmerican}
+          </span>
+        </div>
+      </div>
+      <div className="divide-y divide-line/40">
+        {bets.map((b, i) => (
+          <div key={i} className="px-1">
+            <ParsedBetCard
+              bet={b}
+              leg={legs[i]}
+              decision={decisions[i] ?? undefined}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -529,10 +697,7 @@ function ParsedBetCard({
               : "PRE";
 
   return (
-    <div
-      className="rounded-[10px] border border-line"
-      style={{ background: "rgba(0,0,0,0.18)" }}
-    >
+    <div>
       <div className="p-3">
         <div className="flex items-center gap-2 mb-1">
           {bookChip && <BookChip book={bookChip} />}

@@ -2,6 +2,31 @@
 
 Reverse-chronological, one entry per push. Surfaced at `/changelog`.
 
+## 2026-05-17 — Visual bet grouping + upload→Live persistence
+
+Two related fixes that make the "this is a parlay vs. several
+single bets" distinction obvious + close the loop on the upload
+flow.
+
+- **Parlay container** on `/dashboard/parlay`: payout hero, stats,
+  and legs now live inside one thick-bordered card with the border
+  color picking up rollup status (green winning, amber live, red
+  losing). Reads as ONE bet visually, not a stack of independent
+  sections.
+- **Parlay grouping on `/dashboard/upload`**: when multiple bets
+  parse out with the same stake (signature of a parlay), they
+  render inside one outer container with a header row showing
+  combined odds + payout + W/L/X rollup. Single bets and
+  mixed-stake uploads keep individual bordered cards. Mirrors how
+  DK / Hard Rock present parlay slips.
+- **Upload → Live persistence**: new "Track on Live page" button
+  on the upload results section calls `useBetSlip().importLegs()`
+  to write parsed legs into the localStorage slip store, then
+  redirects to `/dashboard/parlay`. The Live page now prefers the
+  user's actual slip when non-empty, falls back to the demo parlay
+  otherwise. "Clear slip" button on Live returns to demo. Closes
+  the upload → live tracker loop without requiring Supabase.
+
 ## 2026-05-17 — Matchup + 3-ball live tracking, upload-to-tracker, IA consolidation
 
 Big batch driven by sportsbook ticket research and user feedback on
