@@ -1,0 +1,49 @@
+{
+  "name": "Greenside — Golf Bet Intelligence",
+  "short_name": "Greenside",
+  "description": "Live conditions × your portfolio. Every bet, every book, one dashboard.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1f14",
+  "theme_color": "#0a1f14",
+  "categories": ["sports", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/brand/greenside-journeys-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/dashboard/upload/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "url": "/dashboard",
+      "description": "Live dashboard with conditions and open bets"
+    },
+    {
+      "name": "Upload a bet",
+      "short_name": "Upload",
+      "url": "/dashboard/upload",
+      "description": "Add a bet via screenshot or email forward"
+    },
+    {
+      "name": "Ask Greenside",
+      "short_name": "Ask",
+      "url": "/dashboard/ask",
+      "description": "Talk to your portfolio"
+    }
+  ]
+}

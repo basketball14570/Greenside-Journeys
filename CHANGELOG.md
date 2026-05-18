@@ -1,0 +1,581 @@
+# Greenside Changelog
+
+Reverse-chronological, one entry per push. Surfaced at `/changelog`.
+
+## 2026-05-17 — Visual bet grouping + upload→Live persistence
+
+Two related fixes that make the "this is a parlay vs. several
+single bets" distinction obvious + close the loop on the upload
+flow.
+
+- **Parlay container** on `/dashboard/parlay`: payout hero, stats,
+  and legs now live inside one thick-bordered card with the border
+  color picking up rollup status (green winning, amber live, red
+  losing). Reads as ONE bet visually, not a stack of independent
+  sections.
+- **Parlay grouping on `/dashboard/upload`**: when multiple bets
+  parse out with the same stake (signature of a parlay), they
+  render inside one outer container with a header row showing
+  combined odds + payout + W/L/X rollup. Single bets and
+  mixed-stake uploads keep individual bordered cards. Mirrors how
+  DK / Hard Rock present parlay slips.
+- **Upload → Live persistence**: new "Track on Live page" button
+  on the upload results section calls `useBetSlip().importLegs()`
+  to write parsed legs into the localStorage slip store, then
+  redirects to `/dashboard/parlay`. The Live page now prefers the
+  user's actual slip when non-empty, falls back to the demo parlay
+  otherwise. "Clear slip" button on Live returns to demo. Closes
+  the upload → live tracker loop without requiring Supabase.
+
+## 2026-05-17 — Matchup + 3-ball live tracking, upload-to-tracker, IA consolidation
+
+Big batch driven by sportsbook ticket research and user feedback on
+what's actually missing.
+
+- **3-ball grader** (`lib/grading.ts`): new `gradeThreeBall` ranks the
+  three players by current to-par on the leg's round. 1st = won,
+  T1 = push, anywhere else = lost. Live reason text reads natural:
+  "Leading by 2 on R4", "T1 of 3 on R4", "3rd of 3 · 4 back of
+  Scheffler". Dispatched before the generic `matchup` branch so 3-ball
+  market strings don't get misrouted.
+- **Round-aware matchup grader**: `gradeMatchup` now uses `bet.round`
+  when present to compare R{n} strokes only, instead of always falling
+  back to tournament total. Fixes round-specific h2h bets that were
+  being graded against 4-round totals.
+- **MatchupDetail + ThreeBallDetail UI**: rich rows under each matchup
+  / 3-ball leg on `/dashboard/parlay`. Each player gets their name +
+  to-par + thru + hole trail. Matchups show a big "X UP" / "AS" /
+  "X DN" state chip. 3-balls rank 1st/2nd/3rd with green dot on the
+  user's pick.
+- **Top-N cutoff display**: gradeTopN now computes the score of the
+  Nth-ranked player and surfaces "1 stroke clear of top 10" or
+  "3 back of top 10" instead of just the position. Underdog-style
+  margin-aware feedback.
+- **Upload → live tracker** (`/dashboard/upload`): vision-parsed bets
+  now flow through a classifier (`lib/parsers/to-slip-leg.ts`) that
+  pattern-matches the market string into typed `SlipLeg` shapes
+  (3-ball, 2-ball, top_n, round_prop, winner, make_cut). The page
+  fetches a live ESPN snapshot, grades each parsed bet, and shows
+  the LIVE / WON / LOST status pill right under the bet card before
+  the user clicks Save. Unclassifiable bets render as "manual review"
+  cards instead of dropping silently.
+- **IA consolidation**: desktop nav cut from 16 top-level tabs to 6
+  primary + a More dropdown. Today / Tickets / Live / Leaderboard /
+  Ask / DFS stay top-level; Course Lab, Schedule, Previews, Ownership,
+  Showdown, Backtest, Model, Newsletter, Bankroll, Admin live under
+  More. "Parlay" relabeled to "Live" since that's what the page
+  actually is.
+
+## 2026-05-17 — FAQ, loading skeletons, off-week empty state
+
+- **FAQ on marketing home** (`app/page.tsx`): six condensed Q&As
+  addressing the real bettor objections (sportsbook passwords,
+  legality, supported books, conditions engine, affiliate
+  kickbacks, cancellation). Uses native `<details>` so it works
+  with no JS. Links out to the full FAQ on `/pricing#faq`.
+- **Skeleton primitive** (`components/edge/Skeleton.tsx` +
+  `.gs-skeleton` shimmer keyframe in `globals.css`). Composable
+  `<Skeleton>` rect plus pre-built `<SkeletonRow>` and
+  `<SkeletonCard>` shapes that mirror the production layouts so
+  the page doesn't jump on hydration.
+- **Showdown + leaderboard loading states**: both render skeleton
+  rows during the first ESPN fetch instead of showing a dashed-out
+  table. Leaderboard's empty state also got better copy — now
+  differentiates "no matches, try clearing filters" from "no
+  leaderboard data yet".
+- **Parlay off-week banner**: when ESPN reports the event is in
+  `post` state, a dim banner clarifies that grading is permanent
+  and live tracking resumes Thursday. Stops the page from
+  pretending to be live between tournaments.
+
+## 2026-05-17 — UX polish pass: trust pages, toasts, leaderboard motion, showdown share
+
+Round-out of the polish bundle started this morning. No new dependencies, no API keys.
+
+- **Custom 404** at `/not-found.tsx` — branded "off the green" page
+  with quick-pins to dashboard, parlay, ownership, pricing, and
+  changelog so misdirected visitors land somewhere useful instead
+  of bouncing.
+- **Error boundary** at `/error.tsx` — top-level catch with a "Try
+  again" button (uses Next's `reset()` so it re-renders without a
+  full reload), branded copy, and the error digest surfaced so
+  bug reports are actionable. Stack traces show only in dev.
+- **Global toast system** (`components/edge/Toast.tsx` +
+  `greensideToastIn` keyframe in `globals.css`). Provider mounted
+  once at `app/dashboard/layout.tsx`. Import `toast()` anywhere —
+  works from event handlers and `useEffect` without threading
+  context. Four tones (success/info/warn/error), bottom-center
+  stack, auto-dismiss at 3.2s, click-to-dismiss. Parlay & showdown
+  share buttons now toast instead of doing the inline
+  "Link copied ✓" state-flip hack.
+- **Showdown share** (`/dashboard/showdown` → green "Share roster"
+  button). Same plumbing as parlay share: encodes the live roster
+  into a `/share/parlay?d=...` URL, opens X intent with a tight
+  caption. Each tracked player becomes a "leg" — to-par + position
+  as the line, won/live/pending mapped from cut/today status.
+  Aggregate status drives the headline color.
+- **Leaderboard live motion** (`/dashboard/leaderboard`): ▲/▼
+  caret flashes on rows where the user has bets, scoped tightly so
+  the full 150-entrant table doesn't flicker. Live `BetPill`s now
+  pulse via `.gs-status-pulse`. Bet-owned rows still get the
+  subtle background tint so the eye locks on them.
+- **Home pricing aligned with `/pricing`**: home teaser was
+  $12/$39, canonical page was $14.99/$49 — fixed home to match,
+  pointed CTAs at `/login` and added a "See full pricing + FAQ →"
+  link below the tier grid.
+
+## 2026-05-17 — Monetization scaffolding
+
+Three pieces that turn Greenside into something people can find,
+share, and pay for.
+
+- **Marketing-home pricing tiers** (`app/page.tsx`): Free / Pro
+  ($12/mo) / Sharp ($39/mo). All accounts stay on Free during beta,
+  Stripe checkout flips on later, beta signups grandfather forever.
+  Pricing copy is feature-specific, not generic ("Monte Carlo DFS
+  optimizer with full ownership-aware sims", not "advanced
+  analytics").
+- **Sharable parlay images** (`/api/og/parlay` + `/share/parlay`):
+  click the new green "Share parlay" button on `/dashboard/parlay`
+  and Greenside (a) copies a public share URL, (b) opens an X
+  intent pre-filled with a tight caption. The public page renders
+  with an `og:image` meta tag pointing at the edge-rendered 1200×630
+  PNG of the parlay — so when someone posts the link to X /
+  iMessage / Discord, the preview shows the actual parlay with
+  payout hero, leg list, and won/live counts. Edge runtime,
+  base64url-encoded payload so it works without DB access.
+- **Site-wide og:image** (`/api/og/home`) wired in
+  `app/layout.tsx`. The marketing home now renders a custom
+  1200×630 preview card in link unfurls instead of falling back
+  to a generic screenshot.
+- **`StatusDot` pulse** (`components/edge/primitives.tsx` +
+  `globals.css` `.gs-status-pulse` keyframe): the standalone live
+  dot now breathes everywhere it appears — bets page desktop table,
+  bets page mobile cards, anywhere `<StatusDot status="live">`
+  renders. Same logic as the parlay/showdown chip pulses but
+  retuned for a standalone dot.
+
+## 2026-05-17 — Showdown gets the motion pass
+
+- **Hole-by-hole trail** under each roster name on
+  `/dashboard/showdown`, mirroring the parlay-page treatment. Same
+  visual language (green B for birdie, solid green E for eagle, amber +
+  for bogey, red + for double+). Reads the same per-hole ESPN linescore
+  as parlay so no extra fetch.
+- **Position-change flash** on every player row: a ▲/▼ caret pulses
+  next to `posDisplay` for 3.5 seconds when ESPN reports a new
+  position. Green up-caret = climbed leaderboard, red down-caret =
+  slipped. Compares against the previous tick via a `useRef` keyed by
+  the tracked-player slug.
+- **LIVE status pulse** (`gs-live-pulse`) applied to the status cell
+  when a player is mid-round. Same dot-pulse keyframe as the parlay
+  pills.
+
+Net effect: when you have the showdown tab open during a tournament,
+the leaderboard *moves* — you see who's making birdies in real time
+and who just dropped a spot, without having to compare numbers between
+30-second refreshes.
+
+## 2026-05-17 — Deploy plumbing for Vercel
+
+- **`vercel.json`** gets `functions.maxDuration` overrides — 60s for
+  both crons (grade + newsletter) since they iterate Supabase users
+  + ESPN + push, and 15s for `/api/projections/this-week` so the
+  DataGolf fetch doesn't get clipped at the 10s default.
+- **`DEPLOY.md`** added at the repo root: one-page deploy checklist
+  with the full env-var table (16 vars, marked required vs optional
+  and which scope each one belongs to), Supabase redirect-URL setup,
+  custom-domain steps, post-deploy verification URLs, and the
+  Hobby-vs-Pro cron tier note (Hobby caps cron at daily; the
+  `*/15 * * * *` grade schedule needs Pro).
+
+## 2026-05-17 — Live motion: hole trail, pulse, position flash
+
+- **Hole-by-hole trail** on round-prop legs. Reads the per-hole
+  strokes ESPN already exposes in the snapshot, color-codes them
+  against course par: green chip for birdies, amber for bogeys, red
+  for doubles+, dim for par, ghost for unplayed. Eagle gets a solid
+  green E. Replaces "5 birdies+ thru 13" string-only feedback with
+  the actual sequence at a glance.
+- **LIVE pill pulse** (`.gs-live-pulse` in `globals.css`): leading
+  dot fades + scales on a 1.6s loop so live status feels alive
+  without the whole chip competing for attention. Applied
+  everywhere `StatusPill` renders with status=live.
+- **Position-change flash**: parlay rows track each leg's observed
+  value across snapshot refreshes. When it shifts in the bettor's
+  favor (e.g. Reed T7 → T5), the row tints green for 3.5s with a ▲
+  caret next to the player name; against the bettor, red with ▼.
+  Direction logic handles top-N (lower is better), over/under
+  round-props, and outrights.
+- **Settle imminence** under each live leg: "Need 3 in 6 holes" /
+  "2 spots clear" / "Just hold — 5 holes left" — parsed from the
+  grader's `reason` for round-props and computed from `n` minus
+  position for top-N. Amber when chasing, green when clinched.
+
+## 2026-05-17 — Parlay payout hero + Scandinavian name match
+
+- **Bigger payout headline**: parlay page now leads with a dedicated
+  hero card — payout scales typographically with magnitude (5-figure
+  payouts render at 132px), glows yellow while live, green when won,
+  muted red when dead. Stake/odds/legs demoted to a smaller secondary
+  row. Pulls the "to win" number out of the stat-tile grid so the
+  upside actually feels like upside.
+- **Scandinavian / German name normalization** (`lib/grading.ts`):
+  `norm()` now folds `ø → o`, `å → a`, `æ → ae`, `ß → ss` before the
+  ASCII strip. Fixes `"Rasmus Hojgaard"` failing to match ESPN's
+  `"Højgaard"` and showing "Player not in field". Same fix unblocks
+  any future Aberg / Hovland / Højgaard props.
+- **Parlay legs default to current round (R4)**: hardcoded round on
+  the live ticket bumped from 2 → 4 so Sunday-final birdie props grade
+  against today's play instead of Friday's settled R2 line. Schema
+  fix tracked as a follow-up — eventually `roundIndex: "current"`
+  should resolve dynamically from the snapshot.
+
+## 2026-05-16 — Course-fit weighting, PWA install, This-week's-edge
+
+- **Optimizer course-fit weighting**: `OptimizerPanel` gained a
+  Course fit dropdown (Parkland · long / short, Coastal · wind,
+  Links, Desert). When selected, each player's projection is
+  scaled by their fit multiplier — sgPerRound for that archetype
+  divided by their weighted-mean across all archetypes, clamped
+  ±20%. Cascades into both sampling weights and simulation means.
+- **PWA install prompt**: `PwaInstallPrompt` listens for
+  `beforeinstallprompt`, surfaces a bottom-right card with Install
+  / Not now actions. Dismissal persists for 14 days; skipped
+  entirely when already running standalone or recently dismissed.
+- **This Week's Edge widget**: new tile on the dashboard home
+  (both mobile + desktop) shows top players by win% from DataGolf's
+  pre-tournament model. Source badge flags DataGolf vs Demo;
+  graceful demo fallback when `DATAGOLF_API_KEY` isn't set.
+- **`getPreTournamentProjections()`** in `lib/data/datagolf.ts`
+  hits `/preds/pre-tournament` (baseline-history-fit preferred).
+- **`/api/projections/this-week`** route with 15-min CDN cache.
+
+## 2026-05-16 — Auto-grade birdies / bogeys / eagles from hole-by-hole
+
+- **`RoundLine.holes`** — captures per-hole strokes from the ESPN
+  scoreboard feed (was being discarded). Each entry: hole number,
+  strokes, par when available.
+- **`lib/data/course-pars.ts`** — hardcoded hole-par maps for the
+  25 most common 2026 PGA courses (Quail Hollow, Augusta, Pebble,
+  Sawgrass, Riviera, etc.). Fallback is par-4 to avoid false
+  birdie counts on par-3s.
+- **`roundStats(round, course)`** in `espn-leaderboard.ts` returns
+  birdies / eagles / pars / bogeys / doublesOrWorse computed from
+  hole strokes vs hole par.
+- **Grader** now auto-grades round_prop bets on birdies / bogeys /
+  eagles using `roundStats`. Live status shows current count
+  thru holes played, plus "need N more in X remaining" math.
+  Fairways and greens still flagged manual (need DataGolf).
+- **Parlay page** legend updated to reflect new auto-grading
+  coverage; MANUAL pill now only shows on FIR / GIR legs.
+
+## 2026-05-16 — Live parlay tracker + showdown roster refresh
+
+- **`/dashboard/parlay`** — live all-or-nothing tracker for the 9-leg
+  ticket: Reed to win, Rasmus / Lowry / Stevens O3.5 birdies, Spieth
+  O7.5 FIR, Novak / Fowler Top 20, Rose Top 10, Scheffler U5.5 birdies.
+  Refreshes every 30s
+  against ESPN. Parlay-level status (LOST > UNKNOWN > LIVE > WON),
+  computed parlay odds, and per-leg observed values.
+- **Showdown roster** updated to today's group: Scheffler, Åberg,
+  McIlroy, C. Young, Parry, Rasmus Højgaard, Novak, Stevens. Rasmus
+  gets accent variants + Nicolai exclude to keep the brothers
+  disambiguated.
+- **`SlipLeg.metric`** extended with `fairways` and `greens`. The
+  grader returns "manual settle" for any per-round stat the free
+  ESPN feed doesn't expose (birdies / bogeys / eagles / fairways /
+  greens) — the parlay UI flags these with a MANUAL pill.
+- **`americanToDecimal` / `decimalToAmerican`** exported from
+  bet-slip so the parlay summary can roll legs into combined odds.
+- Nav + command palette pick up Parlay entry.
+
+## 2026-05-16 — Live event strap + full 2026 PGA schedule
+
+- **`lib/data/pga-schedule.ts`** — full 2026 PGA Tour season
+  (47 events, all tours): start/end dates, course, city, type
+  (major/signature/sig_cut/full_cut/limited/alternate). Helpers:
+  `statusOf`, `getActiveEvent`, `findEventByName`.
+- **`LiveEventStrap`** replaces the hardcoded "Quail Hollow R2 Live"
+  strap. Priority: ESPN snapshot → static schedule → off-season
+  fallback. Refreshes every 60s. Auto-updates as weeks roll.
+- **`/dashboard/schedule`** — full season view with past/live/upcoming
+  filters, Majors/Signature shortcuts. Rows that already have
+  ownership data attached get an "Own" chip linking back.
+- **Nav + command palette** gain Schedule entries.
+- **Ask Greenside**: `get_pga_schedule` tool ("what's next week",
+  "list the remaining signature events").
+
+## 2026-05-16 — Command palette (Cmd+K / Ctrl+K)
+
+- Fuzzy-search across pages, every player in ownership dataset,
+  every tournament. Arrow/Enter/Esc nav; mounted dashboard-wide.
+- Search chip in the desktop appbar now actually opens the palette.
+
+## 2026-05-16 — Monte Carlo DFS lineup optimizer
+
+- `lib/dfs-optimizer.ts`: 1500-candidate weighted pool, 200 sims
+  per lineup, AM/PM wave-correlated wind factors, z-scored
+  composite ranking on expected/ceiling/leverage weights.
+- `/dashboard/dfs` OptimizerPanel: three weight sliders, Run
+  button, top-20 expandable table.
+
+## 2026-05-16 — Marketing home: less AI-flavored
+
+- Rewritten hero with current-event sub-headline and player-named
+  body. Replaced 3-card symmetry with asymmetric capability slabs.
+  Added "A Sunday at Greenside" narrative with specific times and
+  scenarios. Removed "trusted by" / "AI-powered" phrasing.
+
+## 2026-05-16 — Live ESPN leaderboard on dashboard home
+
+- `LiveDashboardLeaderboard` wraps the existing widgets, fetches
+  ESPN top-N every 60s, falls back to demo data on cold paint
+  and network errors.
+
+## 2026-05-16 — Real PnL on Tickets page
+
+- **`/dashboard/bets`** PnL chart, summary stats (settled / win-rate
+  / net units / ROI), by-book and by-market breakdowns now compute
+  from the signed-in user's actual graded bets when ≥1 exists.
+  Demo data still renders for first-time visitors and signed-out.
+- Header badge flags **Your data** vs **Demo data** so it's
+  obvious which view you're looking at.
+- Conversion mapper handles `bets.resolved_payout` (or derives it
+  from stake + status when the column is null).
+
+## 2026-05-16 — Onboarding actually onboards
+
+- **`/onboarding`** Done step now (1) persists the user's selected
+  alert types to `profiles.alert_prefs`, (2) fetches and displays
+  the real `bets+<token>@<domain>` forwarding address with copy,
+  and (3) replaces the static recap with three next-step cards
+  (build slip / watch leaderboard / find leverage).
+- **`/auth/callback`** first-time sign-ins (no `profiles` row yet)
+  now auto-create the row and route to `/onboarding` instead of
+  `/dashboard`. Returning users still go straight in.
+
+## 2026-05-16 — Course-level ownership view
+
+- **`/dashboard/ownership`** gained a **Courses** tab. Each venue
+  rolls up all its 2026 events into one view with stats: events
+  on file, unique players, repeat field, most-chalked player.
+- Click a course → see repeat-field players sorted by avg
+  ownership, plus a separate one-off list. Range column shows
+  min–max ownership across appearances so you can spot the
+  inconsistency.
+- `lib/data/ownership.ts` gained `listCourses` / `getCourseHistory`
+  helpers (groups tournaments that share a venue).
+- Ask Greenside: `get_course_ownership_history` tool —
+  "who's chalk at Quail Hollow", "leverage plays at Riviera".
+
+## 2026-05-16 — DFS leverage cards + ownership upload helper
+
+- **`/dashboard/dfs`** gained side-by-side **Leverage plays** and
+  **Chalk warning** cards: for each pool player with ≥2 historical
+  appearances, computes `projected − historical_avg` ownership and
+  surfaces the five biggest gaps in each direction.
+- **`/dashboard/ownership/upload`** + **`/api/ownership/upload`** —
+  paste a JSON blob in the same shape as the standalone HTML viewer;
+  the validator checks structure and returns a ready-to-paste
+  TypeScript snippet for `OWNERSHIP_DATA`. No server-side mutation —
+  the dataset stays in the repo where every change is reviewable.
+- Ownership browser nav gained a **+ Add tournament** chip.
+
+## 2026-05-16 — DK ownership database (696 records, 14 events)
+
+- **`lib/data/ownership.ts`** — typed dataset of every PGA tournament so
+  far in 2026: course, type, par, yards plus per-player salary +
+  finishing ownership %. Helpers: `getPlayerHistory`, `getTournament`,
+  `listPlayers`, `leverage` (salary-band median delta).
+- **`/dashboard/ownership`** — browse view mirroring the standalone
+  HTML viewer: tournaments grid → tournament detail with chalk recap
+  and full board; players list (sortable by avg / peak / apps) →
+  player detail with sparkline-style history.
+- **Player profile** (`/players/[slug]`) gained an Ownership History
+  card on the right rail with a horizontal-bar mini-chart of the
+  last six events.
+- **Ask Greenside** picked up `get_player_ownership` and
+  `get_tournament_ownership` tools.
+- Nav: added **Ownership** tab to the desktop bar.
+
+## 2026-05-16 — Supabase realtime on Tickets
+
+- **`/dashboard/bets`** ImportedBets section now subscribes to a
+  realtime channel filtered by `user_id`, so email imports, OCR
+  saves, and cron-driven status transitions flow in without a
+  refresh. Pulsing green dot in the header signals the live link.
+- **`db/schema.sql`** adds `bets` to the `supabase_realtime`
+  publication (idempotent — safe to re-run).
+
+## 2026-05-16 — Upload page wired to real ingestion
+
+- **`/dashboard/upload`** email card now shows the real
+  `bets+<token>@<domain>` forwarding address (signed-in) or a
+  placeholder with "Sign in to claim" copy.
+- **`/api/bets/save`** — POST persists ParsedBet rows from the
+  screenshot OCR path into Supabase as pending bets.
+- Screenshot card gained a **Save N to my bets** button that
+  pushes the OCR result into the same pending-confirmation queue
+  the email pipeline uses.
+
+## 2026-05-16 — Web Push end-to-end
+
+- **`lib/notify/push.ts`** — VAPID-signed web push via the `web-push`
+  package; pushes to one user or broadcasts to all, auto-prunes
+  410/404 dead subscriptions.
+- **`/api/push/subscribe`** — POST registers a PushSubscription (multi-
+  device dedup by endpoint), DELETE removes it. Persists to
+  `profiles.push_subscription` (jsonb array).
+- **`/api/push/test`** — fires a test push to the signed-in user.
+- **`/dashboard/account`** push card now actually registers the
+  service worker, subscribes, and stores the subscription. Adds a
+  Send-test button and inline status banner.
+- **`/api/cron/grade`** gained a second phase: pulls live/pending
+  bets from `bets` table, grades per user, and pushes when legs
+  transition. Demo webhook fan-out still runs alongside.
+
+## 2026-05-16 — Tickets page reads real bets, email-confirm flow
+
+- **`/api/bets/mine`** GET returns the signed-in user's bets, PATCH
+  flips `user_confirmed` (pending → live) or deletes on dismiss.
+  RLS-scoped to own rows.
+- **`/dashboard/bets`** gained a "Pending confirmation" section that
+  surfaces bets imported from Postmark inbound with Confirm / Dismiss
+  controls, plus a "Your bets" section showing all real bets — the
+  demo data renders below for first-time visitors.
+
+## 2026-05-16 — Persisted alert preferences
+
+- **`/api/account/preferences`** GET/PUT — backed by new
+  `profiles.alert_prefs` (jsonb) + `wind_cutoff_mph` / `ev_cutoff_pct`
+  columns. RLS lets users only read/write their own row.
+- **`/dashboard/account`** toggles, wind and EV sliders now auto-save
+  on change; "✓ Saved" / "Sign in to sync" indicator at the bottom.
+  Preferences hydrate on page load.
+
+## 2026-05-16 — Postmark inbound persistence, per-user forwarding address
+
+- **`/api/email/inbound`** now writes parsed legs into the `bets` table
+  via a service-role admin client. The `bets+<token>@…` address routes
+  to the right user by looking up `profiles.bets_token`.
+- **`lib/supabase/admin.ts`** — service-role client factory; returns
+  null when not configured so callers can no-op in local / demo envs.
+- **`profiles.bets_token`** added in `db/schema.sql` with a default
+  random value, so every signup auto-gets an inbound address.
+- **`/api/account/forwarding`** — GET returns the signed-in user's
+  forwarding address (creating the profile row on first hit), POST
+  rotates the token. The `/dashboard/account` page surfaces the
+  address with copy + rotate controls.
+- `POSTMARK_INBOUND_DOMAIN` added to `.env.example`.
+
+## 2026-05-16 — Shareable slips, admin integrations panel
+
+- **Public slip view** at `/slip/[token]` — anyone with the link can see
+  the lineup live-graded against the leaderboard. The token is the slip
+  itself, base64url-encoded; no DB row, no expiry. The slip editor
+  gained a **Generate share link** button that mints the URL and offers
+  copy / open-preview / regenerate.
+- **/dashboard/admin** integrations panel — consumes `/api/health` and
+  paints a green/red dot for every external service (Supabase,
+  Anthropic, DataGolf, weather, odds, Postmark, push, webhooks, cron).
+  Re-check button re-probes on demand; never returns the secrets
+  themselves.
+- `lib/slip-share.ts` handles encode/decode with a one-byte version
+  prefix so future schema bumps can coexist with older links.
+
+## 2026-05-16 — Slip paste, alert dispatch, bookmarklet
+
+- **Slip-paste import** on `/dashboard/slip` — heuristic parser
+  (`lib/slip-parser.ts`) recognizes top-N, outright, matchup, 3-ball,
+  round prop over/unders, and make-cut from free-form text dumps of
+  DK / FD / PrizePicks / Underdog slips. Parsed legs slot straight
+  into the slip; rejected lines are reported.
+- **Change-only alert dispatch** — `/api/cron/grade` now diffs each
+  decision against the prior run and only fans out webhooks when a
+  bet actually transitions (live → won, etc.). No more cron spam.
+- **Bookmarklet** at `/bookmarklet` — drag the button to your
+  bookmarks bar; on any sportsbook tab, highlight the bet text and
+  click the bookmark to hand off to `/dashboard/slip#import=…` with
+  the selection pre-filled.
+
+## 2026-05-16 — Full leaderboard, unified slip editor, health
+
+- **/dashboard/leaderboard** — every player in the live ESPN field with
+  search / filter (All, Mine, Made cut, Top 30) / sort. Rows the user
+  has a bet on glow with a colored pill per leg showing live grading.
+- **/dashboard/slip** — full slip editor: top-N, outright, matchup,
+  3-ball, round prop O/U (strokes/birdies/bogeys/eagles), make-cut.
+  Player inputs autocomplete from the live field. Persists to
+  localStorage instantly; syncs to Supabase `bet_slips` when signed in.
+- **lib/bet-slip.ts** — discriminated union covering every market,
+  with `legToOpenBet` adapter feeding the existing grader.
+- **db/schema.sql** adds the `bet_slips` table with own-row RLS.
+- **/api/health** — 13-integration status probe.
+- Ask Greenside picked up `get_full_leaderboard`.
+
+## 2026-05-16 — Settlement, syndication, exports
+
+- **Bet-grading engine** (`lib/grading.ts`) — generic settler that takes
+  any open bet + a live ESPN snapshot and decides won / lost / live /
+  push. Handles top-N, to-win, matchup, and round-prop markets. Live
+  smoke test at `/api/bets/grade`.
+- **Cron jobs** wired in `vercel.json` — daily newsletter dispatch at
+  13:00 UTC (`/api/cron/newsletter`) and a 15-minute settlement check
+  (`/api/cron/grade`). Both gated by `CRON_SECRET` when set.
+- **Webhook dispatcher** — push the daily digest into Discord / Slack /
+  generic JSON sinks via `DISCORD_WEBHOOK_URL`, `SLACK_WEBHOOK_URL`,
+  `NEWSLETTER_WEBHOOK_URL`. Multi-target fan-out with per-target
+  status reporting.
+- **CSV / JSON bet history export** at `/api/bets/export` — Export CSV
+  and Export JSON buttons live on the Tickets page.
+- **Changelog page** at `/changelog`.
+
+## 2026-05-16 — Live odds, newsletter, iOS share, auth chip
+
+- The Odds API wired with fallback-aware client + `/api/odds/[player]`.
+- Daily newsletter generator with markdown / HTML / JSON renderers,
+  admin preview at `/dashboard/newsletter`, public API at
+  `/api/newsletter/daily`.
+- iOS share extension reference (`docs/ios-share-extension.swift`)
+  paired with the existing Web Share Target landing page.
+- Real Supabase auth chip in the desktop chrome — initials, dropdown,
+  sign-out — with graceful "Sign in" fallback when env vars are absent.
+
+## 2026-05-16 — Wind-model calibration, preview JSON, DataGolf profiles
+
+- `/dashboard/model` page validating windSensitivity coefficients
+  against actual recent rounds — bias, MAE, R², per-bucket calibration,
+  per-player drift with suggested coefficients, predicted-vs-actual
+  scatter.
+- Preview JSON export at `/api/preview/[slug]` with a stable
+  schema_version and Share / Open JSON / Download JSON buttons on the
+  preview detail page.
+- DataGolf wiring (`lib/data/datagolf.ts`) with `getPlayerProfile(slug)`
+  returning live data when `DATAGOLF_API_KEY` is set, demo fixtures
+  otherwise. Exposed at `/api/players/[slug]`.
+- Ask Greenside gained `get_player_profile`, `model_calibration`, and
+  `get_live_odds` tools.
+
+## 2026-05-16 — Weather API, AI backtest tools, multi-tournament matrix
+
+- Pluggable forecast provider (`lib/weather/forecast.ts`) — Open-Meteo
+  default, Tomorrow.io behind `TOMORROW_IO_API_KEY`, 5-minute cache,
+  graceful demo fallback.
+- Backtest engine now slices by tournament; matrix on
+  `/dashboard/backtest`.
+- Ask Greenside picked up `run_backtest`, `build_preview`,
+  `get_forecast`.
+
+## 2026-05-16 — Showdown leaderboard
+
+- `/dashboard/showdown` — six-player ESPN-backed live tracker with
+  Nicolai / Rasmus disambiguation, strict round-period matching, and
+  auto-detection of the active round.
+
+## 2026-05-16 — Backtest, previews, mobile shell
+
+- `/dashboard/backtest` with six selection strategies and equity curve.
+- `/dashboard/preview/[slug]` joining course profile + conditions +
+  player pool into a structured tournament read.
+- Capacitor mobile shell + Web Share Target wired into the manifest.

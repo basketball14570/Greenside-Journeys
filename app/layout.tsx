@@ -1,0 +1,76 @@
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import { PWARegister } from "@/components/edge/PWARegister";
+
+// Resolved at build time. NEXT_PUBLIC_SITE_URL on Vercel should be set
+// to https://greensideedge.com once the domain is pointed at the
+// project; locally and on preview deploys it falls back to the auto-
+// assigned URL so social-preview images resolve correctly there too.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://greensideedge.com");
+
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: "Greenside — Golf Bet Intelligence",
+  description:
+    "Live course conditions, every bet across every book, and wave-aware DFS lineups for serious golf bettors.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Greenside",
+  },
+  icons: {
+    icon: "/brand/greenside-journeys-icon.svg",
+    apple: "/brand/greenside-journeys-icon.svg",
+  },
+  openGraph: {
+    title: "Greenside — Golf Bet Intelligence",
+    description:
+      "Forward your DK / FD / PrizePicks slips. Greenside grades them against the live ESPN scoreboard and pushes you the second a leg transitions.",
+    images: [{ url: "/api/og/home", width: 1200, height: 630 }],
+    type: "website",
+    siteName: "Greenside",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Greenside — Golf Bet Intelligence",
+    description:
+      "Forward your DK / FD / PrizePicks slips. Greenside grades them against the live ESPN scoreboard.",
+    images: ["/api/og/home"],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a1f14",
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className="bg-bg">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="bg-bg text-text">
+        {children}
+        <PWARegister />
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Greenside — Dashboard Explorations</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  html, body { margin: 0; padding: 0; background: #181b18; color: #f0ebe0; font-family: "Instrument Sans", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="frames/ios-frame.jsx"></script>
+<script type="text/babel" src="frames/browser-window.jsx"></script>
+<script type="text/babel" src="theme.jsx"></script>
+<script type="text/babel" src="mobile-dashboard.jsx"></script>
+<script type="text/babel" src="mobile-alert.jsx"></script>
+<script type="text/babel" src="desktop-dashboard.jsx"></script>
+
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+const { IOSDevice, ChromeWindow } = window;
+const { MobileDashboard, MobileAlertDetail, DesktopDashboard, C, F } = window;
+
+function App() {
+  return (
+    <DesignCanvas
+      title="Greenside · Golf Bet Dashboard"
+      subtitle="Quail Hollow Championship · Round 2 · live demo data. Dark fairway aesthetic — Instrument Serif / Sans + JetBrains Mono. AM/PM wave-split is the headline."
+    >
+      <DCSection
+        id="mobile"
+        title="Mobile · Primary"
+        subtitle="iPhone, 402 wide. The home dashboard pairs a friendly conditions hero with sharp numerics on bets + leaderboard. Tap any alert → second screen."
+      >
+        <DCArtboard id="mobile-home" label="Today (home)" width={462} height={1520}>
+          <div style={{ padding: 30, background: '#181b18', height: '100%' }}>
+            <IOSDevice width={402} height={1460} dark>
+              <MobileDashboard/>
+            </IOSDevice>
+          </div>
+        </DCArtboard>
+
+        <DCArtboard id="mobile-alert" label="Alert detail · Wave shift" width={462} height={1080}>
+          <div style={{ padding: 30, background: '#181b18', height: '100%' }}>
+            <IOSDevice width={402} height={1020} dark>
+              <MobileAlertDetail/>
+            </IOSDevice>
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="desktop"
+        title="Desktop · Secondary"
+        subtitle="1440 wide. Same data, dense two-column layout: weather + bets table left, alerts + leaderboard right rail."
+      >
+        <DCArtboard id="desktop-home" label="Today (desktop)" width={1500} height={1120}>
+          <div style={{ padding: 30, background: '#181b18', height: '100%' }}>
+            {ChromeWindow ? (
+              <ChromeWindow width={1440} height={1024} url="greenside.app/today" tabs={[{ title: 'Greenside · Today' }]}>
+                <DesktopDashboard/>
+              </ChromeWindow>
+            ) : (
+              <DesktopDashboard/>
+            )}
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
