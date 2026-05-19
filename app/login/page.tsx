@@ -74,7 +74,17 @@ function LoginForm() {
           return;
         }
 
-        if (res.status === 501) {
+        if (res.status === 409) {
+          throw new Error(
+            "An account with that email already exists. Try signing in instead.",
+          );
+        }
+
+        // 501 (service role not configured) or 503 (service role
+        // present but Supabase rejected the call — bad key, outage,
+        // etc.) → fall back to the standard signUp path so the user
+        // can still create an account, just with email confirmation.
+        if (res.status === 501 || res.status === 503) {
           const { data, error } = await supabase.auth.signUp({
             email,
             password,

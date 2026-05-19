@@ -38,8 +38,21 @@ export async function POST(req: Request) {
     email_confirm: true,
   });
   if (error) {
-    const status = /already|registered|exists/i.test(error.message) ? 409 : 400;
-    return NextResponse.json({ error: error.message }, { status });
+    // Already exists → 409 so the client can show a clean "use sign-in"
+    // message instead of falling back to signUp (which would send a
+    // confirmation email to an account that already works).
+    if (/already|registered|exists/i.test(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    // Anything else (bad service-role key, network glitch, Supabase
+    // outage) → return 503 so the client falls back to its own
+    // supabase.auth.signUp path. The account still gets created; the
+    // user just has to confirm by email until the env is fixed.
+    console.error("admin.createUser failed", error.message);
+    return NextResponse.json(
+      { error: "admin_unavailable" },
+      { status: 503 },
+    );
   }
 
   return NextResponse.json({ ok: true });
