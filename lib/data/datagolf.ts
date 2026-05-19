@@ -233,6 +233,101 @@ type DgPreTournamentResponse = {
   baseline_history_fit?: DgPreTournamentResponse["baseline"];
 };
 
+// ─── Historical DFS archive ─────────────────────────────────
+// Endpoint pattern: /historical-dfs-data/points?tour=pga&year=2026
+//   &event_id=33&site=draftkings&file_format=json&key=...
+// The user's plan (Scratch Plus) includes this archive.
+
+export type DgDfsEventListEntry = {
+  event_id: number;
+  event_name: string;
+  date?: string; // YYYY-MM-DD if exposed
+};
+
+export type DgDfsPlayerRow = {
+  player_name: string;
+  dg_id?: number;
+  salary?: number;
+  ownership?: number;     // percent, 0..100
+  total_points?: number;  // DFS scoring total
+  fin_text?: string;
+};
+
+export type DgDfsEventPoints = {
+  event_name: string;
+  date?: string;
+  course?: string;
+  players: DgDfsPlayerRow[];
+};
+
+// Lists every event DataGolf has DFS data for in the given year. We try
+// /historical-dfs-data/event-list first since that's the conventional
+// shape; if it 404s we'll surface the error so the caller can fall back
+// to iterating known event_ids.
+export async function listDfsEvents(
+  year: number,
+  tour = "pga",
+): Promise<DgDfsEventListEntry[] | null> {
+  if (!datagolfEnabled()) return null;
+  const params = new URLSearchParams({
+    tour,
+    year: String(year),
+    file_format: "json",
+    key: process.env.DATAGOLF_API_KEY!,
+  });
+  try {
+    const res = await fetch(
+      `${BASE}/historical-dfs-data/event-list?${params}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.event_list ?? json.events ?? json.data ?? json) as
+      | DgDfsEventListEntry[]
+      | null;
+  } catch {
+    return null;
+  }
+}
+
+// Pulls salary + ownership + DFS points for one (tour, year, event_id, site).
+export async function getDfsPointsForEvent(
+  year: number,
+  eventId: number,
+  site: "draftkings" | "fanduel" | "yahoo" = "draftkings",
+  tour = "pga",
+): Promise<DgDfsEventPoints | null> {
+  if (!datagolfEnabled()) return null;
+  const params = new URLSearchParams({
+    tour,
+    year: String(year),
+    event_id: String(eventId),
+    site,
+    file_format: "json",
+    key: process.env.DATAGOLF_API_KEY!,
+  });
+  try {
+    const res = await fetch(
+      `${BASE}/historical-dfs-data/points?${params}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    // DataGolf wraps the player list under varying keys depending on the
+    // endpoint version — tolerate the common shapes.
+    const players: DgDfsPlayerRow[] =
+      json.players ?? json.scores ?? json.data ?? [];
+    return {
+      event_name: json.event_name ?? json.event ?? "",
+      date: json.date ?? json.event_date,
+      course: json.course ?? json.course_name,
+      players,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getPreTournamentProjections(
   tour = "pga",
 ): Promise<DgProjection[] | null> {
