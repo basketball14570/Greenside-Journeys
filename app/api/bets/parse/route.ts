@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseBetSlip } from "@/lib/parsers/screenshot";
 import { supabaseServer } from "@/lib/supabase/server";
+import { checkQuota, bumpUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -25,6 +26,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "not signed in" }, { status: 401 });
   }
 
+  // Quota check before parsing. Free tier hits a daily cap; pro / sharp
+  // are unlimited. See lib/usage.ts for the quota table.
+  const quota = await checkQuota(userData.user.id, "screenshot_parse");
+  if (!quota.allowed) {
+    return NextResponse.json(
+      {
+        error: "daily_limit",
+        message: `You've used all ${quota.limit} screenshot parses today. Upgrade to Pro for unlimited.`,
+        used: quota.used,
+        limit: quota.limit,
+        tier: quota.tier,
+      },
+      { status: 429 },
+    );
+  }
+
   try {
     const { imageBase64, mediaType } = await req.json();
     if (!imageBase64 || typeof imageBase64 !== "string") {
@@ -41,7 +58,13 @@ export async function POST(req: NextRequest) {
         ? "image/jpeg"
         : "image/png";
     const bets = await parseBetSlip(imageBase64, mt);
-    return NextResponse.json({ bets });
+    // Only bump after a successful parse so users aren't penalized for
+    // upstream Claude errors.
+    await bumpUsage(userData.user.id, "screenshot_parse");
+    return NextResponse.json({
+      bets,
+      usage: { used: quota.used + 1, limit: quota.limit, tier: quota.tier },
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type Message = { role: "user" | "assistant"; content: string };
+type Usage = { used: number; limit: number | null; allowed: boolean };
 
 const SUGGESTIONS = [
   "Which of my bets has the biggest live EV move?",
@@ -18,6 +20,8 @@ export default function AskPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [overLimit, setOverLimit] = useState(false);
+  const [usage, setUsage] = useState<Usage | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,9 +31,22 @@ export default function AskPage() {
     });
   }, [messages, sending]);
 
+  useEffect(() => {
+    fetch("/api/usage", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.signedIn && j.usage?.ask) {
+          setUsage(j.usage.ask);
+          if (!j.usage.ask.allowed) setOverLimit(true);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   async function send(text: string) {
     if (!text.trim() || sending) return;
     setError(null);
+    setOverLimit(false);
     const next: Message[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setInput("");
@@ -40,8 +57,18 @@ export default function AskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 429 && data.error === "daily_limit") {
+          setOverLimit(true);
+          if (data.limit != null) {
+            setUsage({ used: data.used, limit: data.limit, allowed: false });
+          }
+          throw new Error(data.message ?? "Daily limit reached");
+        }
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
+      if (data.usage) setUsage({ ...data.usage, allowed: true });
       setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -143,11 +170,45 @@ export default function AskPage() {
         </button>
       </form>
 
+      {overLimit && (
+        <div
+          className="mt-3 rounded-md p-3 border"
+          style={{
+            background: "rgba(245,197,88,0.08)",
+            borderColor: "rgba(245,197,88,0.3)",
+          }}
+        >
+          <div
+            className="num font-semibold uppercase mb-1"
+            style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
+          >
+            ● Daily cap reached
+          </div>
+          <p className="text-text-dim" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+            You&apos;ve used your free questions for today.{" "}
+            <Link
+              href="/pricing"
+              className="font-semibold"
+              style={{ color: "#8ee68e" }}
+            >
+              Upgrade to Pro
+            </Link>{" "}
+            for unlimited Ask access.
+          </p>
+        </div>
+      )}
+
       <p
         className="text-text-muted text-center mt-3"
         style={{ fontSize: 10.5, letterSpacing: 0.4 }}
       >
         Powered by Claude · responses grounded in your portfolio data via tool use
+        {usage && usage.limit != null && (
+          <>
+            {" · "}
+            {usage.used} of {usage.limit} questions today
+          </>
+        )}
       </p>
     </div>
   );

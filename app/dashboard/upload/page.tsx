@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BookChip, type Book } from "@/components/edge/primitives";
 import { parsedBetToSlipLeg } from "@/lib/parsers/to-slip-leg";
 import type { SlipLeg } from "@/lib/bet-slip";
@@ -273,14 +274,29 @@ function Step({ n, body }: { n: string; body: React.ReactNode }) {
   );
 }
 
+type Usage = { used: number; limit: number | null; allowed: boolean };
+
 // ─── Screenshot card ────────────────────────────────────────
 function ScreenshotCard() {
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState<ParsedBet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [overLimit, setOverLimit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const [usage, setUsage] = useState<Usage | null>(null);
+
+  useEffect(() => {
+    fetch("/api/usage", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.signedIn && j.usage?.screenshot_parse) {
+          setUsage(j.usage.screenshot_parse);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function saveToBets() {
     if (!result || result.length === 0) return;
@@ -316,6 +332,7 @@ function ScreenshotCard() {
     }
     setParsing(true);
     setError(null);
+    setOverLimit(false);
     setResult(null);
     try {
       const buf = await file.arrayBuffer();
@@ -332,6 +349,13 @@ function ScreenshotCard() {
         if (res.status === 401) {
           throw new Error("Sign in to upload bet slips");
         }
+        if (res.status === 429 && data.error === "daily_limit") {
+          setOverLimit(true);
+          if (data.limit != null) {
+            setUsage({ used: data.used, limit: data.limit, allowed: false });
+          }
+          throw new Error(data.message ?? "Daily limit reached");
+        }
         throw new Error(data.error || `Parse failed (${res.status})`);
       }
       if (!data.bets || data.bets.length === 0) {
@@ -339,6 +363,7 @@ function ScreenshotCard() {
           "No bets found in that image — try a clearer crop of the slip",
         );
       }
+      if (data.usage) setUsage({ ...data.usage, allowed: true });
       setResult(data.bets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to parse");
@@ -441,7 +466,45 @@ function ScreenshotCard() {
         {parsing ? "Parsing slip…" : "Extract bets"}
       </button>
 
-      {error && (
+      {usage && usage.limit != null && (
+        <div
+          className="mt-2 num text-text-muted"
+          style={{ fontSize: 10.5, letterSpacing: 0.4 }}
+        >
+          {usage.used} of {usage.limit} parses today · resets at midnight UTC
+        </div>
+      )}
+
+      {overLimit && (
+        <div
+          className="mt-3 rounded-md p-3 border"
+          style={{
+            background: "rgba(245,197,88,0.08)",
+            borderColor: "rgba(245,197,88,0.3)",
+          }}
+        >
+          <div
+            className="num font-semibold uppercase mb-1"
+            style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
+          >
+            ● Daily cap reached
+          </div>
+          <p className="text-text-dim" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+            You&apos;ve used your free screenshot parses for today. Forward
+            slip emails (unlimited on free) or{" "}
+            <Link
+              href="/pricing"
+              className="font-semibold"
+              style={{ color: "#8ee68e" }}
+            >
+              upgrade to Pro
+            </Link>{" "}
+            for unlimited uploads.
+          </p>
+        </div>
+      )}
+
+      {error && !overLimit && (
         <div className="mt-3 text-red" style={{ fontSize: 12.5 }}>
           {error}
         </div>

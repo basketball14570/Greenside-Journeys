@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { claude } from "@/lib/claude";
 import { TOOLS, SYSTEM_PROMPT, runTool } from "@/lib/ai/tools";
+import { supabaseServer } from "@/lib/supabase/server";
+import { checkQuota, bumpUsage } from "@/lib/usage";
 import type Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "nodejs";
@@ -12,6 +14,34 @@ type ClientMessage = { role: "user" | "assistant"; content: string };
 // tool_result until Claude returns a final text answer, then send the whole
 // transcript back so the client can render it.
 export async function POST(req: NextRequest) {
+  // Auth-gate so anonymous callers can't drain the Claude budget.
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return NextResponse.json({ error: "supabase not configured" }, { status: 503 });
+  }
+  const supabase = supabaseServer();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    return NextResponse.json({ error: "not signed in" }, { status: 401 });
+  }
+
+  // Free-tier daily quota. Pro / sharp tiers bypass.
+  const quota = await checkQuota(userData.user.id, "ask");
+  if (!quota.allowed) {
+    return NextResponse.json(
+      {
+        error: "daily_limit",
+        message: `You've used all ${quota.limit} questions today. Upgrade to Pro for unlimited.`,
+        used: quota.used,
+        limit: quota.limit,
+        tier: quota.tier,
+      },
+      { status: 429 },
+    );
+  }
+
   try {
     const { messages }: { messages: ClientMessage[] } = await req.json();
     if (!messages?.length) {
@@ -66,7 +96,12 @@ export async function POST(req: NextRequest) {
       .map((b) => (b as Anthropic.TextBlock).text)
       .join("\n\n");
 
-    return NextResponse.json({ reply: text });
+    await bumpUsage(userData.user.id, "ask");
+
+    return NextResponse.json({
+      reply: text,
+      usage: { used: quota.used + 1, limit: quota.limit, tier: quota.tier },
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

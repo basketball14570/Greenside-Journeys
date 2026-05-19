@@ -183,6 +183,25 @@ create policy "own slip" on bet_slips
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================================
+-- Usage counters — caps free-tier Claude spend by tracking daily API calls
+-- per user. Server-side bump on every Claude-calling endpoint
+-- (/api/bets/parse, /api/ask). Free tier hits cap → 429 + upgrade prompt.
+-- Pro / sharp tiers bypass the cap in lib/usage.ts.
+-- ============================================================================
+create table if not exists usage_counters (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  day date not null default current_date,
+  kind text not null,
+  count integer not null default 0,
+  primary key (user_id, day, kind)
+);
+alter table usage_counters enable row level security;
+-- Users can see their own counters (the UI surfaces "3 of 5 today"); only
+-- the service role inserts/updates so clients can't fake their own count.
+create policy "own usage read" on usage_counters
+  for select using (auth.uid() = user_id);
+
+-- ============================================================================
 -- Realtime: publish bets so the Tickets page can subscribe to inserts /
 -- updates (email import lands, cron grader transitions live → won, etc.)
 -- ============================================================================
