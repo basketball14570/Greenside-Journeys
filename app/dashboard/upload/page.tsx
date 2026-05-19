@@ -502,10 +502,15 @@ function ResultsSection({
   // Parlay detection: more than one bet AND every bet has the same stake
   // is overwhelmingly a parlay (DK / FD / Hard Rock all do this). Mixed
   // stakes = list of singles. Single bet = single, obviously.
-  const isParlay =
+  const heuristicParlay =
     bets.length > 1 &&
     bets.every((b) => b.stake === bets[0].stake) &&
     bets[0].stake > 0;
+  // User override — the heuristic is right ~95% of the time but books do
+  // occasionally let you build same-stake singles. Toggle visible only
+  // when multi-leg so we don't clutter single-bet uploads.
+  const [parlayOverride, setParlayOverride] = useState<boolean | null>(null);
+  const isParlay = parlayOverride ?? heuristicParlay;
 
   const trackOnLive = () => {
     const validLegs = legs.filter((l): l is SlipLeg => l !== null);
@@ -543,6 +548,34 @@ function ResultsSection({
           <span className="text-text-dim" style={{ fontSize: 11 }}>
             {saved}
           </span>
+        )}
+        {bets.length > 1 && (
+          <div className="flex items-center gap-1 rounded-md border border-line p-0.5">
+            <button
+              onClick={() => setParlayOverride(true)}
+              className="num font-semibold uppercase rounded px-2 py-1 transition"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                background: isParlay ? "#1e4030" : "transparent",
+                color: isParlay ? "#8ee68e" : "#6c7a72",
+              }}
+            >
+              Parlay
+            </button>
+            <button
+              onClick={() => setParlayOverride(false)}
+              className="num font-semibold uppercase rounded px-2 py-1 transition"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                background: !isParlay ? "#1e4030" : "transparent",
+                color: !isParlay ? "#8ee68e" : "#6c7a72",
+              }}
+            >
+              Singles
+            </button>
+          </div>
         )}
         <span
           className="num text-text-muted ml-auto"
