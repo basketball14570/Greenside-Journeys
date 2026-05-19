@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookChip, type Book } from "@/components/edge/primitives";
+import { QuotaLimitBanner } from "@/components/edge/QuotaBanner";
+import { useQuota } from "@/lib/use-quota";
+import { QUOTA_ERROR_CODE } from "@/lib/usage";
 import { parsedBetToSlipLeg } from "@/lib/parsers/to-slip-leg";
 import type { SlipLeg } from "@/lib/bet-slip";
 import {
@@ -44,6 +47,11 @@ const BOOK_MAP: Record<string, Book> = {
 // Fallback shown until the per-user address resolves. The forwarding API
 // returns the real bets+<token>@<domain> when the user is signed in.
 const FALLBACK_INBOUND = "bets+yourtoken@greensideedge.com";
+
+// Match the server cap (4 MB base64 ≈ 3 MB raw image). Validated before
+// the file leaves the browser so users get instant feedback instead of
+// waiting on a 413 round-trip.
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
 export default function UploadPage() {
   return (
@@ -276,6 +284,8 @@ function ScreenshotCard() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const { usage, setUsage } = useQuota("screenshot_parse");
+  const overLimit = usage?.allowed === false;
 
   async function saveToBets() {
     if (!result || result.length === 0) return;
@@ -288,8 +298,11 @@ function ScreenshotCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bets: result, source: "screenshot" }),
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (r.status === 401) throw new Error("Sign in to save bets to your account");
+        throw new Error(j.error ?? `Save failed (${r.status})`);
+      }
       setSaved(`Saved ${j.inserted}. Confirm them on /dashboard/bets.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -300,6 +313,12 @@ function ScreenshotCard() {
 
   async function handleSubmit() {
     if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB — keep screenshots under 3 MB`,
+      );
+      return;
+    }
     setParsing(true);
     setError(null);
     setResult(null);
@@ -313,8 +332,25 @@ function ScreenshotCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: b64, mediaType: file.type }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Sign in to upload bet slips");
+        }
+        if (res.status === 429 && data.error === QUOTA_ERROR_CODE) {
+          if (data.limit != null) {
+            setUsage({ used: data.used, limit: data.limit, allowed: false });
+          }
+          throw new Error(data.message ?? "Daily limit reached");
+        }
+        throw new Error(data.error || `Parse failed (${res.status})`);
+      }
+      if (!data.bets || data.bets.length === 0) {
+        throw new Error(
+          "No bets found in that image — try a clearer crop of the slip",
+        );
+      }
+      if (data.usage) setUsage(data.usage);
       setResult(data.bets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to parse");
@@ -390,7 +426,7 @@ function ScreenshotCard() {
                 className="num text-text-muted"
                 style={{ fontSize: 10.5, letterSpacing: 0.5 }}
               >
-                PNG or JPG · up to 10MB
+                PNG or JPG · up to 3 MB
               </div>
             </>
           )}
@@ -417,7 +453,24 @@ function ScreenshotCard() {
         {parsing ? "Parsing slip…" : "Extract bets"}
       </button>
 
-      {error && (
+      {usage && usage.limit != null && (
+        <div
+          className="mt-2 num text-text-muted"
+          style={{ fontSize: 10.5, letterSpacing: 0.4 }}
+        >
+          {usage.used} of {usage.limit} parses today · resets at midnight UTC
+        </div>
+      )}
+
+      {overLimit && (
+        <div className="mt-3">
+          <QuotaLimitBanner
+            body="You've used your free screenshot parses for today. Forward slip emails (unlimited on free) or"
+          />
+        </div>
+      )}
+
+      {error && !overLimit && (
         <div className="mt-3 text-red" style={{ fontSize: 12.5 }}>
           {error}
         </div>
@@ -478,10 +531,15 @@ function ResultsSection({
   // Parlay detection: more than one bet AND every bet has the same stake
   // is overwhelmingly a parlay (DK / FD / Hard Rock all do this). Mixed
   // stakes = list of singles. Single bet = single, obviously.
-  const isParlay =
+  const heuristicParlay =
     bets.length > 1 &&
     bets.every((b) => b.stake === bets[0].stake) &&
     bets[0].stake > 0;
+  // User override — the heuristic is right ~95% of the time but books do
+  // occasionally let you build same-stake singles. Toggle visible only
+  // when multi-leg so we don't clutter single-bet uploads.
+  const [parlayOverride, setParlayOverride] = useState<boolean | null>(null);
+  const isParlay = parlayOverride ?? heuristicParlay;
 
   const trackOnLive = () => {
     const validLegs = legs.filter((l): l is SlipLeg => l !== null);
@@ -519,6 +577,34 @@ function ResultsSection({
           <span className="text-text-dim" style={{ fontSize: 11 }}>
             {saved}
           </span>
+        )}
+        {bets.length > 1 && (
+          <div className="flex items-center gap-1 rounded-md border border-line p-0.5">
+            <button
+              onClick={() => setParlayOverride(true)}
+              className="num font-semibold uppercase rounded px-2 py-1 transition"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                background: isParlay ? "#1e4030" : "transparent",
+                color: isParlay ? "#8ee68e" : "#6c7a72",
+              }}
+            >
+              Parlay
+            </button>
+            <button
+              onClick={() => setParlayOverride(false)}
+              className="num font-semibold uppercase rounded px-2 py-1 transition"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                background: !isParlay ? "#1e4030" : "transparent",
+                color: !isParlay ? "#8ee68e" : "#6c7a72",
+              }}
+            >
+              Singles
+            </button>
+          </div>
         )}
         <span
           className="num text-text-muted ml-auto"

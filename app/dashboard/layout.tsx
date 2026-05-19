@@ -52,8 +52,7 @@ export default function DashboardLayout({
 
 // Map a pathname to the mobile tab id. Mobile shows 5 tabs (home/bets/
 // ask/dfs/course), so everything outside those routes falls back to the
-// closest match (e.g. /dashboard/parlay → tickets, /dashboard/showdown
-// → dfs).
+// closest match (e.g. /dashboard/parlay → tickets).
 function activeMobileTabFor(pathname: string | null): string {
   if (!pathname) return "home";
   if (pathname === "/dashboard") return "home";
@@ -63,7 +62,6 @@ function activeMobileTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/upload")) return "bets";
   if (pathname.startsWith("/dashboard/ask")) return "ask";
   if (pathname.startsWith("/dashboard/dfs")) return "dfs";
-  if (pathname.startsWith("/dashboard/showdown")) return "dfs";
   if (pathname.startsWith("/dashboard/ownership")) return "dfs";
   if (pathname.startsWith("/dashboard/conditions")) return "course";
   if (pathname.startsWith("/dashboard/guide")) return "course";
@@ -90,7 +88,6 @@ function activeDesktopTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/schedule")) return "Schedule";
   if (pathname.startsWith("/dashboard/preview")) return "Previews";
   if (pathname.startsWith("/dashboard/ownership")) return "Ownership";
-  if (pathname.startsWith("/dashboard/showdown")) return "Showdown";
   if (pathname.startsWith("/dashboard/backtest")) return "Backtest";
   if (pathname.startsWith("/dashboard/model")) return "Model";
   if (pathname.startsWith("/dashboard/newsletter")) return "Newsletter";

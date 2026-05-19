@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { MarketingNav, MarketingFooter } from "@/components/marketing/Nav";
+import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 
 export default function MarketingHome() {
+  const event = getActiveEvent();
+  const status = event ? statusOf(event) : null;
+  const eyebrow = event
+    ? status === "live"
+      ? `Live · ${event.course} · grading every leg in your slip`
+      : status === "upcoming"
+        ? `This week · ${event.name} · ${event.course}`
+        : `Just finished · ${event.name}`
+    : "Off-season · gearing up for 2027";
+
   return (
     <main className="min-h-screen bg-bg text-text">
       <MarketingNav />
@@ -24,7 +35,7 @@ export default function MarketingHome() {
             className="num font-semibold uppercase"
             style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
           >
-            ● R2 · Quail Hollow · wind 14g22 by tee time
+            ● {eyebrow}
           </span>
           <h1
             className="serif-italic mt-5 mb-6 text-text"

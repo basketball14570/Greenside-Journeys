@@ -226,7 +226,9 @@ export function useBetSlip(): UseBetSlipResult {
 
   const importLegs = useCallback<UseBetSlipResult["importLegs"]>(
     (legs) => {
-      update({ ...slip, legs });
+      // Append rather than replace so in-progress legs the user hadn't
+      // saved yet don't get wiped when they upload a screenshot.
+      update({ ...slip, legs: [...slip.legs, ...legs] });
     },
     [slip, update],
   );

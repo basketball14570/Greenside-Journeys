@@ -82,7 +82,28 @@ const HOURLY_WIND: WindPoint[] = [
 // ────────────────────────────────────────────────────────────
 // Weather Hero — mobile version
 // ────────────────────────────────────────────────────────────
-export function MobileWeatherHero() {
+import type { WeatherSnapshot } from "@/lib/weather/forecast";
+
+export function MobileWeatherHero({
+  courseName,
+  snapshot,
+}: {
+  courseName?: string;
+  snapshot?: WeatherSnapshot | null;
+} = {}) {
+  const courseLabel = courseName ?? "the course";
+  const sustained = snapshot?.sustainedMph ?? 18;
+  const gust = snapshot?.gustMph ?? 27;
+  const dir = snapshot?.windDirDeg ?? 245;
+  const cardinal = snapshot?.windDirCardinal ?? "WSW";
+  const delta = snapshot?.deltaSinceMorningMph ?? 10;
+  const hourly = snapshot?.hourly ?? HOURLY_WIND;
+  const headline =
+    sustained >= 15
+      ? `Wind's up at ${courseLabel}.`
+      : sustained >= 8
+        ? `Steady breeze at ${courseLabel}.`
+        : `Calm at ${courseLabel}.`;
   return (
     <div className="mx-5 mb-6">
       <div
@@ -116,34 +137,34 @@ export function MobileWeatherHero() {
             className="serif-italic mt-1.5 text-text"
             style={{ fontSize: 22, lineHeight: 1.18, letterSpacing: -0.2, fontStyle: "normal" }}
           >
-            <em>Wind&apos;s up at Quail Hollow.</em> AM wave is gaining strokes
-            by the hour.
+            <em>{headline}</em> AM wave is gaining strokes by the hour.
           </div>
         </div>
 
         <div className="flex items-end justify-between gap-4 mb-4 relative">
-          <Stat value="18" unit="mph" label="Sustained" />
+          <Stat value={String(sustained)} unit="mph" label="Sustained" />
           <div className="flex flex-col gap-1 items-end">
             <div className="flex items-center gap-2">
-              <WindArrow degrees={245} size={20} />
+              <WindArrow degrees={dir} size={20} />
               <span
                 className="num text-text-dim"
                 style={{ fontSize: 12, letterSpacing: 0.6 }}
               >
-                WSW · gust 27
+                {cardinal} · gust {gust}
               </span>
             </div>
             <span
               className="num font-semibold"
               style={{ fontSize: 10.5, color: "#f5c558", letterSpacing: 0.4 }}
             >
-              ↑ +10 since 6:00 AM
+              {delta >= 0 ? "↑" : "↓"} {delta >= 0 ? "+" : ""}
+              {delta} since 6:00 AM
             </span>
           </div>
         </div>
 
         <div className="relative mb-4">
-          <WindSpark data={HOURLY_WIND} width={326} height={48} />
+          <WindSpark data={hourly} width={326} height={48} />
           <div
             className="flex justify-between num text-text-muted mt-0.5"
             style={{ fontSize: 9, letterSpacing: 0.6 }}
@@ -195,7 +216,30 @@ export function MobileWeatherHero() {
 // ────────────────────────────────────────────────────────────
 // Weather Hero — desktop (3-column)
 // ────────────────────────────────────────────────────────────
-export function DesktopWeatherHero() {
+export function DesktopWeatherHero({
+  courseName,
+  snapshot,
+}: {
+  courseName?: string;
+  snapshot?: WeatherSnapshot | null;
+} = {}) {
+  const courseLabel = courseName ?? "the course";
+  const sustained = snapshot?.sustainedMph ?? 18;
+  const gust = snapshot?.gustMph ?? 27;
+  const dir = snapshot?.windDirDeg ?? 245;
+  const cardinal = snapshot?.windDirCardinal ?? "WSW";
+  const delta = snapshot?.deltaSinceMorningMph ?? 10;
+  const hourly = snapshot?.hourly ?? HOURLY_WIND;
+  const headline =
+    sustained >= 15
+      ? `Wind's up at ${courseLabel}.`
+      : sustained >= 8
+        ? `Steady breeze at ${courseLabel}.`
+        : `Calm at ${courseLabel}.`;
+  const nowLabel = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
   return (
     <div
       className="relative rounded-[18px] overflow-hidden border border-line"
@@ -223,24 +267,25 @@ export function DesktopWeatherHero() {
           className="num font-semibold uppercase"
           style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
         >
-          ● Conditions Edge · 7:42 AM
+          ● Conditions Edge · {nowLabel}
         </span>
         <div
           className="serif-italic mt-2.5 mb-4 text-text"
           style={{ fontSize: 30, lineHeight: 1.15, letterSpacing: -0.4, fontStyle: "normal" }}
         >
-          <em>Wind&apos;s up at Quail Hollow.</em>
+          <em>{headline}</em>
           <br />
           AM wave is banking strokes.
         </div>
-        <Stat value="18" unit="mph" label="Sustained · WSW" />
+        <Stat value={String(sustained)} unit="mph" label={`Sustained · ${cardinal}`} />
         <div className="flex items-center gap-2.5 mt-2.5">
-          <WindArrow degrees={245} size={20} />
+          <WindArrow degrees={dir} size={20} />
           <span
             className="num text-text-dim"
             style={{ fontSize: 11.5, letterSpacing: 0.5 }}
           >
-            Gust 27 · ↑ +10 mph since 6:00 AM
+            Gust {gust} · {delta >= 0 ? "↑" : "↓"} {delta >= 0 ? "+" : ""}
+            {delta} mph since 6:00 AM
           </span>
         </div>
       </div>
@@ -253,7 +298,7 @@ export function DesktopWeatherHero() {
           Hourly Wind · 6 AM → 8 PM
         </span>
         <div className="mt-4">
-          <WindSpark data={HOURLY_WIND} width={300} height={88} />
+          <WindSpark data={hourly} width={300} height={88} />
         </div>
         <div
           className="flex justify-between num text-text-muted mt-1"

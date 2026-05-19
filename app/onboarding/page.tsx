@@ -4,13 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/edge/primitives";
 
-type StepId = "welcome" | "books" | "alerts" | "exposure" | "done";
+type StepId = "welcome" | "books" | "alerts" | "done";
 
 const STEPS: { id: StepId; label: string }[] = [
   { id: "welcome", label: "Welcome" },
   { id: "books", label: "Your books" },
   { id: "alerts", label: "Alerts" },
-  { id: "exposure", label: "Tournaments" },
   { id: "done", label: "Ready" },
 ];
 
@@ -31,24 +30,11 @@ const ALERT_TYPES = [
   { id: "withdraw", label: "Player withdrawals", default: true, hint: "WD/DNS/DQ on a player in your portfolio" },
 ];
 
-const TOURNAMENTS = [
-  { id: "byron", name: "CJ Cup Byron Nelson", date: "May 21–24", tour: "PGA", default: true },
-  { id: "pebble", name: "AT&T Pebble Beach Pro-Am", date: "Jan 29–Feb 1", tour: "PGA", default: true },
-  { id: "torrey", name: "Genesis Invitational", date: "Feb 12–15", tour: "PGA", default: false },
-  { id: "masters", name: "The Masters", date: "Apr 9–12", tour: "Majors", default: true },
-  { id: "pga", name: "PGA Championship", date: "May 14–17", tour: "Majors", default: true },
-  { id: "us-open", name: "U.S. Open", date: "Jun 18–21", tour: "Majors", default: true },
-  { id: "open", name: "The Open Championship", date: "Jul 16–19", tour: "Majors", default: true },
-];
-
 export default function OnboardingPage() {
   const [step, setStep] = useState<StepId>("welcome");
   const [books, setBooks] = useState<string[]>(["DK", "PP"]);
   const [alerts, setAlerts] = useState<string[]>(
     ALERT_TYPES.filter((a) => a.default).map((a) => a.id),
-  );
-  const [tournaments, setTournaments] = useState<string[]>(
-    TOURNAMENTS.filter((t) => t.default).map((t) => t.id),
   );
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
@@ -145,14 +131,8 @@ export default function OnboardingPage() {
         {step === "alerts" && (
           <AlertsStep selected={alerts} onChange={setAlerts} />
         )}
-        {step === "exposure" && (
-          <TournamentsStep
-            selected={tournaments}
-            onChange={setTournaments}
-          />
-        )}
         {step === "done" && (
-          <DoneStep books={books} alerts={alerts} tournaments={tournaments} />
+          <DoneStep books={books} alerts={alerts} />
         )}
       </div>
 
@@ -434,93 +414,12 @@ function AlertsStep({
   );
 }
 
-function TournamentsStep({
-  selected,
-  onChange,
-}: {
-  selected: string[];
-  onChange: (next: string[]) => void;
-}) {
-  function toggle(id: string) {
-    onChange(
-      selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id],
-    );
-  }
-  const grouped = {
-    Majors: TOURNAMENTS.filter((t) => t.tour === "Majors"),
-    PGA: TOURNAMENTS.filter((t) => t.tour === "PGA"),
-  };
-  return (
-    <div>
-      <h1
-        className="serif-italic mb-3"
-        style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
-      >
-        <em>Which events</em> do you follow?
-      </h1>
-      <p className="text-text-dim max-w-2xl mb-8" style={{ fontSize: 15, lineHeight: 1.55 }}>
-        Conditions alerts only fire for tournaments you&apos;re following. Add or
-        remove anytime — and we auto-follow any event where you have an open
-        bet.
-      </p>
-
-      {Object.entries(grouped).map(([group, items]) => (
-        <div key={group} className="mb-6">
-          <div
-            className="num font-semibold uppercase text-text-muted mb-2"
-            style={{ fontSize: 10, letterSpacing: 1.2 }}
-          >
-            {group}
-          </div>
-          <div className="space-y-2">
-            {items.map((t) => {
-              const on = selected.includes(t.id);
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => toggle(t.id)}
-                  className="w-full rounded-[10px] p-3 text-left transition flex items-center gap-3"
-                  style={{
-                    background: on ? "rgba(142,230,142,0.06)" : "rgba(0,0,0,0.18)",
-                    border: on
-                      ? "1px solid rgba(142,230,142,0.3)"
-                      : "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <span
-                    className="rounded-full shrink-0"
-                    style={{
-                      width: 16,
-                      height: 16,
-                      background: on ? "#8ee68e" : "transparent",
-                      border: on ? "none" : "1.5px solid rgba(255,255,255,0.2)",
-                    }}
-                  />
-                  <span className="text-text font-medium" style={{ fontSize: 13.5 }}>
-                    {t.name}
-                  </span>
-                  <span className="flex-1" />
-                  <span className="num text-text-muted" style={{ fontSize: 11.5 }}>
-                    {t.date}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function DoneStep({
   books,
   alerts,
-  tournaments,
 }: {
   books: string[];
   alerts: string[];
-  tournaments: string[];
 }) {
   const [address, setAddress] = useState<string | null>(null);
   const [addressState, setAddressState] = useState<"loading" | "anon" | "unavailable" | "ready">(
@@ -605,7 +504,7 @@ function DoneStep({
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <Recap label="Books" count={books.length} />
         <Recap label="Alert types" count={alerts.length} />
-        <Recap label="Tournaments" count={tournaments.length} />
+        <Recap label="Tournaments" count={"All PGA Tour"} />
       </div>
 
       <div className="rounded-[14px] bg-surface-1 border border-line p-5 mb-4">
@@ -712,7 +611,8 @@ function NextStepCard({
   );
 }
 
-function Recap({ label, count }: { label: string; count: number }) {
+function Recap({ label, count }: { label: string; count: number | string }) {
+  const isNumeric = typeof count === "number";
   return (
     <div className="rounded-[14px] bg-surface-1 border border-line p-5">
       <div
@@ -723,7 +623,12 @@ function Recap({ label, count }: { label: string; count: number }) {
       </div>
       <div
         className="serif-italic mt-1"
-        style={{ fontSize: 56, lineHeight: 0.9, fontStyle: "italic", color: "#8ee68e" }}
+        style={{
+          fontSize: isNumeric ? 56 : 22,
+          lineHeight: isNumeric ? 0.9 : 1.2,
+          fontStyle: isNumeric ? "italic" : "normal",
+          color: "#8ee68e",
+        }}
       >
         {count}
       </div>

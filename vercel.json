@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/grade",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/dfs-refresh",
+      "schedule": "0 12 * * 1"
     }
   ]
 }

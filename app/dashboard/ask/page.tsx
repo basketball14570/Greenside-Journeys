@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { QuotaLimitBanner } from "@/components/edge/QuotaBanner";
+import { useQuota } from "@/lib/use-quota";
+import { QUOTA_ERROR_CODE } from "@/lib/usage";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -18,6 +21,8 @@ export default function AskPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { usage, setUsage } = useQuota("ask");
+  const overLimit = usage?.allowed === false;
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,8 +45,17 @@ export default function AskPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 429 && data.error === QUOTA_ERROR_CODE) {
+          if (data.limit != null) {
+            setUsage({ used: data.used, limit: data.limit, allowed: false });
+          }
+          throw new Error(data.message ?? "Daily limit reached");
+        }
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
+      if (data.usage) setUsage(data.usage);
       setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -143,11 +157,23 @@ export default function AskPage() {
         </button>
       </form>
 
+      {overLimit && (
+        <div className="mt-3">
+          <QuotaLimitBanner body="You've used your free Ask questions for today." />
+        </div>
+      )}
+
       <p
         className="text-text-muted text-center mt-3"
         style={{ fontSize: 10.5, letterSpacing: 0.4 }}
       >
         Powered by Claude · responses grounded in your portfolio data via tool use
+        {usage && usage.limit != null && (
+          <>
+            {" · "}
+            {usage.used} of {usage.limit} questions today
+          </>
+        )}
       </p>
     </div>
   );

@@ -3,18 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// "More" menu off the desktop app bar — hosts every secondary route
-// that used to occupy a top-level tab (Backtest, Model, Newsletter,
-// Showdown, Course Lab, etc). Hover-or-click to open; the chip stays
-// highlighted when the active route lives inside the dropdown so the
-// user can still tell where they are.
+// Generic hover-or-click dropdown used by both the "More" menu and the
+// DFS submenu. The chip stays highlighted when the active route lives
+// inside the dropdown so the user can still tell where they are.
 
 export type MoreTab = { label: string; href: string };
 
 export function MoreDropdown({
+  label = "More",
   active,
   tabs,
 }: {
+  label?: string;
   active: string;
   tabs: MoreTab[];
 }) {
@@ -36,7 +36,7 @@ export function MoreDropdown({
         }`}
         style={{ fontSize: 13.5 }}
       >
-        More
+        {label}
         <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
       </button>
       {open && (
