@@ -178,6 +178,7 @@ function degToCardinal(deg: number): string {
 export type WavePeriod = {
   windAvg: number;
   gustAvg: number;
+  tempAvg: number;
   hours: number;
 };
 
@@ -187,15 +188,35 @@ export type WaveSplitRound = {
   dayLabel: string; // "Thu", "Fri"
   am: WavePeriod | null;
   pm: WavePeriod | null;
+  // Hour-by-hour breakdown 7am-5pm local, in chronological order. Used
+  // by the detail view; the chip only needs the AM/PM aggregates.
+  hourly: {
+    hour: number;        // 7..17 (local)
+    windMph: number;
+    gustMph: number;
+    tempF: number;
+  }[];
   // Positive = PM windier than AM (favors AM wave). Mph difference.
   deltaPmMinusAm: number | null;
   favors: "am" | "pm" | "even" | null;
+};
+
+// Combined edge for the two PGA tee waves over the Thu+Fri stretch.
+// Wave 1: Thu AM tee → Fri PM tee. Wave 2: Thu PM tee → Fri AM tee.
+// A lower combined wind average is "easier" — that wave has the edge.
+export type CombinedWaveEdge = {
+  wave1: { windAvg: number; tempAvg: number; label: "Thu AM / Fri PM" };
+  wave2: { windAvg: number; tempAvg: number; label: "Thu PM / Fri AM" };
+  // Positive = wave2 windier (favors wave1). mph.
+  deltaWave2MinusWave1: number;
+  favors: "wave1" | "wave2" | "even";
 };
 
 export type WaveSplitSummary = {
   courseId: string;
   tz: string;
   rounds: WaveSplitRound[];
+  combined: CombinedWaveEdge | null;
 };
 
 function dateInTz(date: Date, tz: string): { ymd: string; hour: number; day: string } {
@@ -244,9 +265,10 @@ export function waveSplitFromForecast(
   friDate.setUTCDate(friDate.getUTCDate() + 1);
   const friLocal = friDate.toISOString().slice(0, 10);
 
-  const buckets = new Map<string, { am: ForecastHour[]; pm: ForecastHour[] }>([
-    [thuLocal, { am: [], pm: [] }],
-    [friLocal, { am: [], pm: [] }],
+  type Bucket = { am: ForecastHour[]; pm: ForecastHour[]; hourly: Map<number, ForecastHour> };
+  const buckets = new Map<string, Bucket>([
+    [thuLocal, { am: [], pm: [], hourly: new Map() }],
+    [friLocal, { am: [], pm: [], hourly: new Map() }],
   ]);
 
   for (const h of forecast.hours) {
@@ -255,6 +277,8 @@ export function waveSplitFromForecast(
     if (!bucket) continue;
     if (local.hour >= 7 && local.hour <= 11) bucket.am.push(h);
     else if (local.hour >= 13 && local.hour <= 17) bucket.pm.push(h);
+    // Keep the full 7am-5pm slice for the hourly detail view.
+    if (local.hour >= 7 && local.hour <= 17) bucket.hourly.set(local.hour, h);
   }
 
   function summarize(hours: ForecastHour[]): WavePeriod | null {
@@ -262,6 +286,7 @@ export function waveSplitFromForecast(
     return {
       windAvg: +avg(hours.map((h) => h.windMph)).toFixed(1),
       gustAvg: +avg(hours.map((h) => h.gustMph)).toFixed(1),
+      tempAvg: +avg(hours.map((h) => h.temperatureF)).toFixed(0),
       hours: hours.length,
     };
   }
@@ -275,6 +300,18 @@ export function waveSplitFromForecast(
     const b = buckets.get(date)!;
     const am = summarize(b.am);
     const pm = summarize(b.pm);
+    const hourly = Array.from({ length: 11 }, (_, i) => i + 7)
+      .map((hour) => {
+        const h = b.hourly.get(hour);
+        if (!h) return null;
+        return {
+          hour,
+          windMph: Math.round(h.windMph),
+          gustMph: Math.round(h.gustMph),
+          tempF: Math.round(h.temperatureF),
+        };
+      })
+      .filter((h): h is { hour: number; windMph: number; gustMph: number; tempF: number } => h !== null);
     const deltaPmMinusAm = am && pm ? +(pm.windAvg - am.windAvg).toFixed(1) : null;
     let favors: WaveSplitRound["favors"] = null;
     if (deltaPmMinusAm !== null) {
@@ -282,14 +319,34 @@ export function waveSplitFromForecast(
       else if (deltaPmMinusAm <= -3) favors = "pm";
       else favors = "even";
     }
-    return { date, dayLabel, am, pm, deltaPmMinusAm, favors };
+    return { date, dayLabel, am, pm, hourly, deltaPmMinusAm, favors };
   });
 
   // Drop rounds with no data at all (e.g. tournament already finished).
   const populated = rounds.filter((r) => r.am || r.pm);
   if (populated.length === 0) return null;
 
-  return { courseId, tz, rounds: populated };
+  // Combined-wave edge: only computable when we have all four windows.
+  const thu = populated.find((r) => r.dayLabel === "Thu");
+  const fri = populated.find((r) => r.dayLabel === "Fri");
+  let combined: CombinedWaveEdge | null = null;
+  if (thu?.am && thu?.pm && fri?.am && fri?.pm) {
+    const wave1Wind = +((thu.am.windAvg + fri.pm.windAvg) / 2).toFixed(1);
+    const wave2Wind = +((thu.pm.windAvg + fri.am.windAvg) / 2).toFixed(1);
+    const wave1Temp = Math.round((thu.am.tempAvg + fri.pm.tempAvg) / 2);
+    const wave2Temp = Math.round((thu.pm.tempAvg + fri.am.tempAvg) / 2);
+    const delta = +(wave2Wind - wave1Wind).toFixed(1);
+    const favors: CombinedWaveEdge["favors"] =
+      delta >= 2 ? "wave1" : delta <= -2 ? "wave2" : "even";
+    combined = {
+      wave1: { windAvg: wave1Wind, tempAvg: wave1Temp, label: "Thu AM / Fri PM" },
+      wave2: { windAvg: wave2Wind, tempAvg: wave2Temp, label: "Thu PM / Fri AM" },
+      deltaWave2MinusWave1: delta,
+      favors,
+    };
+  }
+
+  return { courseId, tz, rounds: populated, combined };
 }
 
 const CACHE = new Map<string, { at: number; data: Forecast }>();
