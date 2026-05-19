@@ -64,9 +64,10 @@ function activeMobileTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/ask")) return "ask";
   if (pathname.startsWith("/dashboard/dfs")) return "dfs";
   if (pathname.startsWith("/dashboard/ownership")) return "dfs";
-  if (pathname.startsWith("/dashboard/conditions")) return "course";
-  if (pathname.startsWith("/dashboard/guide")) return "course";
-  if (pathname.startsWith("/courses/")) return "course";
+  if (pathname.startsWith("/dashboard/weather")) return "weather";
+  if (pathname.startsWith("/dashboard/conditions")) return "weather";
+  if (pathname.startsWith("/dashboard/guide")) return "weather";
+  if (pathname.startsWith("/courses/")) return "weather";
   return "home";
 }
 
@@ -79,7 +80,9 @@ function activeDesktopTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/bets")) return "Tickets";
   if (pathname.startsWith("/dashboard/upload")) return "Tickets";
   if (pathname.startsWith("/dashboard/slip")) return "Tickets";
+  if (pathname.startsWith("/dashboard/live")) return "Live";
   if (pathname.startsWith("/dashboard/parlay")) return "Live";
+  if (pathname.startsWith("/dashboard/weather")) return "Weather";
   if (pathname.startsWith("/dashboard/odds")) return "Odds";
   if (pathname.startsWith("/dashboard/leaderboard")) return "Leaderboard";
   if (pathname.startsWith("/dashboard/ask")) return "Ask";
