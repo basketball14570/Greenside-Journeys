@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Stat } from "@/components/edge/primitives";
 import { DFS_PLAYERS, buildSampleLineup } from "@/lib/demo-dfs";
 import { getPlayerHistory } from "@/lib/data/ownership";
@@ -237,9 +238,21 @@ export default function DfsPage() {
         </div>
       </div>
 
-      <OptimizerPanel />
-
-      <LeverageInsights />
+      {/* Mobile reorders these three into Chalk → Leverage → Ownership →
+          Optimizer (the higher-leverage "intelligence" sits up top, with
+          the heavier optimizer below the fold). Desktop keeps the
+          Optimizer-first layout it always had. */}
+      <div className="flex flex-col gap-6 lg:contents">
+        <div className="order-3 lg:order-none">
+          <OptimizerPanel />
+        </div>
+        <div className="order-1 lg:order-none">
+          <LeverageInsights />
+        </div>
+        <div className="order-2 lg:order-none">
+          <ProjectedOwnershipPreview />
+        </div>
+      </div>
 
       {/* Full salary table */}
       <div className="rounded-[14px] overflow-hidden bg-surface-1 border border-line">
@@ -398,16 +411,16 @@ function LeverageInsights() {
   return (
     <div className="grid lg:grid-cols-2 gap-5">
       <LeverageCard
-        title="Leverage plays"
-        subtitle="Projected ownership well below their season average"
-        rows={leverage}
-        tone="good"
-      />
-      <LeverageCard
         title="Chalk warning"
         subtitle="Projected ownership well above their season average"
         rows={chalk}
         tone="bad"
+      />
+      <LeverageCard
+        title="Leverage plays"
+        subtitle="Projected ownership well below their season average"
+        rows={leverage}
+        tone="good"
       />
     </div>
   );
@@ -493,5 +506,79 @@ function LeverageCard({
         </div>
       ))}
     </div>
+  );
+}
+
+// ─── Projected ownership preview ───────────────────────────
+// Quick top-of-the-board look at the highest projected-ownership players,
+// linking through to /dashboard/ownership for the full slate (projections
+// tab is the default landing there). Patterned after CourseGuideCard so
+// the call-to-action ("Read the full ownership board →") feels familiar.
+function ProjectedOwnershipPreview() {
+  const top = [...DFS_PLAYERS]
+    .sort((a, b) => b.ownership - a.ownership)
+    .slice(0, 6);
+
+  return (
+    <Link
+      href="/dashboard/ownership"
+      className="block rounded-[14px] border-2 p-4 lg:p-5 transition hover:bg-surface-2/40"
+      style={{
+        borderColor: "rgba(127,212,154,0.35)",
+        background:
+          "radial-gradient(ellipse at 80% 0%, rgba(127,212,154,0.08), transparent 60%), #14110e",
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.3, color: "#7fd49a" }}
+        >
+          ● Projected ownership
+        </span>
+        <span
+          className="num text-text-muted"
+          style={{ fontSize: 10, letterSpacing: 0.5 }}
+        >
+          Top 6 · this week
+        </span>
+      </div>
+      <div
+        className="serif-italic mt-1.5"
+        style={{
+          fontSize: 22,
+          letterSpacing: -0.3,
+          fontStyle: "normal",
+          color: "#f0ebe0",
+        }}
+      >
+        <em>Where the field is going.</em>
+      </div>
+      <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {top.map((p) => (
+          <li
+            key={p.name}
+            className="flex items-baseline justify-between gap-2 num"
+            style={{ fontSize: 12.5 }}
+          >
+            <span className="truncate" style={{ color: "#f0ebe0" }}>
+              {p.name}
+            </span>
+            <span
+              className="font-semibold"
+              style={{ color: "#7fd49a" }}
+            >
+              {p.ownership.toFixed(1)}%
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div
+        className="mt-3 num font-semibold uppercase"
+        style={{ fontSize: 10.5, letterSpacing: 1.2, color: "#8ee68e" }}
+      >
+        Read the full ownership board →
+      </div>
+    </Link>
   );
 }
