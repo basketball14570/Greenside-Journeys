@@ -241,6 +241,7 @@ const MORE_TABS = [
   { label: "Previews", href: "/dashboard/preview" },
   { label: "Ownership", href: "/dashboard/ownership" },
   { label: "Showdown", href: "/dashboard/showdown" },
+  { label: "Hedge", href: "/dashboard/hedge" },
   { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Model", href: "/dashboard/model" },
   { label: "Newsletter", href: "/dashboard/newsletter" },

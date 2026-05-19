@@ -45,6 +45,11 @@ const BOOK_MAP: Record<string, Book> = {
 // returns the real bets+<token>@<domain> when the user is signed in.
 const FALLBACK_INBOUND = "bets+yourtoken@greensideedge.com";
 
+// Match the server cap (4 MB base64 ≈ 3 MB raw image). Validated before
+// the file leaves the browser so users get instant feedback instead of
+// waiting on a 413 round-trip.
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
 export default function UploadPage() {
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-5xl mx-auto">
@@ -288,8 +293,11 @@ function ScreenshotCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bets: result, source: "screenshot" }),
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (r.status === 401) throw new Error("Sign in to save bets to your account");
+        throw new Error(j.error ?? `Save failed (${r.status})`);
+      }
       setSaved(`Saved ${j.inserted}. Confirm them on /dashboard/bets.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -300,6 +308,12 @@ function ScreenshotCard() {
 
   async function handleSubmit() {
     if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB — keep screenshots under 3 MB`,
+      );
+      return;
+    }
     setParsing(true);
     setError(null);
     setResult(null);
@@ -313,8 +327,18 @@ function ScreenshotCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: b64, mediaType: file.type }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Sign in to upload bet slips");
+        }
+        throw new Error(data.error || `Parse failed (${res.status})`);
+      }
+      if (!data.bets || data.bets.length === 0) {
+        throw new Error(
+          "No bets found in that image — try a clearer crop of the slip",
+        );
+      }
       setResult(data.bets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to parse");
@@ -390,7 +414,7 @@ function ScreenshotCard() {
                 className="num text-text-muted"
                 style={{ fontSize: 10.5, letterSpacing: 0.5 }}
               >
-                PNG or JPG · up to 10MB
+                PNG or JPG · up to 3 MB
               </div>
             </>
           )}

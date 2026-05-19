@@ -73,7 +73,20 @@ export async function parseBetSlip(
   }
 
   const raw = textBlock.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-  const parsed = JSON.parse(raw);
-  const bets = z.array(ParsedBetSchema).parse(parsed.bets);
-  return bets;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "Couldn't read the bet slip — try a clearer screenshot with all fields visible",
+    );
+  }
+  const betsField = (parsed as { bets?: unknown })?.bets;
+  const result = z.array(ParsedBetSchema).safeParse(betsField);
+  if (!result.success) {
+    throw new Error(
+      "Bet slip didn't match any known sportsbook format — try a sharper crop",
+    );
+  }
+  return result.data;
 }
