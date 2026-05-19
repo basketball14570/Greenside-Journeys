@@ -52,24 +52,50 @@ function LoginForm() {
       }
 
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: redirect },
+        // Server-side path creates the user pre-confirmed (email_confirm:
+        // true via service role), so we can log them straight in without
+        // bouncing through inbox confirmation. If the admin route isn't
+        // configured we fall back to the client signUp, which respects
+        // the project's confirmation setting.
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, password }),
         });
-        if (error) throw error;
-        // When email confirmation is OFF in Supabase, signUp returns a
-        // session immediately and we route straight in. When it's ON,
-        // there's no session yet — show the "check your email" state.
-        if (data.session) {
+
+        if (res.ok) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (signInError) throw signInError;
           router.replace(next);
           router.refresh();
-        } else {
-          setInfo(
-            `Account created. Check ${email} to confirm your address before signing in.`,
-          );
+          return;
         }
-        return;
+
+        if (res.status === 501) {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: redirect },
+          });
+          if (error) throw error;
+          if (data.session) {
+            router.replace(next);
+            router.refresh();
+          } else {
+            setInfo(
+              `Account created. Check ${email} to confirm your address before signing in.`,
+            );
+          }
+          return;
+        }
+
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(payload.error ?? "Could not create account");
       }
 
       if (mode === "magic") {

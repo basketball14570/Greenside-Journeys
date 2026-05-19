@@ -30,7 +30,7 @@ const TIERS: Tier[] = [
       { included: true, label: "Settled-bet history + P&L analytics" },
       { included: false, label: "Personalized conditions alerts" },
       { included: false, label: "Ask Greenside AI assistant" },
-      { included: false, label: "Wave-aware DFS optimizer" },
+      { included: false, label: "Wave-aware DFS optimizer + ownership DB" },
       { included: false, label: "Hedge calculator with cross-book prices" },
     ],
   },
@@ -49,29 +49,28 @@ const TIERS: Tier[] = [
       { included: true, label: "Per-player wind sensitivity model" },
       { included: true, label: "Ask Greenside AI — unlimited questions" },
       { included: true, label: "Wave-aware DFS optimizer (DraftKings)" },
+      { included: true, label: "DFS ownership database — 696 records, 14 events" },
       { included: true, label: "Hedge calculator — live cross-book prices" },
       { included: true, label: "Player + course profiles" },
       { included: true, label: "No affiliate prompts in your feed" },
-      { included: false, label: "Custom alert thresholds + webhooks" },
     ],
   },
   {
     id: "sharp",
     name: "Sharp",
-    blurb: "Power users, syndicates, and people running real bankrolls.",
-    monthly: 49,
-    annual: 490,
-    cta: "Talk to us",
-    ctaHref: "mailto:hello@greensideedge.com?subject=Sharp%20tier",
+    blurb: "For bettors running real bankrolls who want every edge.",
+    monthly: 24,
+    annual: 240,
+    cta: "Start free trial",
+    ctaHref: "/login",
     features: [
       { included: true, label: "Everything in Pro" },
+      { included: true, label: "Line shopping across 8 books — best-price flag on every market" },
       { included: true, label: "Custom alert thresholds per market + course" },
-      { included: true, label: "Webhook API — pipe alerts into Slack / Discord" },
       { included: true, label: "Pre-tournament prep reports (auto-generated)" },
-      { included: true, label: "CSV / Sheets export of every bet, alert, lineup" },
-      { included: true, label: "Read-only API access for your own tools" },
-      { included: true, label: "Priority support · founder DMs" },
       { included: true, label: "Backtest harness for your own bet hypotheses" },
+      { included: true, label: "CSV / Sheets export of every bet, alert, lineup" },
+      { included: true, label: "Priority support · founder DMs" },
     ],
   },
 ];
@@ -148,8 +147,9 @@ export default function PricingPage() {
             style={{ fontSize: 17, lineHeight: 1.55, maxWidth: 600 }}
           >
             Free is real free — not a 14-day trial dressed up. Pro pays for the
-            alerts engine, the AI assistant, and the DFS optimizer. Sharp is for
-            the bettor running a real bankroll.
+            alerts engine, the AI assistant, and the DFS optimizer + ownership
+            database. Sharp adds cross-book line shopping and the heavier
+            research tools.
           </p>
         </div>
       </section>

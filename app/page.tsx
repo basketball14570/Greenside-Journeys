@@ -48,21 +48,20 @@ export default function MarketingHome() {
           >
             <em>Greenside</em> is the bet
             <br />
-            tracker that knew the
+            tracker you need
             <br />
-            wind was changing.
+            for tournaments.
           </h1>
           <p
             className="text-text-dim mb-8 max-w-2xl"
             style={{ fontSize: 19, lineHeight: 1.5 }}
           >
-            Forward your DK / FD / PrizePicks confirmations and we&apos;ll grade
-            them against the live ESPN scoreboard, alert you the second a leg
-            transitions, and tell you which of your Scheffler outrights just
-            got cheaper because the PM wave is in 22-mph gusts.
+            Upload your bets and we&apos;ll grade them against a live scoreboard
+            so you can track them all in one spot. No bouncing from app to app
+            or having to pull up the leaderboard.
           </p>
 
-          <div className="flex flex-wrap gap-3 mb-12">
+          <div className="flex flex-wrap gap-3">
             <Link
               href="/dashboard"
               className="px-6 py-3 rounded font-semibold"
@@ -70,126 +69,43 @@ export default function MarketingHome() {
             >
               Open Dashboard
             </Link>
-            <Link
-              href="/dashboard/ownership"
-              className="px-6 py-3 rounded font-semibold border border-line text-text hover:bg-surface-1"
-              style={{ fontSize: 15 }}
-            >
-              Browse the ownership DB
-            </Link>
-          </div>
-
-          {/* Hand-counted, specific metrics — not "trusted by thousands" */}
-          <div className="flex flex-wrap gap-6 lg:gap-10 text-text-dim" style={{ fontSize: 13 }}>
-            <NumberChip num="696" label="DK ownership records, 14 events" />
-            <NumberChip num="6" label="bet markets graded against live ESPN" />
-            <NumberChip num="30s" label="email → parsed into your tickets" />
-            <NumberChip num="0" label="affiliate links, ever" />
           </div>
         </div>
       </section>
 
-      {/* ─── A real Sunday, narrated ────────────────────── */}
+      {/* ─── How it works ────────────────────── */}
       <section className="border-t border-line">
-        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-20">
+        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-16">
           <div
             className="num font-semibold uppercase mb-3"
             style={{ fontSize: 11, letterSpacing: 1.6, color: "#7fd49a" }}
           >
-            ● A Sunday at Greenside
-          </div>
-          <h2
-            className="serif-italic mb-12"
-            style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
-          >
-            <em>What actually happens</em>
-            <br />
-            when you use it.
-          </h2>
-
-          <ol className="space-y-7">
-            <Beat
-              time="06:48"
-              title="You forward a slip."
-              body="A DK confirmation for Scheffler Top 10 +250, Hovland vs Cantlay −115 R3 matchup, and a Justin Rose make-cut. Inbox → bets+token@greensideedge.com. Claude parses each leg. By 06:48:23 they're in your Tickets queue with a Confirm / Dismiss prompt."
-            />
-            <Beat
-              time="09:12"
-              title="The forecast moves."
-              body="Tomorrow.io's PM-wave reading at Quail jumps from 12 to 22 mph. Push notification on your phone names the two bets in your slip that just shifted EV, and by how much. No spam — only the legs you actually own."
-            />
-            <Beat
-              time="14:36"
-              title="A leg flips."
-              body="Hovland chips in for eagle on 14, Cantlay misses the green. Cron grader (every 15 min) sees the R3 matchup transition live → won, fires a push, marks the row green on /dashboard/bets. Your live PnL updates without a refresh."
-            />
-            <Beat
-              time="20:04"
-              title="The leaderboard wraps."
-              body="Make-cut on Rose grades when the projected cut line locks. Tickets page summary stat ticks up. You hit /dashboard/ownership to see whether to fade Scheffler chalk next week — he's been 27% / 32% / 26% across the last three signature events."
-            />
-          </ol>
-        </div>
-      </section>
-
-      {/* ─── Asymmetric capability grid ────────────────── */}
-      <section className="border-t border-line bg-surface-1/30">
-        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-20">
-          <div
-            className="num font-semibold uppercase mb-3"
-            style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
-          >
-            ● Under the hood
+            ● How it works
           </div>
           <h2
             className="serif-italic mb-10"
             style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
           >
-            <em>The boring stuff</em>
-            <br />
-            that makes it work.
+            <em>Three steps. That&apos;s it.</em>
           </h2>
 
-          <div
-            className="grid gap-5"
-            style={{ gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)" }}
-          >
-            <Slab
-              label="Ingestion"
-              title="Three ways to get a bet into Greenside."
-              body="The email forward is the recommended path — set a Gmail filter once, every confirmation flows in. Screenshot upload runs the same Claude vision pipeline as a fallback. Browser bookmarklet handles the case where you're already on the sportsbook page."
-              metrics={[
-                { n: "DK · FD · PP · UD · CZR · MGM", l: "books recognized" },
-                { n: "<5s", l: "average parse latency" },
-              ]}
+          <ol className="grid sm:grid-cols-3 gap-5">
+            <Beat
+              n="1"
+              title="Upload your slip."
+              body="Email a confirmation, drop a screenshot, or paste from the book. Every leg lands in your Tickets queue."
             />
-            <Slab
-              label="Grading"
-              title="Real markets, not just outright."
-              body="Top N, head-to-head matchups (with round narrowing), 3-balls, round props over/under on strokes / birdies / bogeys / eagles, and make/miss cut. Each one has a dedicated grader against the live ESPN snapshot."
+            <Beat
+              n="2"
+              title="We grade live."
+              body="The leaderboard updates every minute. Each leg flips green or red the moment it settles."
             />
-          </div>
-
-          <div
-            className="grid gap-5 mt-5"
-            style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr)" }}
-          >
-            <Slab
-              label="Notifications"
-              title="VAPID web push, scoped to your slips."
-              body="When a bet you actually have transitions live → won / lost, a push hits your phone within 60s of the swing. Multi-device subscription dedup, automatic 410-Gone pruning."
+            <Beat
+              n="3"
+              title="Watch one screen."
+              body="Live PnL, open exposure, and the cut line in one place — no app-switching."
             />
-            <Slab
-              label="DFS ownership"
-              title="The dataset you can't get anywhere else."
-              body="Hand-curated DraftKings finishing ownership for every 2026 PGA event so far. Slice by player, tournament, or course. Leverage cards on the optimizer flag chronically under-owned price tiers and over-projected chalk."
-              metrics={[
-                { n: "696", l: "records" },
-                { n: "14", l: "events" },
-                { n: "15", l: "unique courses" },
-              ]}
-            />
-          </div>
+          </ol>
         </div>
       </section>
 
@@ -235,7 +151,6 @@ export default function MarketingHome() {
                 "Screenshot upload via Claude vision OCR",
                 "Live leaderboard with exposure overlay",
                 "Settled-bet history + P&L analytics",
-                "DFS ownership database (696 records, 14 events)",
               ]}
               accent="#a8b3ac"
             />
@@ -253,24 +168,25 @@ export default function MarketingHome() {
                 "Per-player wind sensitivity model",
                 "Ask Greenside AI — unlimited questions",
                 "Wave-aware DFS optimizer (DraftKings)",
+                "DFS ownership database — 696 records, 14 events",
                 "Hedge calculator — live cross-book prices",
               ]}
               accent="#7fd49a"
             />
             <Tier
               name="Sharp"
-              price="$49"
+              price="$24"
               cadence="per month"
-              tagline="Power users, syndicates, real bankrolls."
-              cta="Talk to us"
-              ctaHref="mailto:hello@greensideedge.com?subject=Sharp%20tier"
+              tagline="For bettors running real bankrolls who want every edge."
+              cta="Start free trial"
+              ctaHref="/login"
               features={[
                 "Everything in Pro",
+                "Line shopping across 8 books — best-price flag on every market",
                 "Custom alert thresholds per market + course",
-                "Webhook API — pipe into Slack / Discord",
                 "Pre-tournament prep reports (auto-generated)",
-                "Read-only API access for your own tools",
                 "Backtest harness for your own bet hypotheses",
+                "Priority support · founder DMs",
               ]}
               accent="#f5c558"
             />
@@ -379,62 +295,38 @@ export default function MarketingHome() {
   );
 }
 
-function NumberChip({ num, label }: { num: string; label: string }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span
-        className="serif-italic"
-        style={{
-          fontSize: 28,
-          letterSpacing: -0.4,
-          fontStyle: "italic",
-          color: "#f0ebe0",
-          lineHeight: 1,
-        }}
-      >
-        {num}
-      </span>
-      <span className="num text-text-dim" style={{ fontSize: 12 }}>
-        {label}
-      </span>
-    </div>
-  );
-}
-
 function Beat({
-  time,
+  n,
   title,
   body,
 }: {
-  time: string;
+  n: string;
   title: string;
   body: string;
 }) {
   return (
-    <li className="flex gap-5">
+    <li className="rounded-[14px] border border-line bg-surface-1/40 p-5">
       <span
-        className="num shrink-0"
+        className="serif-italic block mb-2"
         style={{
-          fontSize: 12,
-          letterSpacing: 0.6,
-          color: "#a8b3ac",
-          width: 56,
-          paddingTop: 4,
+          fontSize: 28,
+          letterSpacing: -0.4,
+          fontStyle: "italic",
+          color: "#7fd49a",
+          lineHeight: 1,
         }}
       >
-        {time}
+        {n}
       </span>
-      <div className="min-w-0 flex-1">
-        <div
-          className="text-text font-medium mb-1"
-          style={{ fontSize: 17, lineHeight: 1.3 }}
-        >
-          {title}
-        </div>
-        <p className="text-text-dim" style={{ fontSize: 14.5, lineHeight: 1.55 }}>
-          {body}
-        </p>
+      <div
+        className="text-text font-medium mb-1"
+        style={{ fontSize: 17, lineHeight: 1.3 }}
+      >
+        {title}
       </div>
+      <p className="text-text-dim" style={{ fontSize: 14.5, lineHeight: 1.55 }}>
+        {body}
+      </p>
     </li>
   );
 }
@@ -558,51 +450,3 @@ function Tier({
   );
 }
 
-function Slab({
-  label,
-  title,
-  body,
-  metrics,
-}: {
-  label: string;
-  title: string;
-  body: string;
-  metrics?: { n: string; l: string }[];
-}) {
-  return (
-    <div className="rounded-[16px] border border-line bg-bg p-6 lg:p-7">
-      <div
-        className="num font-semibold uppercase mb-2"
-        style={{ fontSize: 10, letterSpacing: 1.3, color: "#a8b3ac" }}
-      >
-        {label}
-      </div>
-      <h3
-        className="text-text mb-2"
-        style={{ fontSize: 22, letterSpacing: -0.3, lineHeight: 1.2, fontWeight: 500 }}
-      >
-        {title}
-      </h3>
-      <p className="text-text-dim" style={{ fontSize: 14, lineHeight: 1.55 }}>
-        {body}
-      </p>
-      {metrics && metrics.length > 0 && (
-        <div className="mt-5 pt-5 border-t border-line/60 flex flex-wrap gap-x-8 gap-y-3">
-          {metrics.map((m, i) => (
-            <div key={i}>
-              <div className="num" style={{ fontSize: 16, color: "#f0ebe0", fontWeight: 500 }}>
-                {m.n}
-              </div>
-              <div
-                className="num text-text-muted"
-                style={{ fontSize: 10.5, letterSpacing: 0.5 }}
-              >
-                {m.l}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
