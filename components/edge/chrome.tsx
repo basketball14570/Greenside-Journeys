@@ -127,7 +127,7 @@ const TABS = [
   { id: "live", href: "/dashboard/live", label: "Live" },
   { id: "ask", href: "/dashboard/ask", label: "Ask" },
   { id: "dfs", href: "/dashboard/dfs", label: "DFS" },
-  { id: "course", href: "/dashboard/conditions", label: "Course" },
+  { id: "weather", href: "/dashboard/weather", label: "Weather" },
 ] as const;
 
 const ICONS: Record<string, (c: string) => React.ReactNode> = {
@@ -182,6 +182,17 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
       />
     </svg>
   ),
+  weather: (c) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6 15a4 4 0 010-8 6 6 0 0111-2 5 5 0 011 9.5"
+        stroke={c}
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M9 17l-1 3M13 17l-1 3M17 17l-1 3" stroke={c} strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
   me: (c) => (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="8" r="4" stroke={c} strokeWidth="1.7" />
@@ -233,7 +244,8 @@ export function MobileBottomNav({ active }: { active: string }) {
 const PRIMARY_TABS = [
   { label: "Today", href: "/dashboard" },
   { label: "Tickets", href: "/dashboard/bets" },
-  { label: "Live", href: "/dashboard/parlay" },
+  { label: "Live", href: "/dashboard/live" },
+  { label: "Weather", href: "/dashboard/weather" },
   { label: "Odds", href: "/dashboard/odds" },
   { label: "Leaderboard", href: "/dashboard/leaderboard" },
   { label: "Ask", href: "/dashboard/ask" },

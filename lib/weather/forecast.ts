@@ -389,6 +389,13 @@ async function fetchOpenMeteo(
   coords: { lat: number; lon: number; tz: string },
   signal?: AbortSignal,
 ): Promise<Forecast> {
+  // gfs_seamless = NOAA HRRR (3km, hourly) for the first ~18 hours,
+  // falling back to GFS beyond. HRRR is the same short-range model
+  // Windfinder's "Superforecast" leans on for North America, so this
+  // gives us superforecast-quality wind/gust at the course without a
+  // paid weather provider. forecast_days=5 spans Thu-Sun reliably.
+  const isUS =
+    coords.lon < -50 && coords.lon > -170 && coords.lat > 18 && coords.lat < 55;
   const params = new URLSearchParams({
     latitude: String(coords.lat),
     longitude: String(coords.lon),
@@ -396,8 +403,9 @@ async function fetchOpenMeteo(
       "temperature_2m,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m",
     wind_speed_unit: "mph",
     temperature_unit: "fahrenheit",
-    forecast_days: "2",
+    forecast_days: "5",
     timezone: coords.tz,
+    models: isUS ? "gfs_seamless" : "best_match",
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params}`;
   const res = await fetch(url, { signal, cache: "no-store" });

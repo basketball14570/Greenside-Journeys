@@ -290,6 +290,43 @@ export async function listDfsEvents(
   }
 }
 
+// Resolve a DataGolf event_id from an ISO start date (YYYY-MM-DD).
+// Used by the projected-ownership endpoint when the local dfs_events
+// mirror doesn't have a row yet for the current week — DataGolf
+// publishes the schedule months out, so this works even before any
+// archive backfill has run for the season.
+export type DgScheduleEntry = {
+  event_id: number;
+  event_name: string;
+  start_date: string;
+  course?: string;
+  tour?: string;
+};
+
+export async function getDgSchedule(
+  tour: "pga" | "euro" | "kft" | "alt" = "pga",
+): Promise<DgScheduleEntry[]> {
+  const url = `${BASE}/get-schedule?tour=${tour}&file_format=json&key=${key()}`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  if (!res.ok) throw new Error(`DataGolf schedule failed: ${res.status}`);
+  const json = await res.json();
+  return (json.schedule ?? []) as DgScheduleEntry[];
+}
+
+export async function resolveDgEventIdByDate(
+  startDateISO: string,
+  tour: "pga" | "euro" | "kft" | "alt" = "pga",
+): Promise<number | null> {
+  try {
+    const schedule = await getDgSchedule(tour);
+    const ymd = startDateISO.slice(0, 10);
+    const match = schedule.find((e) => e.start_date?.slice(0, 10) === ymd);
+    return match?.event_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Pulls salary + ownership + DFS points for one (tour, year, event_id, site).
 export async function getDfsPointsForEvent(
   year: number,

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getActiveEvent, SEASON_YEAR, findEventByName } from "@/lib/data/pga-schedule";
-import { getDfsPointsForEvent } from "@/lib/data/datagolf";
+import { getDfsPointsForEvent, resolveDgEventIdByDate } from "@/lib/data/datagolf";
 import {
   projectOwnership,
   type HistoryRow,
@@ -50,9 +50,12 @@ export async function GET(req: NextRequest) {
   }
 
   // Figure out which DataGolf event_id to pull current-week salaries from.
-  // If the caller supplied one, trust it. Otherwise look up by matching
-  // event_name against our mirrored dfs_events table — handy for the
-  // common case where DataGolf and our schedule use the same names.
+  // Three fallbacks in order:
+  //   1. Caller-supplied ?event_id (trust it)
+  //   2. Our mirrored dfs_events table by name match (handy for archived
+  //      seasons where we already have the row)
+  //   3. DataGolf's /get-schedule by start date — works for the current
+  //      week even before any local backfill has run.
   let eventId: number | null = eventIdParam ? Number(eventIdParam) : null;
   if (eventId == null) {
     const { data: match } = await admin
@@ -63,6 +66,9 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .maybeSingle();
     if (match?.event_id) eventId = match.event_id;
+  }
+  if (eventId == null) {
+    eventId = await resolveDgEventIdByDate(active.startDate);
   }
 
   if (eventId == null) {
