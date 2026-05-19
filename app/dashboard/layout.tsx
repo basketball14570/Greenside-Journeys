@@ -56,8 +56,9 @@ export default function DashboardLayout({
 function activeMobileTabFor(pathname: string | null): string {
   if (!pathname) return "home";
   if (pathname === "/dashboard") return "home";
+  if (pathname.startsWith("/dashboard/live")) return "live";
+  if (pathname.startsWith("/dashboard/parlay")) return "live";
   if (pathname.startsWith("/dashboard/bets")) return "bets";
-  if (pathname.startsWith("/dashboard/parlay")) return "bets";
   if (pathname.startsWith("/dashboard/slip")) return "bets";
   if (pathname.startsWith("/dashboard/upload")) return "bets";
   if (pathname.startsWith("/dashboard/ask")) return "ask";

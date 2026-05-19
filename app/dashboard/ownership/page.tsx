@@ -1,16 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   OWNERSHIP_DATA,
   TOURNAMENT_ORDER,
+  type OwnershipMeta,
+} from "@/lib/data/ownership";
+import {
+  fromLegacy,
+  loadArchiveDataset,
   listPlayers,
   getPlayerHistory,
   listCourses,
   getCourseHistory,
-  type OwnershipMeta,
-} from "@/lib/data/ownership";
+  type ArchiveDataset,
+} from "@/lib/data/ownership-archive";
 import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
 
 // DFS ownership browser. Three views: tournaments grid, player leaderboard,
@@ -28,25 +33,45 @@ type View =
 
 export default function OwnershipPage() {
   const [view, setView] = useState<View>({ kind: "projections" });
+  // Initial dataset is the legacy static one so the page renders instantly.
+  // The Supabase archive replaces it once /api/dfs/archive resolves.
+  const [ds, setDs] = useState<ArchiveDataset>(() =>
+    fromLegacy(OWNERSHIP_DATA, TOURNAMENT_ORDER),
+  );
+  const [archiveLoaded, setArchiveLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadArchiveDataset().then((live) => {
+      if (cancelled || !live) return;
+      setDs(live);
+      setArchiveLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const tournaments = useMemo(
     () =>
-      TOURNAMENT_ORDER.filter((t) => OWNERSHIP_DATA[t]).map((t) => ({
-        name: t,
-        meta: OWNERSHIP_DATA[t].meta,
-        count: OWNERSHIP_DATA[t].players.length,
-      })),
-    [],
+      ds.order
+        .filter((t) => ds.data[t])
+        .map((t) => ({
+          name: t,
+          meta: ds.data[t].meta,
+          count: ds.data[t].players.length,
+        })),
+    [ds],
   );
 
-  const players = useMemo(() => listPlayers(), []);
-  const courses = useMemo(() => listCourses(), []);
+  const players = useMemo(() => listPlayers(ds), [ds]);
+  const courses = useMemo(() => listCourses(ds), [ds]);
 
   const stats = useMemo(() => {
     let records = 0;
-    for (const t of Object.values(OWNERSHIP_DATA)) records += t.players.length;
+    for (const t of Object.values(ds.data)) records += t.players.length;
     return { tournaments: tournaments.length, players: players.length, records };
-  }, [tournaments.length, players.length]);
+  }, [ds, tournaments.length, players.length]);
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
@@ -64,10 +89,11 @@ export default function OwnershipPage() {
           <em>Field ownership history.</em>
         </h1>
         <p className="text-text-dim mt-2 max-w-2xl" style={{ fontSize: 14 }}>
-          DraftKings finishing ownership across the 2026 season. Use it to
+          DraftKings finishing ownership{archiveLoaded ? " across every event in the archive" : " across the 2026 season"}. Use it to
           find leverage plays (chronically under-owned for their salary)
-          and to gauge chalk levels at similar courses. {stats.records}{" "}
-          records · {stats.players} players · {stats.tournaments} events.
+          and to gauge chalk levels at similar courses.{" "}
+          {stats.records.toLocaleString()} records · {stats.players}{" "}
+          players · {stats.tournaments} events.
         </p>
       </header>
 
@@ -129,6 +155,7 @@ export default function OwnershipPage() {
       )}
       {view.kind === "tournament" && (
         <TournamentDetail
+          ds={ds}
           name={view.name}
           onBack={() => setView({ kind: "tournaments" })}
           onPickPlayer={(name) => setView({ kind: "player", name })}
@@ -136,6 +163,7 @@ export default function OwnershipPage() {
       )}
       {view.kind === "player" && (
         <PlayerDetail
+          ds={ds}
           name={view.name}
           onBack={() => setView({ kind: "players" })}
           onPickTournament={(name) => setView({ kind: "tournament", name })}
@@ -143,6 +171,7 @@ export default function OwnershipPage() {
       )}
       {view.kind === "course" && (
         <CourseDetail
+          ds={ds}
           name={view.name}
           onBack={() => setView({ kind: "courses" })}
           onPickPlayer={(name) => setView({ kind: "player", name })}
@@ -207,17 +236,19 @@ function CoursesTable({
 }
 
 function CourseDetail({
+  ds,
   name,
   onBack,
   onPickPlayer,
   onPickTournament,
 }: {
+  ds: ArchiveDataset;
   name: string;
   onBack: () => void;
   onPickPlayer: (name: string) => void;
   onPickTournament: (name: string) => void;
 }) {
-  const h = getCourseHistory(name);
+  const h = getCourseHistory(ds, name);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"avg" | "max" | "apps">("avg");
 
@@ -614,15 +645,17 @@ function SortChip<T extends string>({
 }
 
 function TournamentDetail({
+  ds,
   name,
   onBack,
   onPickPlayer,
 }: {
+  ds: ArchiveDataset;
   name: string;
   onBack: () => void;
   onPickPlayer: (name: string) => void;
 }) {
-  const t = OWNERSHIP_DATA[name];
+  const t = ds.data[name];
   const [q, setQ] = useState("");
   if (!t) return null;
   const filtered = t.players.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
@@ -703,15 +736,17 @@ function TournamentDetail({
 }
 
 function PlayerDetail({
+  ds,
   name,
   onBack,
   onPickTournament,
 }: {
+  ds: ArchiveDataset;
   name: string;
   onBack: () => void;
   onPickTournament: (name: string) => void;
 }) {
-  const h = getPlayerHistory(name);
+  const h = getPlayerHistory(ds, name);
   if (!h) return null;
   return (
     <div className="space-y-3">

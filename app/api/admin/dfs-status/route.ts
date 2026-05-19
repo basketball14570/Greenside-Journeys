@@ -24,36 +24,56 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { count: eventCount, error: e1 } = await admin
-    .from("dfs_events")
-    .select("*", { count: "exact", head: true });
-  if (e1) {
-    return NextResponse.json({ error: e1.message }, { status: 500 });
+  // Each query wrapped so one bad row / ordering issue doesn't blow up
+  // the whole status check.
+  const errors: string[] = [];
+
+  let eventCount = 0;
+  try {
+    const { count, error } = await admin
+      .from("dfs_events")
+      .select("*", { count: "exact", head: true });
+    if (error) errors.push(`events count: ${error.message}`);
+    else eventCount = count ?? 0;
+  } catch (e) {
+    errors.push(`events count: ${(e as Error).message}`);
   }
 
-  const { count: pointsCount, error: e2 } = await admin
-    .from("dfs_player_points")
-    .select("*", { count: "exact", head: true });
-  if (e2) {
-    return NextResponse.json({ error: e2.message }, { status: 500 });
+  let pointsCount = 0;
+  try {
+    const { count, error } = await admin
+      .from("dfs_player_points")
+      .select("*", { count: "exact", head: true });
+    if (error) errors.push(`points count: ${error.message}`);
+    else pointsCount = count ?? 0;
+  } catch (e) {
+    errors.push(`points count: ${(e as Error).message}`);
   }
-
-  const { data: byYear } = await admin
-    .from("dfs_events")
-    .select("year, event_name, course, event_date")
-    .order("event_date", { ascending: false })
-    .limit(200);
 
   const yearGroups: Record<string, number> = {};
-  for (const row of byYear ?? []) {
-    const y = String(row.year);
-    yearGroups[y] = (yearGroups[y] ?? 0) + 1;
+  let sampleRecent: unknown[] = [];
+  try {
+    const { data, error } = await admin
+      .from("dfs_events")
+      .select("year, event_name, course, event_date")
+      .order("year", { ascending: false })
+      .order("event_id", { ascending: false })
+      .limit(500);
+    if (error) errors.push(`recent listing: ${error.message}`);
+    for (const row of data ?? []) {
+      const y = String(row.year);
+      yearGroups[y] = (yearGroups[y] ?? 0) + 1;
+    }
+    sampleRecent = (data ?? []).slice(0, 12);
+  } catch (e) {
+    errors.push(`recent listing: ${(e as Error).message}`);
   }
 
   return NextResponse.json({
-    ok: true,
-    totals: { events: eventCount ?? 0, player_rows: pointsCount ?? 0 },
+    ok: errors.length === 0,
+    totals: { events: eventCount, player_rows: pointsCount },
     by_year: yearGroups,
-    sample_recent: (byYear ?? []).slice(0, 10),
+    sample_recent: sampleRecent,
+    errors,
   });
 }

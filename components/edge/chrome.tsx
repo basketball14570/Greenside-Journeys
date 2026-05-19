@@ -124,6 +124,7 @@ export function EventStrap() {
 const TABS = [
   { id: "home", href: "/dashboard", label: "Today" },
   { id: "bets", href: "/dashboard/bets", label: "Tickets" },
+  { id: "live", href: "/dashboard/live", label: "Live" },
   { id: "ask", href: "/dashboard/ask", label: "Ask" },
   { id: "dfs", href: "/dashboard/dfs", label: "DFS" },
   { id: "course", href: "/dashboard/conditions", label: "Course" },
@@ -144,6 +145,13 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <rect x="3" y="6" width="18" height="12" rx="2" stroke={c} strokeWidth="1.7" />
       <path d="M8 10v4M12 10v4M16 10v4" stroke={c} strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
+  live: (c) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="3.5" fill={c} />
+      <circle cx="12" cy="12" r="7" stroke={c} strokeWidth="1.5" opacity="0.45" />
+      <circle cx="12" cy="12" r="10" stroke={c} strokeWidth="1.2" opacity="0.2" />
     </svg>
   ),
   ask: (c) => (

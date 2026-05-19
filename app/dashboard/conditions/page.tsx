@@ -7,6 +7,13 @@ import {
   WindSpark,
 } from "@/components/edge/primitives";
 import { ALERT_HISTORY, COURSES, type CourseSnapshot } from "@/lib/demo-courses";
+import { WaveSplitDetail } from "@/components/edge/WaveSplitChip";
+import { getActiveEvent } from "@/lib/data/pga-schedule";
+import {
+  courseSlugFor,
+  getForecast,
+  waveSplitFromForecast,
+} from "@/lib/weather/forecast";
 
 const ALERT_COLOR = {
   wave: "#8ee68e",
@@ -22,7 +29,16 @@ const ALERT_LABEL = {
   precip: "☂ Precip",
 } as const;
 
-export default function ConditionsPage() {
+export default async function ConditionsPage() {
+  // Wave split for the active event's course. Skipped silently when we
+  // can't resolve the slug or the forecast call fails — the rest of the
+  // page (demo course snapshots) still renders.
+  const event = getActiveEvent();
+  const slug = event ? courseSlugFor(event.course) : null;
+  const forecast = slug ? await getForecast(slug).catch(() => null) : null;
+  const waveSplit =
+    slug && event ? waveSplitFromForecast(forecast, slug, event.startDate) : null;
+
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
       <header className="flex items-end justify-between flex-wrap gap-4">
@@ -51,6 +67,8 @@ export default function ConditionsPage() {
           Updated 7:44 AM · refreshes every 10 min
         </span>
       </header>
+
+      {waveSplit && <WaveSplitDetail summary={waveSplit} />}
 
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">

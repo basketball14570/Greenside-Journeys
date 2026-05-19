@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
-  getDfsPointsForEvent,
+  fetchDfsPointsWithStatus,
   listDfsEvents,
   type DgDfsPlayerRow,
 } from "@/lib/data/datagolf";
@@ -10,8 +10,16 @@ export type SyncResult = {
   eventsAttempted: number;
   eventsPersisted: number;
   rowsPersisted: number;
+  // event_ids that returned data but no players (off-season probe gaps)
+  emptyEventIds: number[];
+  // event_ids that returned an HTTP failure or threw
+  failedEventIds: number[];
   errors: string[];
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((res) => setTimeout(res, ms));
+}
 
 // Sync one year of DFS data from DataGolf into Supabase.
 // site=draftkings by default; pass others when DK isn't available.
@@ -33,6 +41,8 @@ export async function syncDfsYear(
     eventsAttempted: 0,
     eventsPersisted: 0,
     rowsPersisted: 0,
+    emptyEventIds: [],
+    failedEventIds: [],
     errors: [],
   };
 
@@ -54,8 +64,27 @@ export async function syncDfsYear(
 
   for (const eventId of eventIds) {
     result.eventsAttempted++;
-    const data = await getDfsPointsForEvent(year, eventId, site, tour);
-    if (!data || data.players.length === 0) continue;
+    // 200ms between requests keeps us under DataGolf rate limits while
+    // still finishing a full year in ~12-15s.
+    if (result.eventsAttempted > 1) await sleep(200);
+
+    const { data, status } = await fetchDfsPointsWithStatus(
+      year,
+      eventId,
+      site,
+      tour,
+    );
+    if (status >= 400) {
+      result.failedEventIds.push(eventId);
+      result.errors.push(`event_id=${eventId} http=${status}`);
+      // 429: back off a beat before continuing.
+      if (status === 429) await sleep(1500);
+      continue;
+    }
+    if (!data || data.players.length === 0) {
+      result.emptyEventIds.push(eventId);
+      continue;
+    }
 
     const id = `${tour}-${year}-${eventId}`;
     const { error: eventErr } = await admin.from("dfs_events").upsert(
