@@ -44,7 +44,127 @@ export const COURSE_COORDS: Record<string, { lat: number; lon: number; tz: strin
   "quail-hollow": { lat: 35.1582, lon: -80.8154, tz: "America/New_York" },
   "pebble-beach": { lat: 36.5687, lon: -121.9492, tz: "America/Los_Angeles" },
   "torrey-pines-south": { lat: 32.9043, lon: -117.2517, tz: "America/Los_Angeles" },
+  "tpc-craig-ranch": { lat: 33.1972, lon: -96.6398, tz: "America/Chicago" },
+  "tpc-scottsdale": { lat: 33.6391, lon: -111.9027, tz: "America/Phoenix" },
+  "riviera": { lat: 34.0489, lon: -118.5108, tz: "America/Los_Angeles" },
+  "pga-national-champion": { lat: 26.7867, lon: -80.1645, tz: "America/New_York" },
+  "bay-hill": { lat: 28.4584, lon: -81.5158, tz: "America/New_York" },
+  "tpc-sawgrass": { lat: 30.1975, lon: -81.3936, tz: "America/New_York" },
+  "innisbrook-copperhead": { lat: 28.1242, lon: -82.6991, tz: "America/New_York" },
+  "memorial-park": { lat: 29.7647, lon: -95.4347, tz: "America/Chicago" },
+  "tpc-san-antonio-oaks": { lat: 29.5950, lon: -98.4486, tz: "America/Chicago" },
+  "augusta-national": { lat: 33.5021, lon: -82.0231, tz: "America/New_York" },
+  "harbour-town": { lat: 32.1392, lon: -80.8175, tz: "America/New_York" },
+  "tpc-louisiana": { lat: 29.8983, lon: -90.2806, tz: "America/Chicago" },
+  "dunes-myrtle-beach": { lat: 33.7615, lon: -78.8079, tz: "America/New_York" },
+  "aronimink": { lat: 39.9956, lon: -75.3892, tz: "America/New_York" },
+  "colonial-fort-worth": { lat: 32.7115, lon: -97.3722, tz: "America/Chicago" },
+  "muirfield-village": { lat: 40.1503, lon: -83.1442, tz: "America/New_York" },
+  "shinnecock-hills": { lat: 40.8923, lon: -72.4197, tz: "America/New_York" },
+  "tpc-river-highlands": { lat: 41.7058, lon: -72.6739, tz: "America/New_York" },
+  "detroit-golf-club": { lat: 42.4264, lon: -83.1006, tz: "America/Detroit" },
+  "tpc-deere-run": { lat: 41.4906, lon: -90.4286, tz: "America/Chicago" },
 };
+
+// Slug lookup for a course name as it appears in pga-schedule. Folded
+// into a single function so callers don't have to do their own
+// case/punctuation normalization.
+const COURSE_NAME_TO_SLUG: Record<string, string> = {
+  "Quail Hollow Club": "quail-hollow",
+  "Pebble Beach Golf Links": "pebble-beach",
+  "Torrey Pines (South)": "torrey-pines-south",
+  "TPC Craig Ranch": "tpc-craig-ranch",
+  "TPC Scottsdale (Stadium)": "tpc-scottsdale",
+  "Riviera Country Club": "riviera",
+  "PGA National (Champion)": "pga-national-champion",
+  "Bay Hill Club & Lodge": "bay-hill",
+  "TPC Sawgrass (Stadium)": "tpc-sawgrass",
+  "Innisbrook (Copperhead)": "innisbrook-copperhead",
+  "Memorial Park Golf Course": "memorial-park",
+  "TPC San Antonio (Oaks)": "tpc-san-antonio-oaks",
+  "Augusta National": "augusta-national",
+  "Harbour Town Golf Links": "harbour-town",
+  "TPC Louisiana": "tpc-louisiana",
+  "Dunes Golf & Beach Club": "dunes-myrtle-beach",
+  "Aronimink Golf Club": "aronimink",
+  "Colonial Country Club": "colonial-fort-worth",
+  "Muirfield Village": "muirfield-village",
+  "Shinnecock Hills": "shinnecock-hills",
+  "TPC River Highlands": "tpc-river-highlands",
+  "Detroit Golf Club": "detroit-golf-club",
+  "TPC Deere Run": "tpc-deere-run",
+};
+
+export function courseSlugFor(courseName: string): string | null {
+  return COURSE_NAME_TO_SLUG[courseName] ?? null;
+}
+
+// Compact view-model for the dashboard weather heros — derives the "now"
+// reading, the morning-to-now delta, and a windowed hourly series for
+// the sparkline. Returns null when the forecast is null or has no hours.
+export type WeatherSnapshot = {
+  sustainedMph: number;
+  gustMph: number;
+  windDirDeg: number;
+  windDirCardinal: string;
+  deltaSinceMorningMph: number;
+  hourly: { v: number; gust: number; now?: boolean }[];
+  hourLabels: { am6: number; am9: number; now: number; pm3: number; pm6: number };
+};
+
+export function weatherSnapshotFromForecast(
+  forecast: Forecast | null,
+): WeatherSnapshot | null {
+  if (!forecast || forecast.hours.length === 0) return null;
+
+  const now = Date.now();
+  let nowIdx = 0;
+  let closest = Infinity;
+  forecast.hours.forEach((h, i) => {
+    const delta = Math.abs(new Date(h.ts).getTime() - now);
+    if (delta < closest) {
+      closest = delta;
+      nowIdx = i;
+    }
+  });
+  const current = forecast.hours[nowIdx];
+
+  // 14 hours surrounding now (7 back, 6 forward) for the sparkline.
+  const start = Math.max(0, nowIdx - 7);
+  const end = Math.min(forecast.hours.length, start + 14);
+  const window = forecast.hours.slice(start, end);
+  const hourly = window.map((h, i) => ({
+    v: Math.round(h.windMph),
+    gust: Math.round(h.gustMph),
+    now: start + i === nowIdx,
+  }));
+
+  // Morning baseline: 6 AM local on the same day as `now`. Use the
+  // earliest hour at or after 6 AM that we have data for.
+  const todayStr = new Date(current.ts).toISOString().slice(0, 10);
+  const morning = forecast.hours.find((h) => {
+    const d = new Date(h.ts);
+    return d.toISOString().slice(0, 10) === todayStr && d.getUTCHours() >= 6;
+  });
+  const deltaSinceMorningMph = morning
+    ? Math.round(current.windMph - morning.windMph)
+    : 0;
+
+  return {
+    sustainedMph: Math.round(current.windMph),
+    gustMph: Math.round(current.gustMph),
+    windDirDeg: current.windDirDeg,
+    windDirCardinal: degToCardinal(current.windDirDeg),
+    deltaSinceMorningMph,
+    hourly,
+    hourLabels: { am6: 6, am9: 9, now: nowIdx, pm3: 15, pm6: 18 },
+  };
+}
+
+const CARDINALS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+function degToCardinal(deg: number): string {
+  return CARDINALS[Math.round(((deg % 360) / 22.5)) % 16];
+}
 
 const CACHE = new Map<string, { at: number; data: Forecast }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
