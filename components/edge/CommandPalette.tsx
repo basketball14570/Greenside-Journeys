@@ -27,7 +27,6 @@ const PAGE_COMMANDS: Command[] = [
   { kind: "page", label: "Leaderboard", href: "/dashboard/leaderboard", hint: "Live ESPN field" },
   { kind: "page", label: "Slip Editor", href: "/dashboard/slip", hint: "Build a slip / paste import" },
   { kind: "page", label: "Live Parlay", href: "/dashboard/parlay", hint: "Today's tracked parlay" },
-  { kind: "page", label: "Showdown", href: "/dashboard/showdown", hint: "6-golfer tracker" },
   { kind: "page", label: "Previews", href: "/dashboard/preview", hint: "Tournament reads" },
   { kind: "page", label: "Backtest", href: "/dashboard/backtest", hint: "Strategy backtests" },
   { kind: "page", label: "Model Calibration", href: "/dashboard/model", hint: "Wind-sensitivity drift" },
