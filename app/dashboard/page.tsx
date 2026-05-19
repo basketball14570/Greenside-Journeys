@@ -16,12 +16,14 @@ import {
   DEMO_BETS,
   DEMO_LEADERBOARD,
 } from "@/lib/demo-data";
-import { getActiveEvent } from "@/lib/data/pga-schedule";
+import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
   getForecast,
   weatherSnapshotFromForecast,
+  waveSplitFromForecast,
 } from "@/lib/weather/forecast";
+import { WaveSplitChip } from "@/components/edge/WaveSplitChip";
 
 // Same data, two layouts. CSS switches between them at the lg breakpoint
 // so we ship a single component tree without runtime device detection.
@@ -31,22 +33,49 @@ export default async function DashboardHome() {
   const forecast = slug ? await getForecast(slug).catch(() => null) : null;
   const snapshot = weatherSnapshotFromForecast(forecast);
   const courseName = event?.course;
+  // Thursday→Sunday the tournament is actually being played — promote
+  // the live leaderboard to the top of the mobile Today screen. Mon-Wed
+  // (the build-up days) keep the current order with course/weather first.
+  const isTournamentLive = event ? statusOf(event) === "live" : false;
+  const waveSplit =
+    slug && event
+      ? waveSplitFromForecast(forecast, slug, event.startDate)
+      : null;
 
   return (
     <>
       {/* ─── Mobile ─── */}
       <div className="lg:hidden">
         <EventStrap />
-        <CourseGuideCard />
-        <LiveDashboardLeaderboard
-          layout="mobile"
-          fallback={DEMO_LEADERBOARD.slice(0, 8)}
-          limit={8}
-        />
-        <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
-        <AlertsFeed alerts={DEMO_ALERTS} />
-        <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
-        <ThisWeeksEdge limit={6} />
+        {isTournamentLive ? (
+          <>
+            <LiveDashboardLeaderboard
+              layout="mobile"
+              fallback={DEMO_LEADERBOARD.slice(0, 8)}
+              limit={8}
+            />
+            <WaveSplitChip summary={waveSplit} />
+            <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
+            <AlertsFeed alerts={DEMO_ALERTS} />
+            <CourseGuideCard />
+            <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
+            <ThisWeeksEdge limit={6} />
+          </>
+        ) : (
+          <>
+            <CourseGuideCard />
+            <WaveSplitChip summary={waveSplit} />
+            <LiveDashboardLeaderboard
+              layout="mobile"
+              fallback={DEMO_LEADERBOARD.slice(0, 8)}
+              limit={8}
+            />
+            <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
+            <AlertsFeed alerts={DEMO_ALERTS} />
+            <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
+            <ThisWeeksEdge limit={6} />
+          </>
+        )}
       </div>
 
       {/* ─── Desktop ─── */}

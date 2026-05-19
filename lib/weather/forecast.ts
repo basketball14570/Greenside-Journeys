@@ -166,6 +166,132 @@ function degToCardinal(deg: number): string {
   return CARDINALS[Math.round(((deg % 360) / 22.5)) % 16];
 }
 
+// AM vs PM wave wind split for Thursday and Friday. Tour tee times split
+// the field into a morning and afternoon wave; when conditions diverge
+// (wind picks up post-lunch, or the front passes), one wave plays in
+// materially different conditions. The wave-split chip on the Today
+// screen surfaces this delta so a quick glance tells you which wave is
+// projected to have it easier.
+//
+// Windows: AM = 7am-11am local, PM = 1pm-5pm local. Skips when the round
+// is already in the past (no forecast for it) so the chip never lies.
+export type WavePeriod = {
+  windAvg: number;
+  gustAvg: number;
+  hours: number;
+};
+
+export type WaveSplitRound = {
+  // ISO date (YYYY-MM-DD) in the course's local timezone
+  date: string;
+  dayLabel: string; // "Thu", "Fri"
+  am: WavePeriod | null;
+  pm: WavePeriod | null;
+  // Positive = PM windier than AM (favors AM wave). Mph difference.
+  deltaPmMinusAm: number | null;
+  favors: "am" | "pm" | "even" | null;
+};
+
+export type WaveSplitSummary = {
+  courseId: string;
+  tz: string;
+  rounds: WaveSplitRound[];
+};
+
+function dateInTz(date: Date, tz: string): { ymd: string; hour: number; day: string } {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    weekday: "short",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const y = get("year");
+  const m = get("month");
+  const d = get("day");
+  const h = get("hour");
+  return {
+    ymd: `${y}-${m}-${d}`,
+    hour: Number(h === "24" ? "0" : h),
+    day: get("weekday"), // "Thu", "Fri", etc.
+  };
+}
+
+function avg(xs: number[]): number {
+  return xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+// Build the AM/PM wave split for the next Thursday+Friday from the
+// tournament's start date. `startDateISO` is the event's listed start
+// (already a Thursday for stroke-play events).
+export function waveSplitFromForecast(
+  forecast: Forecast | null,
+  courseId: string,
+  startDateISO: string | undefined,
+): WaveSplitSummary | null {
+  if (!forecast || !startDateISO) return null;
+  const coords = COURSE_COORDS[courseId];
+  if (!coords) return null;
+  const tz = coords.tz;
+
+  // Target two rounds: the listed Thursday and the next day Friday.
+  const thuLocal = startDateISO.slice(0, 10); // already YYYY-MM-DD
+  const friDate = new Date(`${thuLocal}T12:00:00Z`);
+  friDate.setUTCDate(friDate.getUTCDate() + 1);
+  const friLocal = friDate.toISOString().slice(0, 10);
+
+  const buckets = new Map<string, { am: ForecastHour[]; pm: ForecastHour[] }>([
+    [thuLocal, { am: [], pm: [] }],
+    [friLocal, { am: [], pm: [] }],
+  ]);
+
+  for (const h of forecast.hours) {
+    const local = dateInTz(new Date(h.ts), tz);
+    const bucket = buckets.get(local.ymd);
+    if (!bucket) continue;
+    if (local.hour >= 7 && local.hour <= 11) bucket.am.push(h);
+    else if (local.hour >= 13 && local.hour <= 17) bucket.pm.push(h);
+  }
+
+  function summarize(hours: ForecastHour[]): WavePeriod | null {
+    if (hours.length === 0) return null;
+    return {
+      windAvg: +avg(hours.map((h) => h.windMph)).toFixed(1),
+      gustAvg: +avg(hours.map((h) => h.gustMph)).toFixed(1),
+      hours: hours.length,
+    };
+  }
+
+  const rounds: WaveSplitRound[] = (
+    [
+      { date: thuLocal, dayLabel: "Thu" },
+      { date: friLocal, dayLabel: "Fri" },
+    ] as const
+  ).map(({ date, dayLabel }) => {
+    const b = buckets.get(date)!;
+    const am = summarize(b.am);
+    const pm = summarize(b.pm);
+    const deltaPmMinusAm = am && pm ? +(pm.windAvg - am.windAvg).toFixed(1) : null;
+    let favors: WaveSplitRound["favors"] = null;
+    if (deltaPmMinusAm !== null) {
+      if (deltaPmMinusAm >= 3) favors = "am";
+      else if (deltaPmMinusAm <= -3) favors = "pm";
+      else favors = "even";
+    }
+    return { date, dayLabel, am, pm, deltaPmMinusAm, favors };
+  });
+
+  // Drop rounds with no data at all (e.g. tournament already finished).
+  const populated = rounds.filter((r) => r.am || r.pm);
+  if (populated.length === 0) return null;
+
+  return { courseId, tz, rounds: populated };
+}
+
 const CACHE = new Map<string, { at: number; data: Forecast }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
