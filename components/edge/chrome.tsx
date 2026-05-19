@@ -229,7 +229,14 @@ const PRIMARY_TABS = [
   { label: "Odds", href: "/dashboard/odds" },
   { label: "Leaderboard", href: "/dashboard/leaderboard" },
   { label: "Ask", href: "/dashboard/ask" },
-  { label: "DFS", href: "/dashboard/dfs" },
+];
+
+// DFS submenu — surfaces the optimizer, ownership browser, and other
+// fantasy tools under one dropdown. Anchor remains "/dashboard/dfs" so
+// the top-level click still works.
+const DFS_TABS = [
+  { label: "Optimizer", href: "/dashboard/dfs" },
+  { label: "Ownership", href: "/dashboard/ownership" },
 ];
 
 // More dropdown — everything still accessible, just not occupying the
@@ -239,8 +246,6 @@ const MORE_TABS = [
   { label: "Course Lab", href: "/dashboard/conditions" },
   { label: "Schedule", href: "/dashboard/schedule" },
   { label: "Previews", href: "/dashboard/preview" },
-  { label: "Ownership", href: "/dashboard/ownership" },
-  { label: "Showdown", href: "/dashboard/showdown" },
   { label: "Hedge", href: "/dashboard/hedge" },
   { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Model", href: "/dashboard/model" },
@@ -279,6 +284,7 @@ export function DesktopAppBar({ active = "Today" }: { active?: string }) {
             </Link>
           );
         })}
+        <MoreDropdown label="DFS" active={active} tabs={DFS_TABS} />
         <MoreDropdown active={active} tabs={MORE_TABS} />
       </div>
       <span className="flex-1" />
