@@ -1,20 +1,47 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-// Supabase magic-link redirect lands here with a `code` query param.
-// We exchange it for a session. First-time sign-ins (no profiles row yet)
-// get routed to /onboarding so they pick books / alerts / forwarding
-// address. Returning users go to `next` (default: /dashboard).
+// Supabase auth redirect lands here with a `code` query param. Covers
+// magic-link sign-ins, password-reset confirmations, and email-confirm
+// links — they all hit this single callback.
+//
+// IMPORTANT: cookies have to be set on the redirect response directly,
+// not via `cookies()` from next/headers. The implicit response that
+// Next attaches `cookies()` writes to is discarded when we return a
+// `NextResponse.redirect(...)`, which means the session cookie never
+// makes it to the browser and the user appears unauthenticated on the
+// next request. Build the response up-front and hand it to the Supabase
+// client so its `setAll` writes onto the response that actually ships.
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") ?? "/dashboard";
 
   let target = next;
+  // Mutable so we can swap the redirect target after we know whether
+  // the user needs onboarding. The cookies we've already written stay
+  // on the response object.
+  let response = NextResponse.redirect(new URL(target, url.origin));
 
   if (code) {
-    const supabase = supabaseServer();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll();
+          },
+          setAll(toSet: { name: string; value: string; options?: CookieOptions }[]) {
+            for (const { name, value, options } of toSet) {
+              response.cookies.set(name, value, options);
+            }
+          },
+        },
+      },
+    );
+
     const { data: session } = await supabase.auth.exchangeCodeForSession(code);
     const user = session?.user;
     const admin = supabaseAdmin();
@@ -25,17 +52,20 @@ export async function GET(req: NextRequest) {
         .eq("id", user.id)
         .maybeSingle();
       if (!profile) {
-        // First sign-in. Create the profile row so the default
-        // bets_token + alert_prefs columns populate, then route to
-        // the onboarding flow. Caller's `next` param is preserved
-        // as a query so we can deep-link after setup.
         await admin.from("profiles").upsert({ id: user.id }, { onConflict: "id" });
         const onboardingUrl = new URL("/onboarding", url.origin);
         if (next !== "/dashboard") onboardingUrl.searchParams.set("next", next);
         target = onboardingUrl.pathname + onboardingUrl.search;
+        // Rebuild the redirect at the new target, copying the cookies
+        // the Supabase client already wrote.
+        const newResponse = NextResponse.redirect(new URL(target, url.origin));
+        for (const c of response.cookies.getAll()) {
+          newResponse.cookies.set(c);
+        }
+        response = newResponse;
       }
     }
   }
 
-  return NextResponse.redirect(new URL(target, url.origin));
+  return response;
 }
