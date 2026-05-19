@@ -45,7 +45,11 @@ export async function GET(req: NextRequest) {
     const { data: session } = await supabase.auth.exchangeCodeForSession(code);
     const user = session?.user;
     const admin = supabaseAdmin();
-    if (user && admin) {
+    // Password-reset links land here too. Don't drag the user through
+    // onboarding before they've even set their password — let them set
+    // it first, then they can hit /dashboard normally.
+    const isPasswordReset = next === "/account/password";
+    if (user && admin && !isPasswordReset) {
       const { data: profile } = await admin
         .from("profiles")
         .select("id")
