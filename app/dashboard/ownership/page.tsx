@@ -11,12 +11,14 @@ import {
   getCourseHistory,
   type OwnershipMeta,
 } from "@/lib/data/ownership";
+import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
 
 // DFS ownership browser. Three views: tournaments grid, player leaderboard,
 // drill-down on either. Mirrors the standalone HTML viewer but uses the
 // Greenside design system and integrates with the rest of the dashboard.
 
 type View =
+  | { kind: "projections" }
   | { kind: "tournaments" }
   | { kind: "players" }
   | { kind: "courses" }
@@ -25,7 +27,7 @@ type View =
   | { kind: "course"; name: string };
 
 export default function OwnershipPage() {
-  const [view, setView] = useState<View>({ kind: "tournaments" });
+  const [view, setView] = useState<View>({ kind: "projections" });
 
   const tournaments = useMemo(
     () =>
@@ -71,6 +73,12 @@ export default function OwnershipPage() {
 
       <div className="flex items-center gap-2 flex-wrap">
         <Tab
+          active={view.kind === "projections"}
+          onClick={() => setView({ kind: "projections" })}
+        >
+          This week
+        </Tab>
+        <Tab
           active={view.kind === "tournaments" || view.kind === "tournament"}
           onClick={() => setView({ kind: "tournaments" })}
         >
@@ -106,6 +114,7 @@ export default function OwnershipPage() {
         </Link>
       </div>
 
+      {view.kind === "projections" && <ProjectedOwnership />}
       {view.kind === "tournaments" && (
         <TournamentsTable
           rows={tournaments}
