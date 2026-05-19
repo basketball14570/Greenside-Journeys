@@ -297,7 +297,21 @@ export async function getDfsPointsForEvent(
   site: "draftkings" | "fanduel" | "yahoo" = "draftkings",
   tour = "pga",
 ): Promise<DgDfsEventPoints | null> {
-  if (!datagolfEnabled()) return null;
+  const { data } = await fetchDfsPointsWithStatus(year, eventId, site, tour);
+  return data;
+}
+
+// Same as getDfsPointsForEvent but also returns the HTTP status so the
+// caller can distinguish "no data" (200 + empty array) from "rate-limited"
+// (429) from "auth error" (401/403). Used by the backfill sync to throttle
+// and report failures.
+export async function fetchDfsPointsWithStatus(
+  year: number,
+  eventId: number,
+  site: "draftkings" | "fanduel" | "yahoo" = "draftkings",
+  tour = "pga",
+): Promise<{ data: DgDfsEventPoints | null; status: number }> {
+  if (!datagolfEnabled()) return { data: null, status: 503 };
   const params = new URLSearchParams({
     tour,
     year: String(year),
@@ -311,20 +325,21 @@ export async function getDfsPointsForEvent(
       `${BASE}/historical-dfs-data/points?${params}`,
       { cache: "no-store" },
     );
-    if (!res.ok) return null;
+    if (!res.ok) return { data: null, status: res.status };
     const json = await res.json();
-    // DataGolf wraps the player list under varying keys depending on the
-    // endpoint version — tolerate the common shapes.
     const players: DgDfsPlayerRow[] =
       json.players ?? json.scores ?? json.data ?? [];
     return {
-      event_name: json.event_name ?? json.event ?? "",
-      date: json.date ?? json.event_date,
-      course: json.course ?? json.course_name,
-      players,
+      data: {
+        event_name: json.event_name ?? json.event ?? "",
+        date: json.date ?? json.event_date,
+        course: json.course ?? json.course_name,
+        players,
+      },
+      status: res.status,
     };
   } catch {
-    return null;
+    return { data: null, status: 0 };
   }
 }
 
