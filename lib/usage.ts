@@ -27,12 +27,20 @@ const QUOTAS: Record<UsageKind, Record<Tier, number | null>> = {
   },
 };
 
-export type QuotaCheck = {
-  allowed: boolean;
-  used: number;
-  limit: number | null;
-  tier: Tier;
-};
+// Shared with API responses + client error handling so the magic string
+// can't drift out of sync across the network boundary.
+export const QUOTA_ERROR_CODE = "daily_limit";
+
+export type Usage = { used: number; limit: number | null; allowed: boolean };
+
+export type QuotaCheck = Usage & { tier: Tier };
+
+const TIERS: readonly Tier[] = ["free", "pro", "sharp"];
+function asTier(raw: unknown): Tier {
+  return typeof raw === "string" && (TIERS as readonly string[]).includes(raw)
+    ? (raw as Tier)
+    : "free";
+}
 
 // Read-only check. Use before performing the paid work so we can return
 // 429 without spending tokens; bump() after the work succeeds.
@@ -58,7 +66,7 @@ export async function checkQuota(
       .maybeSingle(),
   ]);
 
-  const tier = (profile?.tier as Tier) ?? "free";
+  const tier = asTier(profile?.tier);
   const limit = QUOTAS[kind][tier];
   const used = counter?.count ?? 0;
 
@@ -70,37 +78,22 @@ export async function checkQuota(
   };
 }
 
-// Increment after a successful paid call. Idempotent on conflict — same
-// (user, day, kind) row gets bumped instead of duplicated. We don't bump
-// on failure so users aren't penalized for upstream errors.
+// Atomic increment via Postgres function — concurrent calls can't
+// double-spend the cap. Fire-and-forget at the call site so the user
+// doesn't wait on the write before getting their response.
 export async function bumpUsage(
   userId: string,
   kind: UsageKind,
 ): Promise<void> {
   const admin = supabaseAdmin();
   if (!admin) return;
-
-  const day = todayUtc();
-  // Read-then-write rather than a raw SQL upsert+increment because the
-  // Supabase JS client doesn't expose `RETURNING count + 1`. The race
-  // window is small enough that a stray double-bump is acceptable —
-  // worst case a heavy user gets one fewer parse than the nominal cap.
-  const { data } = await admin
-    .from("usage_counters")
-    .select("count")
-    .eq("user_id", userId)
-    .eq("day", day)
-    .eq("kind", kind)
-    .maybeSingle();
-
-  const next = (data?.count ?? 0) + 1;
-  await admin.from("usage_counters").upsert(
-    { user_id: userId, day, kind, count: next },
-    { onConflict: "user_id,day,kind" },
-  );
+  await admin.rpc("bump_usage_counter", {
+    p_user_id: userId,
+    p_kind: kind,
+    p_day: todayUtc(),
+  });
 }
 
 function todayUtc(): string {
-  // YYYY-MM-DD in UTC — matches Postgres `current_date` semantics.
   return new Date().toISOString().slice(0, 10);
 }

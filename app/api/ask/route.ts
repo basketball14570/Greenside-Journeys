@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { claude } from "@/lib/claude";
 import { TOOLS, SYSTEM_PROMPT, runTool } from "@/lib/ai/tools";
 import { supabaseServer } from "@/lib/supabase/server";
-import { checkQuota, bumpUsage } from "@/lib/usage";
+import { checkQuota, bumpUsage, QUOTA_ERROR_CODE } from "@/lib/usage";
 import type Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "nodejs";
@@ -27,12 +27,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "not signed in" }, { status: 401 });
   }
 
-  // Free-tier daily quota. Pro / sharp tiers bypass.
   const quota = await checkQuota(userData.user.id, "ask");
   if (!quota.allowed) {
     return NextResponse.json(
       {
-        error: "daily_limit",
+        error: QUOTA_ERROR_CODE,
         message: `You've used all ${quota.limit} questions today. Upgrade to Pro for unlimited.`,
         used: quota.used,
         limit: quota.limit,
@@ -100,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       reply: text,
-      usage: { used: quota.used + 1, limit: quota.limit, tier: quota.tier },
+      usage: { used: quota.used + 1, limit: quota.limit, allowed: true, tier: quota.tier },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

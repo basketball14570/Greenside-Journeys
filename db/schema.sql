@@ -201,6 +201,28 @@ alter table usage_counters enable row level security;
 create policy "own usage read" on usage_counters
   for select using (auth.uid() = user_id);
 
+-- Atomic increment so concurrent calls can't double-spend the cap.
+create or replace function bump_usage_counter(
+  p_user_id uuid,
+  p_kind text,
+  p_day date default current_date
+) returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_count integer;
+begin
+  insert into usage_counters (user_id, day, kind, count)
+  values (p_user_id, p_day, p_kind, 1)
+  on conflict (user_id, day, kind) do update
+    set count = usage_counters.count + 1
+  returning count into new_count;
+  return new_count;
+end;
+$$;
+
 -- ============================================================================
 -- Realtime: publish bets so the Tickets page can subscribe to inserts /
 -- updates (email import lands, cron grader transitions live → won, etc.)
