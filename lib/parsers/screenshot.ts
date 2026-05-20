@@ -64,7 +64,9 @@ export async function parseBetSlip(
 ): Promise<ParsedBet[]> {
   const res = await claude().messages.create({
     model: VISION_MODEL,
-    max_tokens: 1500,
+    // Long parlays (10-14+ legs) produce a lot of JSON; a tight cap
+    // truncates the output mid-object and the parse fails. Give it room.
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -91,7 +93,7 @@ export async function parseBetSlip(
     parsed = JSON.parse(raw);
   } catch {
     throw new Error(
-      "Couldn't read the bet slip — try a clearer screenshot with all fields visible",
+      "Couldn't read the bet slip. If it's a long parlay, screenshot it in 2 shorter images and upload each — they add to the same tickets.",
     );
   }
   const betsField = (parsed as { bets?: unknown })?.bets;
