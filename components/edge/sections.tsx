@@ -2,6 +2,7 @@
 // Ported from mobile-dashboard.jsx + desktop-dashboard.jsx.
 
 import Link from "next/link";
+import { StarButton } from "./StarButton";
 import {
   BookChip,
   Stat,
@@ -876,6 +877,7 @@ function MobileLeaderRow({ r, last }: { r: LeaderRow; last: boolean }) {
       >
         {r.pos}
       </span>
+      <StarButton player={r.name} size={14} className="-ml-1" />
       {r.slug ? (
         <Link
           href={`/players/${r.slug}`}
@@ -1007,11 +1009,12 @@ export function DesktopLeaderboard({ rows }: { rows: LeaderRow[] }) {
             >
               {r.pos}
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex items-center gap-1.5">
+              <StarButton player={r.name} size={12} className="-ml-1.5" />
               {r.slug ? (
                 <Link
                   href={`/players/${r.slug}`}
-                  className="truncate block hover:text-text transition"
+                  className="truncate block hover:text-text transition flex-1 min-w-0"
                   style={{
                     fontSize: 13,
                     color: mine ? "#f0ebe0" : "#a8b3ac",
@@ -1022,7 +1025,7 @@ export function DesktopLeaderboard({ rows }: { rows: LeaderRow[] }) {
                 </Link>
               ) : (
                 <div
-                  className="truncate"
+                  className="truncate flex-1 min-w-0"
                   style={{
                     fontSize: 13,
                     color: mine ? "#f0ebe0" : "#a8b3ac",

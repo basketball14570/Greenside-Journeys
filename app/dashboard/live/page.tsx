@@ -5,8 +5,11 @@ import Link from "next/link";
 import {
   fetchLeaderboard,
   type LeaderboardSnapshot,
+  type LeaderboardPlayer,
 } from "@/lib/espn-leaderboard";
 import { gradeBet, type Decision, type OpenBet } from "@/lib/grading";
+import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
+import { StarButton } from "@/components/edge/StarButton";
 
 // Per-player live shot-quality stats from DataGolf. Pulled separately
 // from the leaderboard so a DataGolf outage doesn't break grading.
@@ -177,6 +180,8 @@ export default function MobileLivePage() {
           minute.
         </p>
       </header>
+
+      <StarredGolfersSection snapshot={snapshot} />
 
       {!signedIn && <SignInPrompt />}
 
@@ -421,4 +426,162 @@ function SignInPrompt() {
       </Link>
     </div>
   );
+}
+
+// Starred golfers — a watchlist independent of the bet book. Pulls each
+// player from the ESPN leaderboard so the user sees position / score /
+// thru even when they don't have a ticket on them. Renders nothing
+// before any player is starred so first-time visitors aren't confused
+// by an empty card.
+function StarredGolfersSection({
+  snapshot,
+}: {
+  snapshot: LeaderboardSnapshot | null;
+}) {
+  const { stars, toggle } = useStarredGolfers();
+
+  const matched = useMemo(() => {
+    if (!snapshot || stars.size === 0) return [];
+    const out: { key: string; player: LeaderboardPlayer | null; display: string }[] = [];
+    // Index leaderboard once.
+    const byKey = new Map<string, LeaderboardPlayer>();
+    for (const p of snapshot.players) {
+      byKey.set(normalizePlayerKey(p.name), p);
+    }
+    for (const key of stars) {
+      out.push({
+        key,
+        player: byKey.get(key) ?? null,
+        // Title-case the key for display when we can't find the
+        // leaderboard row (player is WD / not in field).
+        display: key
+          .split(" ")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" "),
+      });
+    }
+    // Sort: in-field players first, ordered by leaderboard position;
+    // missing players (likely not in the field this week) at the bottom.
+    return out.sort((a, b) => {
+      const aPos = a.player?.posNum ?? 999;
+      const bPos = b.player?.posNum ?? 999;
+      return aPos - bPos;
+    });
+  }, [snapshot, stars]);
+
+  if (stars.size === 0) return null;
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between mb-2">
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
+        >
+          ★ Starred golfers
+        </span>
+        <span
+          className="num text-text-muted"
+          style={{ fontSize: 10.5, letterSpacing: 0.4 }}
+        >
+          {stars.size} {stars.size === 1 ? "player" : "players"}
+        </span>
+      </div>
+      <ul className="space-y-1.5">
+        {matched.map(({ key, player, display }) => (
+          <li
+            key={key}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] border border-line bg-surface-1"
+          >
+            <StarButton player={display} size={14} className="-ml-1" />
+            <span
+              className="num font-semibold text-text-dim"
+              style={{ fontSize: 11, minWidth: 26 }}
+            >
+              {player?.posDisplay ?? "—"}
+            </span>
+            {player?.id ? (
+              <Link
+                href={`/players/${slugifyName(player.name)}`}
+                className="flex-1 truncate"
+                style={{
+                  fontSize: 13.5,
+                  color: "#f0ebe0",
+                  fontWeight: 600,
+                }}
+              >
+                {player.name}
+              </Link>
+            ) : (
+              <span
+                className="flex-1 truncate"
+                style={{ fontSize: 13.5, color: "#a8b3ac" }}
+              >
+                {display}
+              </span>
+            )}
+            <span
+              className="num"
+              style={{
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: scoreColor(player?.totalToPar ?? null),
+                minWidth: 36,
+                textAlign: "right",
+              }}
+            >
+              {player?.totalToPar ?? (player ? "—" : "Not in field")}
+            </span>
+            <span
+              className="num text-text-muted"
+              style={{ fontSize: 11, minWidth: 30, textAlign: "right" }}
+            >
+              {thruLabel(player)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p
+        className="text-text-muted mt-2"
+        style={{ fontSize: 11, lineHeight: 1.4 }}
+      >
+        Tap the star on any leaderboard or player to add or remove them.
+      </p>
+    </section>
+  );
+}
+
+function scoreColor(toPar: string | null): string {
+  if (!toPar) return "#a8b3ac";
+  if (toPar === "E") return "#f0ebe0";
+  if (toPar.startsWith("-")) return "#7fd49a";
+  if (toPar.startsWith("+")) return "#e57373";
+  return "#f0ebe0";
+}
+
+function thruLabel(p: LeaderboardPlayer | null): string {
+  if (!p) return "";
+  const thru = p.todayLine?.thru;
+  if (thru === 18) return "F";
+  if (typeof thru === "number") return String(thru);
+  if (p.teeTime) {
+    try {
+      return new Date(p.teeTime).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return "—";
+    }
+  }
+  return "—";
+}
+
+function slugifyName(name: string): string {
+  const last = name.split(" ").pop() ?? name;
+  return last
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z]/g, "");
 }
