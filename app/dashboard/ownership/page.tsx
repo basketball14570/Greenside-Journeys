@@ -124,6 +124,21 @@ export default function OwnershipPage() {
         </Tab>
         <span className="flex-1" />
         <Link
+          href="/dashboard/ownership/projection"
+          className="num font-semibold uppercase mr-2"
+          style={{
+            padding: "6px 12px",
+            borderRadius: 6,
+            fontSize: 11,
+            letterSpacing: 0.8,
+            color: "#f5c558",
+            background: "rgba(245,197,88,0.1)",
+            border: "1px solid rgba(245,197,88,0.3)",
+          }}
+        >
+          This week&apos;s projection
+        </Link>
+        <Link
           href="/dashboard/ownership/upload"
           className="num font-semibold uppercase"
           style={{
