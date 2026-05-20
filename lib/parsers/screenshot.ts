@@ -14,9 +14,12 @@ export const ParsedBetSchema = z.object({
   player: z.string(),
   market: z.string(),
   line: z.number().nullable(),
-  americanOdds: z.number(),
-  stake: z.number(),
-  toWin: z.number(),
+  // Share / pick-em cards often omit per-leg odds and dollar amounts.
+  // Keep these nullable so a marketing-style card still validates;
+  // downstream save defaults missing values to 0.
+  americanOdds: z.number().nullable(),
+  stake: z.number().nullable(),
+  toWin: z.number().nullable(),
   confidence: z.number().min(0).max(1),
   // Matchup / 3-ball: the OTHER players in the group (not the pick).
   // Folded into the market on save so the leg grades head-to-head.
@@ -45,7 +48,14 @@ Return ONLY a JSON object matching this shape (no prose, no markdown fences):
   ]
 }
 
-For PrizePicks / Underdog pick-em style slips, treat each leg as its own bet entry. Set "americanOdds" to the implied per-leg odds if visible, else -120 as a sensible default and lower confidence.
+For PrizePicks / Underdog pick-em style slips, treat each leg as its own bet entry. Set "americanOdds" to the implied per-leg odds if visible, else null. Leave "stake"/"toWin" null when the card doesn't show dollar amounts.
+
+UNDERDOG / PRIZEPICKS SHARE CARDS (player photos, big ↑/↓ arrows, "N correct WINS Nx", maybe a sign-up promo code): IGNORE all marketing/promo/sign-up text. Each player row is one leg. The arrow gives the side: ↑ = Higher (Over), ↓ = Lower (Under). Translate the stat label into a gradeable market, keeping the round (e.g. "R1 – Thu" → round 1):
+- "Leaderboard Position" with ↓ N.5  →  market "R1 Top {floor(N)}" (finishing better than position N.5 means a top-N finish). Set line null.
+- "Birdies or Better"  →  market "R1 birdies or better over" (↑) / "... under" (↓), line = the number.
+- "Bogeys or Worse"  →  market "R1 bogeys or worse under" (↓) / "... over" (↑), line = the number.
+- "Round Strokes"  →  market "R1 round score under" (↓) / "... over" (↑), line = the number.
+If a player name is truncated (e.g. "Rasmus Hojgaa…"), complete it to the full PGA Tour player name.
 
 MATCHUP / 3-BALL / 2-BALL legs (common on Hard Rock, DraftKings, FanDuel):
 - These show a group of players (e.g. "Round 1 - Adam Svensson / Dylan Wu / Mac Meissner - 3 Ball") where ONE is the pick. The highlighted/selected name (usually listed first, above the group) is the pick.

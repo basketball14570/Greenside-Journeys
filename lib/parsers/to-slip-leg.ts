@@ -8,9 +8,9 @@ type ParsedBet = {
   player: string;
   market: string;
   line: number | null;
-  americanOdds: number;
-  stake: number;
-  toWin: number;
+  americanOdds: number | null;
+  stake: number | null;
+  toWin: number | null;
   confidence: number;
 };
 
@@ -93,6 +93,20 @@ export function parsedBetToSlipLeg(
     if ([5, 10, 20, 30, 40].includes(n)) {
       return { ...base, kind: "top_n", n };
     }
+  }
+
+  // Underdog "Leaderboard Position" — "better N.5" means a top-floor(N)
+  // finish (lower position number is better). Grade as a top-N.
+  if (/(leaderboard|finish\w*)\s*position/.test(m)) {
+    const stripped = m.replace(/\br\s*\d\b/g, " ").replace(/round\s*\d/g, " ");
+    const numMatch = stripped.match(/(\d{1,3}(?:\.\d)?)/);
+    const n =
+      b.line != null
+        ? Math.floor(b.line)
+        : numMatch
+          ? Math.floor(parseFloat(numMatch[1]))
+          : null;
+    if (n && n > 0) return { ...base, kind: "top_n", n };
   }
 
   // Tournament winner / outright
