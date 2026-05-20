@@ -10,6 +10,10 @@ import {
 import { gradeBet, type Decision, type OpenBet } from "@/lib/grading";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
+import {
+  FEATURED_PARLAYS,
+  featuredParlayToParsedBets,
+} from "@/lib/data/featured-parlay";
 
 // Per-player live shot-quality stats from DataGolf. Pulled separately
 // from the leaderboard so a DataGolf outage doesn't break grading.
@@ -254,6 +258,8 @@ export default function MobileLivePage() {
           minute.
         </p>
       </header>
+
+      <LoadFeaturedButton />
 
       <StarredGolfersSection snapshot={snapshot} />
 
@@ -550,6 +556,51 @@ function SkeletonRows() {
         />
       ))}
     </ul>
+  );
+}
+
+// Deterministic "load the curated parlays into my account" action. Each
+// featured parlay is saved in its own request so its legs share a
+// placed_at and render as one grouped card with the real multiplier and
+// $10 → $X payout baked in (no OCR, no per-leg estimate).
+function LoadFeaturedButton() {
+  const [loading, setLoading] = useState(false);
+  async function load() {
+    setLoading(true);
+    try {
+      for (const p of FEATURED_PARLAYS) {
+        await fetch("/api/bets/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bets: featuredParlayToParsedBets(p),
+            source: "manual",
+          }),
+        }).catch(() => null);
+      }
+      window.location.reload();
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <button
+      onClick={load}
+      disabled={loading}
+      className="num font-semibold uppercase w-full"
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        fontSize: 11,
+        letterSpacing: 0.8,
+        color: "#8ee68e",
+        background: "rgba(142,230,142,0.1)",
+        border: "1px solid rgba(142,230,142,0.28)",
+        opacity: loading ? 0.6 : 1,
+      }}
+    >
+      {loading ? "Loading…" : "+ Load this week's featured parlays"}
+    </button>
   );
 }
 

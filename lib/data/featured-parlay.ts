@@ -1,4 +1,5 @@
 import type { OpenBet } from "@/lib/grading";
+import type { ParsedBet } from "@/lib/parsers/screenshot";
 
 // Curated parlays we feature on the public site and track live against
 // the ESPN leaderboard. Hand-entered from the slips; update each week.
@@ -71,6 +72,60 @@ export function featuredLegToOpenBet(leg: FeaturedLeg): OpenBet {
     round: leg.round,
     side: leg.side === "lower" ? "under" : "over",
   };
+}
+
+// Deterministic seed for "load this into my account": converts a
+// featured parlay into the ParsedBet rows the save route expects, with
+// the REAL ticket economics baked in via parlayMultiplier (= payout ÷
+// entry). This bypasses OCR so the grouped parlay card always shows the
+// correct multiplier and $10 → $X payout instead of a per-leg estimate.
+// Market strings mirror what the OCR pipeline emits so each leg routes
+// to the same grader (Top-N, round prop, 3-ball, round-stat prop).
+function bookToSlug(book: string): ParsedBet["book"] {
+  const b = book.toLowerCase();
+  if (b.includes("underdog")) return "underdog";
+  if (b.includes("prizepicks")) return "prizepicks";
+  if (b.includes("draftkings")) return "draftkings";
+  if (b.includes("fanduel")) return "fanduel";
+  if (b.includes("caesars")) return "caesars";
+  if (b.includes("betmgm")) return "betmgm";
+  return "other";
+}
+
+function featuredLegToMarketLine(leg: FeaturedLeg): { market: string; line: number | null } {
+  // 3-ball matchup — opponents fold into the market on save as "vs A / B".
+  if (leg.others && leg.others.length >= 2) {
+    return { market: `R${leg.round} 3-ball`, line: null };
+  }
+  const p = leg.pick.toLowerCase();
+  if (p.includes("leaderboard position") || p.includes("finish")) {
+    const topN = Math.floor(leg.line ?? 10);
+    return { market: `R${leg.round} Top ${topN}`, line: topN };
+  }
+  const ou = leg.side === "lower" ? "under" : "over";
+  if (p.includes("birdie")) return { market: `R${leg.round} birdies or better ${ou}`, line: leg.line ?? null };
+  if (p.includes("bogey")) return { market: `R${leg.round} bogeys or worse ${ou}`, line: leg.line ?? null };
+  return { market: `R${leg.round} round score ${ou}`, line: leg.line ?? null };
+}
+
+export function featuredParlayToParsedBets(p: FeaturedParlay): ParsedBet[] {
+  const multiplier = Number((p.payout / p.entry).toFixed(2));
+  return p.legs.map((leg) => {
+    const { market, line } = featuredLegToMarketLine(leg);
+    const odds = leg.odds ? parseInt(leg.odds.replace("+", ""), 10) : null;
+    return {
+      book: bookToSlug(p.book),
+      player: leg.player,
+      market,
+      line,
+      americanOdds: Number.isFinite(odds) ? odds : null,
+      stake: null,
+      toWin: null,
+      confidence: 1,
+      others: leg.others,
+      parlayMultiplier: multiplier,
+    };
+  });
 }
 
 // AT&T Byron Nelson — TPC Craig Ranch, McKinney TX. Round 1, Thursday.
