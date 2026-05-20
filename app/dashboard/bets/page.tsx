@@ -501,6 +501,34 @@ function BetRowDesktop({
   );
 }
 
+// Group bets by the upload batch (legs saved together share placed_at)
+// so a parlay renders as one unit and can be confirmed/dismissed wholesale.
+function groupByBatch(
+  bets: ImportedBet[],
+): { key: string; when: string | null; legs: ImportedBet[] }[] {
+  const map = new Map<string, ImportedBet[]>();
+  for (const b of bets) {
+    const key = b.placed_at ?? b.id;
+    const arr = map.get(key);
+    if (arr) arr.push(b);
+    else map.set(key, [b]);
+  }
+  return Array.from(map.entries())
+    .map(([key, legs]) => ({
+      key,
+      legs,
+      when: legs[0].placed_at
+        ? new Date(legs[0].placed_at).toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : null,
+    }))
+    .sort((a, b) => (a.key < b.key ? 1 : -1));
+}
+
 type ImportedBet = {
   id: string;
   book: string;
@@ -583,12 +611,26 @@ function ImportedBets() {
     load();
   }
 
+  async function actBatch(ids: string[], action: "confirm" | "dismiss") {
+    await Promise.all(
+      ids.map((id) =>
+        fetch("/api/bets/mine", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, action }),
+        }).catch(() => null),
+      ),
+    );
+    load();
+  }
+
   if (state.kind === "loading" || state.kind === "unconfigured") return null;
   if (state.kind === "anon") return null;
   if (state.bets.length === 0) return null;
 
   const pending = state.bets.filter((b) => !b.user_confirmed && b.source !== "manual");
   const confirmed = state.bets.filter((b) => b.user_confirmed || b.source === "manual");
+  const pendingGroups = groupByBatch(pending);
 
   return (
     <div className="space-y-3">
@@ -611,10 +653,44 @@ function ImportedBets() {
               </div>
             </div>
           </div>
-          <div className="space-y-2">
-            {pending.map((b) => (
-              <ImportedRow key={b.id} b={b} onConfirm={() => act(b.id, "confirm")} onDismiss={() => act(b.id, "dismiss")} />
-            ))}
+          <div className="space-y-4">
+            {pendingGroups.map((group) => {
+              const ids = group.legs.map((b) => b.id);
+              const multi = group.legs.length > 1;
+              return (
+                <div key={group.key} className={multi ? "rounded-[12px] border border-line/60 p-3" : ""}>
+                  {multi && (
+                    <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+                      <span className="num text-text-muted" style={{ fontSize: 11, letterSpacing: 0.3 }}>
+                        {group.legs[0].book.toUpperCase()} · {group.legs.length}-leg parlay
+                        {group.when ? ` · ${group.when}` : ""}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => actBatch(ids, "confirm")}
+                          className="num uppercase rounded px-2 py-1"
+                          style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#8ee68e", border: "1px solid rgba(142,230,142,0.4)" }}
+                        >
+                          Confirm all
+                        </button>
+                        <button
+                          onClick={() => actBatch(ids, "dismiss")}
+                          className="num uppercase rounded px-2 py-1"
+                          style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#e57373", border: "1px solid rgba(229,115,115,0.4)" }}
+                        >
+                          Dismiss all
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {group.legs.map((b) => (
+                      <ImportedRow key={b.id} b={b} onConfirm={() => act(b.id, "confirm")} onDismiss={() => act(b.id, "dismiss")} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

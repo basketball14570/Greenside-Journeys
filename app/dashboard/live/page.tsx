@@ -66,6 +66,7 @@ type ApiBet = {
   status: string;
   resolved_at: string | null;
   resolved_payout: number | null;
+  placed_at: string | null;
   created_at: string;
 };
 
@@ -205,6 +206,34 @@ export default function MobileLivePage() {
       dg: statByName.get(normName(b.player)) ?? null,
     }));
 
+  // Group legs by the upload batch (every leg saved in one upload shares
+  // a placed_at), so a parlay shows as one card instead of N loose legs.
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof graded>();
+    for (const g of graded) {
+      const key = g.bet.placed_at ?? g.bet.created_at ?? g.bet.id;
+      const arr = map.get(key);
+      if (arr) arr.push(g);
+      else map.set(key, [g]);
+    }
+    return Array.from(map.entries())
+      .map(([key, legs]) => ({ key, legs }))
+      .sort((a, b) => (a.key < b.key ? 1 : -1));
+  }, [graded]);
+
+  async function dismissBatch(ids: string[]) {
+    await Promise.all(
+      ids.map((id) =>
+        fetch("/api/bets/mine", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, action: "dismiss" }),
+        }).catch(() => null),
+      ),
+    );
+    setBets((prev) => (prev ? prev.filter((b) => !ids.includes(b.id)) : prev));
+  }
+
   return (
     <div className="px-5 py-5 space-y-5">
       <header>
@@ -234,18 +263,66 @@ export default function MobileLivePage() {
 
       {signedIn && bets !== null && bets.length === 0 && <EmptyState />}
 
-      {signedIn && graded.length > 0 && (
-        <ul className="space-y-2.5">
-          {graded.map((g) => (
-            <LiveBetCard
-              key={g.bet.id}
-              bet={g.bet}
-              decision={g.decision}
-              dg={g.dg}
+      {signedIn && groups.length > 0 && (
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <ParlayGroup
+              key={group.key}
+              legs={group.legs}
+              onRemoveAll={() => dismissBatch(group.legs.map((g) => g.bet.id))}
             />
           ))}
-        </ul>
+        </div>
       )}
+    </div>
+  );
+}
+
+function ParlayGroup({
+  legs,
+  onRemoveAll,
+}: {
+  legs: { bet: ApiBet; decision: Decision | null; dg: DGStat | null }[];
+  onRemoveAll: () => void;
+}) {
+  const first = legs[0].bet;
+  const multi = legs.length > 1;
+  const when = first.placed_at
+    ? new Date(first.placed_at).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+  return (
+    <div className={multi ? "rounded-[16px] border border-line bg-bgDeep p-3" : ""}>
+      {multi && (
+        <div className="flex items-center justify-between gap-2 px-1 pb-2.5">
+          <span className="num" style={{ fontSize: 11.5, color: "#a8b3ac", letterSpacing: 0.3 }}>
+            {first.book.toUpperCase()} · {legs.length}-leg parlay
+            {when ? ` · ${when}` : ""}
+          </span>
+          <button
+            onClick={onRemoveAll}
+            className="num uppercase rounded px-2 py-1 hover:bg-surface-2"
+            style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#e57373", border: "1px solid rgba(229,115,115,0.4)" }}
+          >
+            Remove
+          </button>
+        </div>
+      )}
+      <ul className="space-y-2.5">
+        {legs.map((g) => (
+          <LiveBetCard
+            key={g.bet.id}
+            bet={g.bet}
+            decision={g.decision}
+            dg={g.dg}
+            onRemove={!multi ? onRemoveAll : undefined}
+          />
+        ))}
+      </ul>
     </div>
   );
 }
@@ -254,10 +331,12 @@ function LiveBetCard({
   bet,
   decision,
   dg,
+  onRemove,
 }: {
   bet: ApiBet;
   decision: Decision | null;
   dg: DGStat | null;
+  onRemove?: () => void;
 }) {
   const status = decision?.status ?? "unknown";
   const color = STATUS_COLOR[status];
@@ -282,11 +361,23 @@ function LiveBetCard({
         >
           ● {label}
         </span>
-        <span
-          className="num"
-          style={{ fontSize: 11, color: "#a8b3ac", letterSpacing: 0.3 }}
-        >
-          {bet.book.toUpperCase()} · {fmtOdds(bet.american_odds)}
+        <span className="flex items-center gap-2">
+          <span
+            className="num"
+            style={{ fontSize: 11, color: "#a8b3ac", letterSpacing: 0.3 }}
+          >
+            {bet.book.toUpperCase()} · {fmtOdds(bet.american_odds)}
+          </span>
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              title="Remove this bet"
+              className="num rounded px-1.5 hover:bg-surface-2"
+              style={{ fontSize: 13, color: "#e57373", lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          )}
         </span>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3">
