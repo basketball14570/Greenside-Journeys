@@ -79,8 +79,11 @@ async function persistBets(
         : b.market,
     line: b.line,
     american_odds: b.americanOdds ?? -110,
-    stake: b.stake ?? 0,
-    to_win: b.toWin ?? 0,
+    // Parlay economics normalized to a $10 stake (see /api/bets/save).
+    stake: b.parlayMultiplier ? 10 : (b.stake ?? 0),
+    to_win: b.parlayMultiplier
+      ? Number((10 * b.parlayMultiplier).toFixed(2))
+      : (b.toWin ?? 0),
     status: "pending" as const,
     source: "email" as const,
     parse_confidence: b.confidence,

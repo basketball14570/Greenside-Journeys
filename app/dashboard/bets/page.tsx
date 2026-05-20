@@ -658,12 +658,19 @@ function ImportedBets() {
               const ids = group.legs.map((b) => b.id);
               const multi = group.legs.length > 1;
               return (
-                <div key={group.key} className={multi ? "rounded-[12px] border border-line/60 p-3" : ""}>
+                <div
+                  key={group.key}
+                  className={multi ? "rounded-[12px] p-3" : ""}
+                  style={multi ? { border: "2px solid rgba(255,255,255,0.85)" } : undefined}
+                >
                   {multi && (
                     <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-                      <span className="num text-text-muted" style={{ fontSize: 11, letterSpacing: 0.3 }}>
-                        {group.legs[0].book.toUpperCase()} · {group.legs.length}-leg parlay
-                        {group.when ? ` · ${group.when}` : ""}
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "#ffffff", letterSpacing: -0.2 }}>
+                        {group.legs.length}-leg parlay
+                        <span className="num" style={{ fontSize: 11, color: "#a8b3ac", fontWeight: 400, marginLeft: 8 }}>
+                          {group.legs[0].book.toUpperCase()}
+                          {group.when ? ` · ${group.when}` : ""}
+                        </span>
                       </span>
                       <div className="flex gap-1.5">
                         <button
