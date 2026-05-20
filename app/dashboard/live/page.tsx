@@ -87,6 +87,22 @@ function apiBetToOpenBet(b: ApiBet): OpenBet {
     opponent = vsPart.split("/")[0]?.trim();
   }
 
+  // Underdog "leaderboard position better N.5" = a top-floor(N) finish.
+  // Rewrite to a "Top N" market so it routes to the top-N grader (lower
+  // position number is better, so "better than 10.5" → top 10).
+  let market = b.market;
+  if (/(leaderboard|finish\w*)\s*position/.test(m) && !/\btop\b/.test(m)) {
+    const stripped = m.replace(/\br\s*\d\b/g, " ").replace(/round\s*\d/g, " ");
+    const numMatch = stripped.match(/(\d{1,3}(?:\.\d)?)/);
+    const n =
+      b.line != null
+        ? Math.floor(Number(b.line))
+        : numMatch
+          ? Math.floor(parseFloat(numMatch[1]))
+          : null;
+    if (n) market = `${round ? `R${round} ` : ""}Top ${n}`;
+  }
+
   // Over/under props lose their side in the numeric `line` column, so
   // rebuild an "O x" / "U x" line from the keyword in the market text.
   const isOu = /\b(over|under|higher|lower)\b/.test(m) && b.line !== null;
@@ -99,7 +115,7 @@ function apiBetToOpenBet(b: ApiBet): OpenBet {
   return {
     id: b.id,
     player: b.player,
-    market: b.market,
+    market,
     line,
     stake: Number(b.stake),
     payout: Number(b.to_win),

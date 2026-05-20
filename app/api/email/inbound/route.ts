@@ -78,9 +78,9 @@ async function persistBets(
         ? `${b.market} vs ${b.others.join(" / ")}`
         : b.market,
     line: b.line,
-    american_odds: b.americanOdds,
-    stake: b.stake,
-    to_win: b.toWin,
+    american_odds: b.americanOdds ?? -110,
+    stake: b.stake ?? 0,
+    to_win: b.toWin ?? 0,
     status: "pending" as const,
     source: "email" as const,
     parse_confidence: b.confidence,

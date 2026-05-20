@@ -20,8 +20,6 @@ import {
   fetchLeaderboard,
   type LeaderboardSnapshot,
 } from "@/lib/espn-leaderboard";
-import { useBetSlip } from "@/lib/bet-slip-store";
-import { toast } from "@/components/edge/Toast";
 import {
   MatchupDetail,
   ThreeBallDetail,
@@ -290,8 +288,8 @@ function ScreenshotCard() {
   const { usage, setUsage } = useQuota("screenshot_parse");
   const overLimit = usage?.allowed === false;
 
-  async function saveToBets() {
-    if (!result || result.length === 0) return;
+  async function saveToBets(): Promise<boolean> {
+    if (!result || result.length === 0) return false;
     setSaving(true);
     setSaved(null);
     setError(null);
@@ -306,9 +304,11 @@ function ScreenshotCard() {
         if (r.status === 401) throw new Error("Sign in to save bets to your account");
         throw new Error(j.error ?? `Save failed (${r.status})`);
       }
-      setSaved(`Saved ${j.inserted}. Confirm them on /dashboard/bets.`);
+      setSaved(`Saved ${j.inserted} to your tickets.`);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -505,10 +505,9 @@ function ResultsSection({
   bets: ParsedBet[];
   saving: boolean;
   saved: string | null;
-  onSave: () => void;
+  onSave: () => Promise<boolean>;
 }) {
   const router = useRouter();
-  const { importLegs } = useBetSlip();
   const [snapshot, setSnapshot] = useState<LeaderboardSnapshot | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -544,18 +543,12 @@ function ResultsSection({
   const [parlayOverride, setParlayOverride] = useState<boolean | null>(null);
   const isParlay = parlayOverride ?? heuristicParlay;
 
-  const trackOnLive = () => {
-    const validLegs = legs.filter((l): l is SlipLeg => l !== null);
-    if (validLegs.length === 0) {
-      toast("Couldn't classify any legs — fix the parsed cards first", "warn");
-      return;
-    }
-    importLegs(validLegs);
-    toast(
-      `Tracking ${validLegs.length} leg${validLegs.length === 1 ? "" : "s"} on the Live page`,
-      "success",
-    );
-    router.push("/dashboard/parlay");
+  // Persist to the DB first (the Live page reads saved bets, not the
+  // in-memory slip store), then navigate. This is what makes uploaded
+  // bets actually show on Live and Tickets.
+  const trackOnLive = async () => {
+    const ok = await onSave();
+    if (ok) router.push("/dashboard/live");
   };
 
   return (
