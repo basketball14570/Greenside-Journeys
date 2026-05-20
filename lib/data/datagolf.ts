@@ -122,6 +122,47 @@ export async function getPlayerSkills(): Promise<DGPlayerSkill[]> {
   return json.players ?? [];
 }
 
+// Field + tee times. Populated by DataGolf once the tour releases the
+// pairings — typically Tuesday afternoon for a Thursday tournament.
+// `r1_teetime` / `r2_teetime` are returned as "HH:MM" local strings;
+// `am_pm` flips between "am" and "pm" so we can bucket players into
+// Wave 1 (Thu AM / Fri PM) or Wave 2 (Thu PM / Fri AM) without parsing
+// the time string when we just need the wave.
+export type DGFieldPlayer = {
+  player_name: string;        // "Last, First"
+  dg_id: number | null;
+  am_pm?: "am" | "pm" | null;
+  r1_teetime?: string | null;
+  r2_teetime?: string | null;
+  course?: string | null;     // multi-course events (Pebble, etc)
+  start_hole?: number | null;
+  status?: string | null;     // "WD", "DQ", "Out" when applicable
+};
+
+export type DGFieldUpdates = {
+  event_name: string | null;
+  current_round: number | null;
+  last_updated: string | null;
+  field: DGFieldPlayer[];
+};
+
+export async function getFieldUpdates(
+  tour: "pga" | "euro" | "kft" | "alt" = "pga",
+): Promise<DGFieldUpdates> {
+  const url = `${BASE}/field-updates?tour=${tour}&file_format=json&key=${key()}`;
+  // Cache 30 minutes — the field changes infrequently once published, but
+  // late WDs do happen so we don't want stale data through the day.
+  const res = await fetch(url, { next: { revalidate: 1800 } });
+  if (!res.ok) throw new Error(`DataGolf field-updates failed: ${res.status}`);
+  const json = await res.json();
+  return {
+    event_name: json.event_name ?? null,
+    current_round: json.current_round ?? null,
+    last_updated: json.last_updated ?? null,
+    field: json.field ?? [],
+  };
+}
+
 // ── Fallback-aware layer ─────────────────────────────────────────
 //
 // The functions below differ from the originals: they return null when

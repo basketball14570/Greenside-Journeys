@@ -8,12 +8,14 @@ import {
 } from "@/components/edge/primitives";
 import { ALERT_HISTORY, COURSES, type CourseSnapshot } from "@/lib/demo-courses";
 import { WaveSplitDetail } from "@/components/edge/WaveSplitChip";
+import { WaveWatchlist } from "@/components/edge/WaveWatchlist";
 import { getActiveEvent } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
   getForecast,
   waveSplitFromForecast,
 } from "@/lib/weather/forecast";
+import { getFieldWaveAttribution } from "@/lib/data/wave-tees";
 
 const ALERT_COLOR = {
   wave: "#8ee68e",
@@ -35,7 +37,13 @@ export default async function ConditionsPage() {
   // page (demo course snapshots) still renders.
   const event = getActiveEvent();
   const slug = event ? courseSlugFor(event.course) : null;
-  const forecast = slug ? await getForecast(slug).catch(() => null) : null;
+  // Three pieces fan out in parallel: forecast, weather-derived wave
+  // split, and the live tee-time field. We need all three to render the
+  // watchlist; the page still works if any single one returns null.
+  const [forecast, fieldWaves] = await Promise.all([
+    slug ? getForecast(slug).catch(() => null) : Promise.resolve(null),
+    getFieldWaveAttribution().catch(() => null),
+  ]);
   const waveSplit =
     slug && event ? waveSplitFromForecast(forecast, slug, event.startDate) : null;
 
@@ -69,6 +77,13 @@ export default async function ConditionsPage() {
       </header>
 
       {waveSplit && <WaveSplitDetail summary={waveSplit} />}
+
+      {waveSplit?.combined && fieldWaves && (
+        <WaveWatchlist
+          combined={waveSplit.combined}
+          field={fieldWaves}
+        />
+      )}
 
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
