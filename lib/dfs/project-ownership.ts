@@ -21,6 +21,46 @@ export type OwnershipProjection = {
   projOwn: number; // projected % owned
 };
 
+export type OwnershipDelta = OwnershipProjection & {
+  actualOwn: number;
+  delta: number; // actual − projected (positive = we under-projected the chalk)
+};
+
+function normName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ø/gi, "o")
+    .replace(/å/gi, "a")
+    .replace(/æ/gi, "ae")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Join the projection against actual ownership (once it's been uploaded
+// for the event) so the page can show a projected-vs-actual delta. Only
+// players present in both lists are returned, sorted by the size of the
+// miss so the biggest surprises surface first.
+export function joinActual(
+  projection: OwnershipProjection[],
+  actual: { name: string; own: number }[],
+): OwnershipDelta[] {
+  const actualByName = new Map(actual.map((a) => [normName(a.name), a.own]));
+  const rows: OwnershipDelta[] = [];
+  for (const p of projection) {
+    const a = actualByName.get(normName(p.name));
+    if (a === undefined) continue;
+    rows.push({
+      ...p,
+      actualOwn: a,
+      delta: Number((a - p.projOwn).toFixed(1)),
+    });
+  }
+  return rows.sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+}
+
 // Blend weights. Salary is the market's own projection of a player and
 // is the single best predictor of ownership, so it dominates. Value
 // (points per $1k) gets a smaller, dampened bump — it nudges genuine

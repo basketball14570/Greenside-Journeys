@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { DK_EVENT, DK_SALARIES } from "@/lib/data/dfs-salaries";
-import { projectOwnership } from "@/lib/dfs/project-ownership";
+import { projectOwnership, joinActual } from "@/lib/dfs/project-ownership";
+import { OWNERSHIP_DATA } from "@/lib/data/ownership";
+
+// Find uploaded actual ownership for this event, if it exists yet.
+// Matches any OWNERSHIP_DATA key mentioning "byron nelson" so the delta
+// view lights up automatically once actuals are uploaded — no code edit.
+function findActual() {
+  const key = Object.keys(OWNERSHIP_DATA).find((k) =>
+    k.toLowerCase().includes("byron nelson"),
+  );
+  return key ? OWNERSHIP_DATA[key].players : null;
+}
 
 // Projected DFS ownership for the upcoming slate, computed from this
 // week's DK salaries + season scoring. Compare against the actual
 // ownership you upload after the contest locks.
 export default function OwnershipProjectionPage() {
   const projection = projectOwnership(DK_SALARIES);
+  const actual = findActual();
+  const deltas = actual ? joinActual(projection, actual) : null;
   const top = projection.slice(0, 60);
 
   return (
@@ -40,6 +53,69 @@ export default function OwnershipProjectionPage() {
           Ownership database →
         </Link>
       </header>
+
+      {deltas && deltas.length > 0 && (
+        <div className="rounded-[14px] overflow-hidden bg-surface-1 border border-line">
+          <div
+            className="px-4 py-3 border-b border-line flex items-baseline justify-between"
+            style={{ background: "rgba(0,0,0,0.18)" }}
+          >
+            <span
+              className="serif-italic text-text"
+              style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+            >
+              Projected vs actual
+            </span>
+            <span className="num text-text-muted" style={{ fontSize: 11 }}>
+              biggest misses first
+            </span>
+          </div>
+          <div
+            className="grid gap-2.5 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
+            style={{
+              gridTemplateColumns: "1.7fr 90px 90px 90px",
+              fontSize: 9.5,
+              letterSpacing: 1.1,
+            }}
+          >
+            <span>Player</span>
+            <span className="text-right">Proj</span>
+            <span className="text-right">Actual</span>
+            <span className="text-right">Δ</span>
+          </div>
+          {deltas.slice(0, 25).map((d, i) => (
+            <div
+              key={d.name}
+              className="grid gap-2.5 px-4 py-2 items-center"
+              style={{
+                gridTemplateColumns: "1.7fr 90px 90px 90px",
+                borderBottom:
+                  i < 24 ? "1px solid rgba(255,255,255,0.05)" : "none",
+              }}
+            >
+              <span className="text-text font-medium truncate" style={{ fontSize: 13 }}>
+                {d.name}
+              </span>
+              <span className="num text-right text-text-dim" style={{ fontSize: 12.5 }}>
+                {d.projOwn.toFixed(1)}%
+              </span>
+              <span className="num text-right text-text" style={{ fontSize: 12.5 }}>
+                {d.actualOwn.toFixed(1)}%
+              </span>
+              <span
+                className="num text-right font-semibold"
+                style={{
+                  fontSize: 12.5,
+                  color: d.delta > 0 ? "#e57373" : d.delta < 0 ? "#7fd49a" : "#a8b3ac",
+                }}
+              >
+                {d.delta > 0 ? "+" : ""}
+                {d.delta.toFixed(1)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-[14px] overflow-hidden bg-surface-1 border border-line">
         <div
