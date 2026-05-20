@@ -57,7 +57,26 @@ export async function POST(req: NextRequest) {
   const { error, count } = await supabase
     .from("bets")
     .insert(rows, { count: "exact" });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Surface the full Postgres detail so a failed save is diagnosable
+    // from the Vercel runtime logs and the client toast.
+    console.error("bets insert failed", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      sampleRow: rows[0],
+    });
+    return NextResponse.json(
+      {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ ok: true, inserted: count ?? rows.length });
 }
