@@ -74,7 +74,17 @@ function LoginForm() {
           return;
         }
 
-        if (res.status === 501) {
+        if (res.status === 409) {
+          throw new Error(
+            "An account with that email already exists. Try signing in instead.",
+          );
+        }
+
+        // 501 (service role not configured) or 503 (service role
+        // present but Supabase rejected the call — bad key, outage,
+        // etc.) → fall back to the standard signUp path so the user
+        // can still create an account, just with email confirmation.
+        if (res.status === 501 || res.status === 503) {
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -110,7 +120,11 @@ function LoginForm() {
 
       if (mode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/account/password")}`,
+          // Land directly on the set-password page and let it exchange
+          // the code client-side. Routing recovery through /auth/callback
+          // drags the user through the onboarding check (which also
+          // breaks when the service-role key is misconfigured).
+          redirectTo: `${window.location.origin}/account/password`,
         });
         if (error) throw error;
         setInfo(

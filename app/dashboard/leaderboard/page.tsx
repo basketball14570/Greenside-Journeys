@@ -438,7 +438,13 @@ function Row({
         {today?.toPar ?? "—"}
       </div>
       <div className="text-right num self-center" style={{ fontSize: 13 }}>
-        {today?.complete ? "F" : (today?.thru ?? "—")}
+        {today?.complete
+          ? "F"
+          : today?.thru != null
+            ? today.thru
+            : player.teeTime
+              ? <span style={{ color: "#a8b3ac" }}>{formatTeeTime(player.teeTime)}</span>
+              : "—"}
       </div>
       <div className="self-center flex flex-wrap gap-1">
         {decisions.map(({ leg, decision }) => (
@@ -493,4 +499,14 @@ function colorForToPar(n: number | null): string | undefined {
   if (n < 0) return "#7fd49a";
   if (n > 0) return "#e87c7c";
   return undefined;
+}
+
+function formatTeeTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }

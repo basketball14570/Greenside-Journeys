@@ -21,14 +21,30 @@ export default function DfsPage() {
             ● DraftKings DFS
           </span>
           <h1
-            className="serif-italic mt-1.5"
+            className="serif-italic mt-1.5 flex items-center gap-2.5 flex-wrap"
             style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
           >
             <em>Wave-aware lineup builder.</em>
+            <span
+              className="num uppercase"
+              style={{
+                fontSize: 9.5,
+                letterSpacing: 1.2,
+                padding: "3px 8px",
+                borderRadius: 4,
+                background: "rgba(245,197,88,0.1)",
+                color: "#f5c558",
+                border: "1px solid rgba(245,197,88,0.3)",
+                position: "relative",
+                top: -6,
+              }}
+            >
+              Example data
+            </span>
           </h1>
           <p className="text-text-dim mt-2 max-w-xl" style={{ fontSize: 14 }}>
-            Quail Hollow main slate · $50,000 cap · 6 golfers. Projections are
-            adjusted for live wind, course fit, and tee-time wave.
+            Example slate · projections are a preview until the live DFS feed is
+            wired. The ownership database is real.
           </p>
         </div>
       </header>

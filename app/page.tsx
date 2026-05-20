@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketingNav, MarketingFooter } from "@/components/marketing/Nav";
 import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
+import { FEATURED_PARLAY } from "@/lib/data/featured-parlay";
 
 export default function MarketingHome() {
   const event = getActiveEvent();
@@ -69,6 +70,53 @@ export default function MarketingHome() {
             >
               Open Dashboard
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Parlay of the week teaser ────────────────────── */}
+      <section className="border-t border-line">
+        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-16">
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+            <div>
+              <div
+                className="num font-semibold uppercase mb-2"
+                style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
+              >
+                ● Parlay of the week · graded live
+              </div>
+              <h2
+                className="serif-italic"
+                style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+              >
+                <em>{FEATURED_PARLAY.legs.length} legs we&apos;re tracking this week.</em>
+              </h2>
+            </div>
+            <Link
+              href="/parlay"
+              className="px-5 py-2.5 rounded font-semibold"
+              style={{ background: "#8ee68e", color: "#06140c", fontSize: 14 }}
+            >
+              Watch it live →
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-text-dim" style={{ fontSize: 14 }}>
+            <span>
+              {FEATURED_PARLAY.book} · {FEATURED_PARLAY.event}
+            </span>
+            <span>
+              <span className="num text-text-muted">Entry</span>{" "}
+              <span className="num text-text font-semibold">${FEATURED_PARLAY.entry}</span>
+            </span>
+            <span>
+              <span className="num text-text-muted">Pays</span>{" "}
+              <span className="num font-semibold" style={{ color: "#8ee68e" }}>
+                ${FEATURED_PARLAY.payout.toLocaleString()}
+              </span>
+            </span>
+            <span className="num text-text-muted">
+              {FEATURED_PARLAY.legs.map((l) => l.player.split(" ").pop()).join(" · ")}
+            </span>
           </div>
         </div>
       </section>

@@ -74,15 +74,30 @@ export default function HedgePage() {
           ● Hedge Lab
         </span>
         <h1
-          className="serif-italic mt-1.5"
+          className="serif-italic mt-1.5 flex items-center gap-2.5 flex-wrap"
           style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
         >
           <em>Lock the profit.</em>
+          <span
+            className="num uppercase"
+            style={{
+              fontSize: 9.5,
+              letterSpacing: 1.2,
+              padding: "3px 8px",
+              borderRadius: 4,
+              background: "rgba(245,197,88,0.1)",
+              color: "#f5c558",
+              border: "1px solid rgba(245,197,88,0.3)",
+              position: "relative",
+              top: -6,
+            }}
+          >
+            Example data
+          </span>
         </h1>
         <p className="text-text-dim mt-2 max-w-2xl" style={{ fontSize: 14 }}>
-          Pick any live bet and see the optimal cross-book hedge — the stake
-          size that guarantees the same payout whether your original wins or
-          loses.
+          Example bets and cross-book prices for now — the live odds feed is
+          coming. The math (optimal equalizing hedge) is real.
         </p>
       </header>
 

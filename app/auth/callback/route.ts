@@ -45,13 +45,21 @@ export async function GET(req: NextRequest) {
     const { data: session } = await supabase.auth.exchangeCodeForSession(code);
     const user = session?.user;
     const admin = supabaseAdmin();
-    if (user && admin) {
-      const { data: profile } = await admin
+    // Password-reset links land here too. Don't drag the user through
+    // onboarding before they've even set their password — let them set
+    // it first, then they can hit /dashboard normally.
+    const isPasswordReset = next === "/account/password";
+    if (user && admin && !isPasswordReset) {
+      const { data: profile, error: profileErr } = await admin
         .from("profiles")
         .select("id")
         .eq("id", user.id)
         .maybeSingle();
-      if (!profile) {
+      // Only force onboarding when the lookup SUCCEEDED and the row is
+      // genuinely missing. If the query itself errored (e.g. a
+      // misconfigured service-role key), fail open and send the user to
+      // their destination rather than trapping every login in setup.
+      if (!profileErr && !profile) {
         await admin.from("profiles").upsert({ id: user.id }, { onConflict: "id" });
         const onboardingUrl = new URL("/onboarding", url.origin);
         if (next !== "/dashboard") onboardingUrl.searchParams.set("next", next);

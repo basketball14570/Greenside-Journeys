@@ -70,14 +70,14 @@ export default function UploadPage() {
           <em>Bring your bets in.</em>
         </h1>
         <p className="text-text-dim mt-2 max-w-2xl" style={{ fontSize: 14 }}>
-          Two paths. Email forwarding is the easy one — set it up once, never
-          think about it again. Screenshot upload is the fallback.
+          Two paths. Snap a screenshot of your slip for an instant import, or
+          set up email forwarding once and never think about it again.
         </p>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-5">
-        <EmailForwardCard />
         <ScreenshotCard />
+        <EmailForwardCard />
       </div>
 
       <div
