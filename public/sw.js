@@ -4,7 +4,7 @@
  * served as-is from /sw.js.
  */
 
-const CACHE_NAME = "greenside-v2";
+const CACHE_NAME = "greenside-v3";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
@@ -36,6 +36,12 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // NEVER touch API responses. They're per-user and dynamic — caching
+  // them (cache-first) served a stale, empty /api/bets/mine to in-app
+  // fetches on the Live and Tickets pages while the data was actually
+  // in the DB. Let these hit the network normally, with cookies.
+  if (url.pathname.startsWith("/api/")) return;
 
   const isHtml = req.headers.get("accept")?.includes("text/html");
 
