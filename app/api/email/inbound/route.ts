@@ -71,7 +71,12 @@ async function persistBets(
     user_id: profile.id,
     book: b.book,
     player: b.player,
-    market: b.market,
+    // Encode matchup/3-ball opponents into the market ("... vs A / B")
+    // so the live grader can reconstruct them (no opponent column).
+    market:
+      b.others && b.others.length > 0
+        ? `${b.market} vs ${b.others.join(" / ")}`
+        : b.market,
     line: b.line,
     american_odds: b.americanOdds,
     stake: b.stake,

@@ -18,6 +18,9 @@ export const ParsedBetSchema = z.object({
   stake: z.number(),
   toWin: z.number(),
   confidence: z.number().min(0).max(1),
+  // Matchup / 3-ball: the OTHER players in the group (not the pick).
+  // Folded into the market on save so the leg grades head-to-head.
+  others: z.array(z.string()).optional(),
 });
 export type ParsedBet = z.infer<typeof ParsedBetSchema>;
 
@@ -36,12 +39,22 @@ Return ONLY a JSON object matching this shape (no prose, no markdown fences):
       "americanOdds": signed integer (e.g. -110, +220),
       "stake": dollar amount risked,
       "toWin": dollar amount to win (potential payout minus stake),
-      "confidence": 0.0 to 1.0 — your confidence in this extraction
+      "confidence": 0.0 to 1.0 — your confidence in this extraction,
+      "others": ["Other Player A", "Other Player B"]  // ONLY for matchup / 3-ball legs; omit otherwise
     }
   ]
 }
 
 For PrizePicks / Underdog pick-em style slips, treat each leg as its own bet entry. Set "americanOdds" to the implied per-leg odds if visible, else -120 as a sensible default and lower confidence.
+
+MATCHUP / 3-BALL / 2-BALL legs (common on Hard Rock, DraftKings, FanDuel):
+- These show a group of players (e.g. "Round 1 - Adam Svensson / Dylan Wu / Mac Meissner - 3 Ball") where ONE is the pick. The highlighted/selected name (usually listed first, above the group) is the pick.
+- Set "player" to the PICK only (one golfer).
+- Set "market" to include the round and matchup type, e.g. "Round 1 3-Ball" or "Round 2 2-Ball".
+- Set "others" to an array of the OTHER players in the group (everyone except the pick). For a 3-ball that's 2 names; for a 2-ball that's 1 name.
+- Copy player names exactly as written, including punctuation (e.g. "S.Y. Noh").
+
+For each leg, put the round in the market string when the slip names one (e.g. "Round 1 ...").
 
 If you can't read a field, set confidence below 0.7 and your best guess. Never fabricate — leave "line" null if not present.`;
 
