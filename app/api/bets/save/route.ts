@@ -36,7 +36,13 @@ export async function POST(req: NextRequest) {
     user_id: userData.user!.id,
     book: b.book,
     player: b.player,
-    market: b.market,
+    // The bets table has no opponent column, so matchup/3-ball groups are
+    // encoded into the market text as "... vs A / B". The live grader
+    // reconstructs the opponents from this on /dashboard/live.
+    market:
+      b.others && b.others.length > 0
+        ? `${b.market} vs ${b.others.join(" / ")}`
+        : b.market,
     line: b.line,
     american_odds: b.americanOdds,
     stake: b.stake,
