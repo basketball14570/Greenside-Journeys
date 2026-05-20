@@ -295,13 +295,29 @@ function ParlayGroup({
         minute: "2-digit",
       })
     : null;
-  // Combined parlay odds = product of each leg's decimal odds. Show what a
-  // $10 stake would return so the whole ticket's upside is visible.
-  const combined = legs.reduce(
-    (acc, g) => acc * americanToDecimal(g.bet.american_odds),
-    1,
-  );
-  const payout10 = 10 * combined;
+  // Prefer the real ticket payout captured from the slip (stored on each
+  // leg, normalized to a $10 stake). Fall back to the product of per-leg
+  // decimal odds when no parlay multiplier was captured.
+  const storedStake = Number(first.stake);
+  const storedPayout = Number(first.to_win);
+  const hasRealPayout = storedStake > 0 && storedPayout > 0;
+  const combined = hasRealPayout
+    ? storedPayout / storedStake
+    : legs.reduce((acc, g) => acc * americanToDecimal(g.bet.american_odds), 1);
+  const payout10 = hasRealPayout ? storedPayout : 10 * combined;
+  const stakeShown = hasRealPayout ? storedStake : 10;
+
+  // Parlay status — all legs must hit, so one loss busts the ticket.
+  const lost = legs.filter((l) => l.decision?.status === "lost").length;
+  const won = legs.filter((l) => l.decision?.status === "won").length;
+  const busted = lost > 0;
+  const statusColor = busted ? "#e57373" : won === legs.length ? "#7fd49a" : "#f5c558";
+  const statusText = busted
+    ? `Busted · ${lost} missed`
+    : won === legs.length
+      ? "Hit — all legs"
+      : `${won}/${legs.length} hit · alive`;
+
   return (
     <div
       className={multi ? "rounded-[16px] bg-bgDeep p-3.5" : ""}
@@ -310,16 +326,32 @@ function ParlayGroup({
       {multi && (
         <div className="flex items-start justify-between gap-2 px-1 pb-3">
           <div>
-            <div
-              style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", letterSpacing: -0.2 }}
-            >
-              {legs.length}-leg parlay
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span
+                style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", letterSpacing: -0.2 }}
+              >
+                {legs.length}-leg parlay
+              </span>
+              <span
+                className="num font-semibold uppercase"
+                style={{
+                  fontSize: 9.5,
+                  letterSpacing: 0.8,
+                  color: statusColor,
+                  padding: "2.5px 7px",
+                  borderRadius: 4,
+                  background: `${statusColor}1f`,
+                  border: `1px solid ${statusColor}40`,
+                }}
+              >
+                {statusText}
+              </span>
             </div>
-            <div className="num" style={{ fontSize: 11.5, color: "#a8b3ac", letterSpacing: 0.3, marginTop: 3 }}>
+            <div className="num" style={{ fontSize: 11.5, color: "#a8b3ac", letterSpacing: 0.3, marginTop: 4 }}>
               {first.book.toUpperCase()}
               {when ? ` · ${when}` : ""} · {combined.toFixed(1)}x ·{" "}
               <span style={{ color: "#8ee68e" }}>
-                $10 → ${payout10.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                ${stakeShown.toLocaleString()} → ${payout10.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -339,6 +371,7 @@ function ParlayGroup({
             bet={g.bet}
             decision={g.decision}
             dg={g.dg}
+            hideMoney={multi}
             onRemove={!multi ? onRemoveAll : undefined}
           />
         ))}
@@ -357,11 +390,13 @@ function LiveBetCard({
   decision,
   dg,
   onRemove,
+  hideMoney,
 }: {
   bet: ApiBet;
   decision: Decision | null;
   dg: DGStat | null;
   onRemove?: () => void;
+  hideMoney?: boolean;
 }) {
   const status = decision?.status ?? "unknown";
   const color = STATUS_COLOR[status];
@@ -407,9 +442,11 @@ function LiveBetCard({
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3">
         <h3 style={{ fontSize: 16, fontWeight: 600 }}>{bet.player}</h3>
-        <span className="num" style={{ fontSize: 12, color: "#a8b3ac" }}>
-          {Number(bet.stake).toFixed(2)}u → {Number(bet.to_win).toFixed(2)}u
-        </span>
+        {!hideMoney && (
+          <span className="num" style={{ fontSize: 12, color: "#a8b3ac" }}>
+            {Number(bet.stake).toFixed(2)}u → {Number(bet.to_win).toFixed(2)}u
+          </span>
+        )}
       </div>
       <p
         className="mt-1 text-text-dim"

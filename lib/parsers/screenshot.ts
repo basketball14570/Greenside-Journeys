@@ -24,6 +24,10 @@ export const ParsedBetSchema = z.object({
   // Matchup / 3-ball: the OTHER players in the group (not the pick).
   // Folded into the market on save so the leg grades head-to-head.
   others: z.array(z.string()).optional(),
+  // Parlay/pick-em total payout multiplier (e.g. 970.65 from "WINS
+  // 970.65x", or payout÷entry, or 1+odds/100 for +odds). Same value on
+  // every leg of the same slip. Omit for single bets.
+  parlayMultiplier: z.number().nullable().optional(),
 });
 export type ParsedBet = z.infer<typeof ParsedBetSchema>;
 
@@ -56,6 +60,12 @@ UNDERDOG / PRIZEPICKS SHARE CARDS (player photos, big ↑/↓ arrows, "N correct
 - "Bogeys or Worse"  →  market "R1 bogeys or worse under" (↓) / "... over" (↑), line = the number.
 - "Round Strokes"  →  market "R1 round score under" (↓) / "... over" (↑), line = the number.
 If a player name is truncated (e.g. "Rasmus Hojgaa…"), complete it to the full PGA Tour player name.
+
+PARLAY PAYOUT: if the slip is a parlay / pick-em with a total payout multiplier, set "parlayMultiplier" on EVERY leg to that multiplier:
+- A shown multiplier like "WINS 970.65x" or "970.65x" → 970.65.
+- Combined American odds like "+10565" → 1 + 10565/100 = 106.65.
+- A shown entry + payout (e.g. $15 → $14,559.75) → payout ÷ entry = 970.65.
+Omit parlayMultiplier for single straight bets.
 
 MATCHUP / 3-BALL / 2-BALL legs (common on Hard Rock, DraftKings, FanDuel):
 - These show a group of players (e.g. "Round 1 - Adam Svensson / Dylan Wu / Mac Meissner - 3 Ball") where ONE is the pick. The highlighted/selected name (usually listed first, above the group) is the pick.

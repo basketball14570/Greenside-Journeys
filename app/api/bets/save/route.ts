@@ -45,8 +45,13 @@ export async function POST(req: NextRequest) {
         : b.market,
     line: b.line,
     american_odds: b.americanOdds ?? -110,
-    stake: b.stake ?? 0,
-    to_win: b.toWin ?? 0,
+    // For a parlay we store the whole-ticket economics normalized to a
+    // $10 stake (stake=10, to_win=10×multiplier) so the grouped card can
+    // show the real "$10 → $X". Single bets keep their own stake/to_win.
+    stake: b.parlayMultiplier ? 10 : (b.stake ?? 0),
+    to_win: b.parlayMultiplier
+      ? Number((10 * b.parlayMultiplier).toFixed(2))
+      : (b.toWin ?? 0),
     status: "pending" as const,
     source: body.data.source,
     parse_confidence: b.confidence,
