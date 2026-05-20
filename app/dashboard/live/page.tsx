@@ -295,17 +295,37 @@ function ParlayGroup({
         minute: "2-digit",
       })
     : null;
+  // Combined parlay odds = product of each leg's decimal odds. Show what a
+  // $10 stake would return so the whole ticket's upside is visible.
+  const combined = legs.reduce(
+    (acc, g) => acc * americanToDecimal(g.bet.american_odds),
+    1,
+  );
+  const payout10 = 10 * combined;
   return (
-    <div className={multi ? "rounded-[16px] border border-line bg-bgDeep p-3" : ""}>
+    <div
+      className={multi ? "rounded-[16px] bg-bgDeep p-3.5" : ""}
+      style={multi ? { border: "2px solid rgba(255,255,255,0.85)" } : undefined}
+    >
       {multi && (
-        <div className="flex items-center justify-between gap-2 px-1 pb-2.5">
-          <span className="num" style={{ fontSize: 11.5, color: "#a8b3ac", letterSpacing: 0.3 }}>
-            {first.book.toUpperCase()} · {legs.length}-leg parlay
-            {when ? ` · ${when}` : ""}
-          </span>
+        <div className="flex items-start justify-between gap-2 px-1 pb-3">
+          <div>
+            <div
+              style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", letterSpacing: -0.2 }}
+            >
+              {legs.length}-leg parlay
+            </div>
+            <div className="num" style={{ fontSize: 11.5, color: "#a8b3ac", letterSpacing: 0.3, marginTop: 3 }}>
+              {first.book.toUpperCase()}
+              {when ? ` · ${when}` : ""} · {combined.toFixed(1)}x ·{" "}
+              <span style={{ color: "#8ee68e" }}>
+                $10 → ${payout10.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
           <button
             onClick={onRemoveAll}
-            className="num uppercase rounded px-2 py-1 hover:bg-surface-2"
+            className="num uppercase rounded px-2 py-1 hover:bg-surface-2 shrink-0"
             style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#e57373", border: "1px solid rgba(229,115,115,0.4)" }}
           >
             Remove
@@ -325,6 +345,11 @@ function ParlayGroup({
       </ul>
     </div>
   );
+}
+
+function americanToDecimal(a: number): number {
+  if (!a) return 1;
+  return a > 0 ? 1 + a / 100 : 1 + 100 / Math.abs(a);
 }
 
 function LiveBetCard({
