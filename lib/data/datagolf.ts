@@ -29,6 +29,78 @@ export async function getLiveLeaderboard(tourCode = "pga"): Promise<DGLeaderboar
   return json.data ?? [];
 }
 
+// Live tournament stats — refreshed every few minutes during play.
+// Returns per-player accuracy (driving accuracy / FH%), GIR%, SG by
+// category, distance, scrambling, and proximity. Used by the Live tab
+// to surface shot-quality metrics next to each player on a ticket, and
+// by the leaderboard rows to show why someone is moving.
+//
+// Defaults to "event_avg" so a single number per stat covers the entire
+// tournament-to-date. Pass round=1..4 to scope to one round.
+export type DGLiveStatRow = {
+  player_name: string;
+  dg_id: number | null;
+  round: string | number;
+  // Stats requested; missing ones come back as null. All percentages
+  // are returned as 0..100 by DataGolf.
+  sg_total?: number | null;
+  sg_ott?: number | null;
+  sg_app?: number | null;
+  sg_arg?: number | null;
+  sg_putt?: number | null;
+  sg_t2g?: number | null;
+  accuracy?: number | null;   // driving accuracy = fairways hit %
+  gir?: number | null;        // greens in regulation %
+  scrambling?: number | null; // up-and-down %
+  distance?: number | null;   // avg driving distance (yds)
+  prox_fw?: number | null;    // approach proximity from fairway (ft)
+  prox_rgh?: number | null;   // approach proximity from rough (ft)
+};
+
+export type DGLiveStatsResponse = {
+  event_name: string | null;
+  last_updated: string | null;
+  stat_round: string | null;
+  // The actual array of rows.
+  live_stats: DGLiveStatRow[];
+};
+
+const DEFAULT_LIVE_STATS = [
+  "sg_total",
+  "sg_ott",
+  "sg_app",
+  "sg_arg",
+  "sg_putt",
+  "accuracy",
+  "gir",
+  "scrambling",
+  "distance",
+] as const;
+
+export async function getLiveTournamentStats(
+  opts: {
+    stats?: readonly string[];
+    round?: "event_avg" | 1 | 2 | 3 | 4;
+    tour?: "pga" | "euro" | "kft" | "alt";
+    display?: "value" | "rank";
+  } = {},
+): Promise<DGLiveStatsResponse> {
+  const stats = (opts.stats ?? DEFAULT_LIVE_STATS).join(",");
+  const round = opts.round ?? "event_avg";
+  const display = opts.display ?? "value";
+  const tour = opts.tour ?? "pga";
+  const url = `${BASE}/preds/live-tournament-stats?stats=${stats}&round=${round}&display=${display}&tour=${tour}&file_format=json&key=${key()}`;
+  const res = await fetch(url, { next: { revalidate: 60 } });
+  if (!res.ok) throw new Error(`DataGolf live-stats failed: ${res.status}`);
+  const json = await res.json();
+  return {
+    event_name: json.event_name ?? null,
+    last_updated: json.last_updated ?? null,
+    stat_round: json.stat_round ?? null,
+    live_stats: json.live_stats ?? [],
+  };
+}
+
 export type DGPlayerSkill = {
   player_name: string;
   // strokes-gained per round attributable to the dimension

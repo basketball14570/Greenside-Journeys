@@ -1,12 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   fetchLeaderboard,
   type LeaderboardSnapshot,
 } from "@/lib/espn-leaderboard";
 import { gradeBet, type Decision, type OpenBet } from "@/lib/grading";
+
+// Per-player live shot-quality stats from DataGolf. Pulled separately
+// from the leaderboard so a DataGolf outage doesn't break grading.
+type DGStat = {
+  player_name: string;
+  sg_total?: number | null;
+  sg_ott?: number | null;
+  sg_app?: number | null;
+  sg_arg?: number | null;
+  sg_putt?: number | null;
+  accuracy?: number | null;
+  gir?: number | null;
+  scrambling?: number | null;
+  distance?: number | null;
+};
+
+// Match a bet's player name to the DG row. DataGolf serves "Last, First"
+// while sportsbooks send "First Last" — normalize both before comparing.
+function normName(name: string): string {
+  const flipped = name.includes(",")
+    ? name.split(",").map((s) => s.trim()).reverse().join(" ")
+    : name;
+  return flipped
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .replace(/æ/g, "ae")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 // Mobile Live tab. Pulls the signed-in user's open bets (anything not
 // settled — "pending" + "live") and grades each one against the latest
@@ -62,6 +96,7 @@ const STATUS_LABEL: Record<Decision["status"], string> = {
 export default function MobileLivePage() {
   const [bets, setBets] = useState<ApiBet[] | null>(null);
   const [snapshot, setSnapshot] = useState<LeaderboardSnapshot | null>(null);
+  const [dgStats, setDgStats] = useState<DGStat[]>([]);
   const [signedIn, setSignedIn] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -69,9 +104,12 @@ export default function MobileLivePage() {
     let cancelled = false;
     async function load() {
       try {
-        const [bRes, lb] = await Promise.all([
+        const [bRes, lb, dgRes] = await Promise.all([
           fetch("/api/bets/mine?limit=200", { cache: "no-store" }),
           fetchLeaderboard().catch(() => null),
+          fetch("/api/players/live-stats", { cache: "no-store" }).catch(
+            () => null,
+          ),
         ]);
         if (cancelled) return;
         if (bRes.ok) {
@@ -88,6 +126,10 @@ export default function MobileLivePage() {
           }
         }
         setSnapshot(lb);
+        if (dgRes && dgRes.ok) {
+          const dj = await dgRes.json();
+          setDgStats(Array.isArray(dj.stats) ? dj.stats : []);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -101,12 +143,19 @@ export default function MobileLivePage() {
     };
   }, []);
 
-  const graded: { bet: ApiBet; decision: Decision | null }[] = (bets ?? []).map(
-    (b) => ({
+  // Build name → DG stats map once per snapshot refresh.
+  const statByName = useMemo(() => {
+    const m = new Map<string, DGStat>();
+    for (const s of dgStats) m.set(normName(s.player_name), s);
+    return m;
+  }, [dgStats]);
+
+  const graded: { bet: ApiBet; decision: Decision | null; dg: DGStat | null }[] =
+    (bets ?? []).map((b) => ({
       bet: b,
       decision: snapshot ? gradeBet(apiBetToOpenBet(b), snapshot) : null,
-    }),
-  );
+      dg: statByName.get(normName(b.player)) ?? null,
+    }));
 
   return (
     <div className="px-5 py-5 space-y-5">
@@ -138,7 +187,12 @@ export default function MobileLivePage() {
       {signedIn && graded.length > 0 && (
         <ul className="space-y-2.5">
           {graded.map((g) => (
-            <LiveBetCard key={g.bet.id} bet={g.bet} decision={g.decision} />
+            <LiveBetCard
+              key={g.bet.id}
+              bet={g.bet}
+              decision={g.decision}
+              dg={g.dg}
+            />
           ))}
         </ul>
       )}
@@ -149,9 +203,11 @@ export default function MobileLivePage() {
 function LiveBetCard({
   bet,
   decision,
+  dg,
 }: {
   bet: ApiBet;
   decision: Decision | null;
+  dg: DGStat | null;
 }) {
   const status = decision?.status ?? "unknown";
   const color = STATUS_COLOR[status];
@@ -206,8 +262,73 @@ function LiveBetCard({
             ` · observed ${decision.observedValue}`}
         </p>
       )}
+      {dg && <DGStatStrip dg={dg} />}
     </li>
   );
+}
+
+function DGStatStrip({ dg }: { dg: DGStat }) {
+  // Hide the strip if every interesting field is missing — happens before
+  // a player tees off on Thursday.
+  const hasAny =
+    dg.sg_total != null ||
+    dg.accuracy != null ||
+    dg.gir != null ||
+    dg.scrambling != null;
+  if (!hasAny) return null;
+  const sgColor =
+    (dg.sg_total ?? 0) > 0.5
+      ? "#7fd49a"
+      : (dg.sg_total ?? 0) < -0.5
+        ? "#e57373"
+        : "#a8b3ac";
+  return (
+    <div
+      className="mt-2.5 pt-2 flex items-baseline gap-3 num flex-wrap"
+      style={{
+        borderTop: "1px dashed rgba(168,179,172,0.18)",
+        fontSize: 11,
+        letterSpacing: 0.3,
+      }}
+    >
+      {dg.sg_total != null && (
+        <Stat label="SG" value={fmtSigned(dg.sg_total)} color={sgColor} />
+      )}
+      {dg.accuracy != null && (
+        <Stat label="FH" value={`${Math.round(dg.accuracy)}%`} />
+      )}
+      {dg.gir != null && (
+        <Stat label="GIR" value={`${Math.round(dg.gir)}%`} />
+      )}
+      {dg.scrambling != null && (
+        <Stat label="Scr" value={`${Math.round(dg.scrambling)}%`} />
+      )}
+      {dg.distance != null && (
+        <Stat label="Dist" value={`${Math.round(dg.distance)}y`} />
+      )}
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  color = "#f0ebe0",
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) {
+  return (
+    <span style={{ color: "#6c7a72" }}>
+      {label}{" "}
+      <strong style={{ color }}>{value}</strong>
+    </span>
+  );
+}
+
+function fmtSigned(n: number): string {
+  return n >= 0 ? `+${n.toFixed(2)}` : n.toFixed(2);
 }
 
 function fmtOdds(american: number): string {
