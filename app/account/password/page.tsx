@@ -8,7 +8,6 @@ import { BrandMark } from "@/components/edge/primitives";
 
 export default function SetPasswordPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser();
 
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
@@ -21,8 +20,10 @@ export default function SetPasswordPage() {
     // Recovery links land here with a `?code=` (PKCE) that has to be
     // exchanged for a session before updateUser will work. If there's
     // already a session (e.g. user navigated here while signed in),
-    // skip straight to the form.
+    // skip straight to the form. The Supabase client is created here
+    // (not at render) so static prerendering never touches it.
     async function init() {
+      const supabase = supabaseBrowser();
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       if (code) {
@@ -39,7 +40,7 @@ export default function SetPasswordPage() {
       setAuthed(Boolean(data.user));
     }
     init();
-  }, [supabase]);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,6 +58,7 @@ export default function SetPasswordPage() {
 
     setLoading(true);
     try {
+      const supabase = supabaseBrowser();
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setInfo("Password updated. Taking you to your dashboard…");
