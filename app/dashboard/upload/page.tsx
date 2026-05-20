@@ -303,7 +303,10 @@ function ScreenshotCard() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
         if (r.status === 401) throw new Error("Sign in to save bets to your account");
-        throw new Error(j.error ?? `Save failed (${r.status})`);
+        const detail = [j.error, j.code && `(${j.code})`, j.details]
+          .filter(Boolean)
+          .join(" ");
+        throw new Error(detail || `Save failed (${r.status})`);
       }
       setSaved(`Saved ${j.inserted} to your account — tracking on Live & Tickets.`);
       return true;
