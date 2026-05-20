@@ -4,7 +4,7 @@
  * served as-is from /sw.js.
  */
 
-const CACHE_NAME = "greenside-v1";
+const CACHE_NAME = "greenside-v2";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",

@@ -18,9 +18,27 @@ export default function SetPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    // Recovery links land here with a `?code=` (PKCE) that has to be
+    // exchanged for a session before updateUser will work. If there's
+    // already a session (e.g. user navigated here while signed in),
+    // skip straight to the form.
+    async function init() {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        // Strip the code from the address bar so a refresh doesn't retry
+        // an already-consumed code.
+        window.history.replaceState({}, "", url.pathname);
+        if (error) {
+          setAuthed(false);
+          return;
+        }
+      }
+      const { data } = await supabase.auth.getUser();
       setAuthed(Boolean(data.user));
-    });
+    }
+    init();
   }, [supabase]);
 
   async function submit(e: React.FormEvent) {

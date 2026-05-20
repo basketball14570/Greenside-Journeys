@@ -120,7 +120,11 @@ function LoginForm() {
 
       if (mode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/account/password")}`,
+          // Land directly on the set-password page and let it exchange
+          // the code client-side. Routing recovery through /auth/callback
+          // drags the user through the onboarding check (which also
+          // breaks when the service-role key is misconfigured).
+          redirectTo: `${window.location.origin}/account/password`,
         });
         if (error) throw error;
         setInfo(
