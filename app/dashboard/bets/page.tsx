@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookChip, StatusDot, type Book, type Status } from "@/components/edge/primitives";
 import { BreakdownBar, PnlSpark } from "@/components/edge/pnl";
-import { DEMO_BETS } from "@/lib/demo-data";
 import { supabaseBrowser, isSupabaseConfigured } from "@/lib/supabase/client";
 
 // Map a row from /api/bets/mine to the HistoryBet shape the existing
@@ -62,7 +61,6 @@ function rawBetToHistoryBet(b: RawBet): HistoryBet {
   };
 }
 import {
-  SETTLED_BETS,
   groupBy,
   summarize,
   type HistoryBet,
@@ -75,11 +73,6 @@ const FILTERS: { id: FilterKey; label: string }[] = [
   { id: "live", label: "Live" },
   { id: "graded", label: "Graded" },
   { id: "hedge", label: "Hedge" },
-];
-
-const ALL: (DashBet | HistoryBet)[] = [
-  ...DEMO_BETS.filter((b) => b.status === "live"),
-  ...SETTLED_BETS,
 ];
 
 function matchesFilter(b: DashBet | HistoryBet, f: FilterKey) {
@@ -126,16 +119,13 @@ export default function BetsPage() {
   }, []);
 
   const usingReal = realHistory !== null;
-  const settledSource = realHistory ?? SETTLED_BETS;
+  const settledSource = realHistory ?? [];
 
   const filtered = useMemo(() => {
-    const base: (DashBet | HistoryBet)[] = usingReal
-      ? settledSource
-      : ALL;
-    return base.filter(
+    return settledSource.filter(
       (b) => matchesFilter(b, filter) && (book === "ALL" || b.book === book),
     );
-  }, [filter, book, usingReal, settledSource]);
+  }, [filter, book, settledSource]);
 
   const summary = useMemo(() => summarize(settledSource), [settledSource]);
   const byBook = useMemo(
@@ -177,16 +167,16 @@ export default function BetsPage() {
                 letterSpacing: 1.2,
                 padding: "3px 8px",
                 borderRadius: 4,
-                background: usingReal ? "rgba(127,212,154,0.13)" : "rgba(245,197,88,0.1)",
-                color: usingReal ? "#7fd49a" : "#f5c558",
+                background: usingReal ? "rgba(127,212,154,0.13)" : "rgba(168,179,172,0.1)",
+                color: usingReal ? "#7fd49a" : "#a8b3ac",
                 border: usingReal
                   ? "1px solid rgba(127,212,154,0.3)"
-                  : "1px solid rgba(245,197,88,0.3)",
+                  : "1px solid rgba(168,179,172,0.25)",
                 position: "relative",
                 top: -6,
               }}
             >
-              {usingReal ? "Your data" : "Demo data"}
+              {usingReal ? "Your data" : "No settled bets yet"}
             </span>
           </h1>
         </div>
@@ -246,15 +236,6 @@ export default function BetsPage() {
         >
           Export JSON
         </a>
-        <a
-          href="/api/bets/grade"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-[10px] border border-line px-3 py-1.5 hover:bg-surface-2"
-          style={{ fontSize: 12 }}
-        >
-          Run grader
-        </a>
       </div>
 
       <ImportedBets />
@@ -276,7 +257,7 @@ export default function BetsPage() {
               Last 3 events
             </span>
           </div>
-          <PnlSpark bets={SETTLED_BETS} width={680} height={120} />
+          <PnlSpark bets={settledSource} width={680} height={120} />
         </div>
         <div className="rounded-[14px] bg-surface-1 border border-line p-5">
           <div

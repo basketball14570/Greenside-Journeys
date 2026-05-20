@@ -1,21 +1,12 @@
 import { EventStrap } from "@/components/edge/chrome";
 import {
-  AlertsFeed,
-  AlertsPanel,
-  DesktopBetsTable,
   DesktopWeatherHero,
-  MobileOpenBets,
   MobileWeatherHero,
 } from "@/components/edge/sections";
 import { LiveDashboardLeaderboard } from "@/components/edge/LiveDashboardLeaderboard";
+import { LiveOpenBets } from "@/components/edge/LiveOpenBets";
 import { ThisWeeksEdge } from "@/components/edge/ThisWeeksEdge";
 import { CourseGuideCard } from "@/components/edge/CourseGuideCard";
-import {
-  DEMO_ALERTS,
-  DEMO_ALERTS_DESKTOP,
-  DEMO_BETS,
-  DEMO_LEADERBOARD,
-} from "@/lib/demo-data";
 import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
@@ -49,14 +40,9 @@ export default async function DashboardHome() {
         <EventStrap />
         {isTournamentLive ? (
           <>
-            <LiveDashboardLeaderboard
-              layout="mobile"
-              fallback={DEMO_LEADERBOARD.slice(0, 8)}
-              limit={8}
-            />
+            <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
             <WaveSplitChip summary={waveSplit} />
-            <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
-            <AlertsFeed alerts={DEMO_ALERTS} />
+            <LiveOpenBets layout="mobile" />
             <CourseGuideCard />
             <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
             <ThisWeeksEdge limit={6} />
@@ -65,13 +51,8 @@ export default async function DashboardHome() {
           <>
             <CourseGuideCard />
             <WaveSplitChip summary={waveSplit} />
-            <LiveDashboardLeaderboard
-              layout="mobile"
-              fallback={DEMO_LEADERBOARD.slice(0, 8)}
-              limit={8}
-            />
-            <MobileOpenBets bets={DEMO_BETS.slice(0, 5)} />
-            <AlertsFeed alerts={DEMO_ALERTS} />
+            <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
+            <LiveOpenBets layout="mobile" />
             <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
             <ThisWeeksEdge limit={6} />
           </>
@@ -87,16 +68,11 @@ export default async function DashboardHome() {
         >
           <div className="flex flex-col gap-6 min-w-0">
             <DesktopWeatherHero courseName={courseName} snapshot={snapshot} />
-            <DesktopBetsTable bets={DEMO_BETS} />
+            <LiveOpenBets layout="desktop" />
           </div>
           <div className="flex flex-col gap-6 min-w-0">
             <ThisWeeksEdge limit={8} />
-            <AlertsPanel alerts={DEMO_ALERTS_DESKTOP} />
-            <LiveDashboardLeaderboard
-              layout="desktop"
-              fallback={DEMO_LEADERBOARD}
-              limit={12}
-            />
+            <LiveDashboardLeaderboard layout="desktop" fallback={[]} limit={12} />
           </div>
         </div>
       </div>
