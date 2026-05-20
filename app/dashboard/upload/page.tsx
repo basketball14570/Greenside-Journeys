@@ -288,8 +288,9 @@ function ScreenshotCard() {
   const { usage, setUsage } = useQuota("screenshot_parse");
   const overLimit = usage?.allowed === false;
 
-  async function saveToBets(): Promise<boolean> {
-    if (!result || result.length === 0) return false;
+  async function saveToBets(betsArg?: ParsedBet[]): Promise<boolean> {
+    const bets = betsArg ?? result;
+    if (!bets || bets.length === 0) return false;
     setSaving(true);
     setSaved(null);
     setError(null);
@@ -297,14 +298,14 @@ function ScreenshotCard() {
       const r = await fetch("/api/bets/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bets: result, source: "screenshot" }),
+        body: JSON.stringify({ bets, source: "screenshot" }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
         if (r.status === 401) throw new Error("Sign in to save bets to your account");
         throw new Error(j.error ?? `Save failed (${r.status})`);
       }
-      setSaved(`Saved ${j.inserted} to your tickets.`);
+      setSaved(`Saved ${j.inserted} to your account — tracking on Live & Tickets.`);
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -355,6 +356,10 @@ function ScreenshotCard() {
       }
       if (data.usage) setUsage(data.usage);
       setResult(data.bets);
+      // Auto-save to the account immediately so the bets actually land in
+      // the DB (and show on Live + Tickets) without a second click. The
+      // result preview then reflects already-saved bets.
+      void saveToBets(data.bets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to parse");
     } finally {
@@ -543,35 +548,39 @@ function ResultsSection({
   const [parlayOverride, setParlayOverride] = useState<boolean | null>(null);
   const isParlay = parlayOverride ?? heuristicParlay;
 
-  // Persist to the DB first (the Live page reads saved bets, not the
-  // in-memory slip store), then navigate. This is what makes uploaded
-  // bets actually show on Live and Tickets.
-  const trackOnLive = async () => {
-    const ok = await onSave();
-    if (ok) router.push("/dashboard/live");
+  // Bets auto-save on parse. These buttons just navigate — but if the
+  // auto-save hasn't succeeded yet (still saving or it errored), save
+  // first so we never land on an empty Live page. `saved` is set only on
+  // a successful save, so this also avoids a duplicate insert.
+  const goLive = async () => {
+    if (!saved) {
+      const ok = await onSave();
+      if (!ok) return;
+    }
+    router.push("/dashboard/live");
   };
 
   return (
     <div className="mt-4 space-y-3">
       <div className="flex items-center gap-3 flex-wrap">
         <button
-          onClick={trackOnLive}
-          className="rounded-[8px] px-3 py-1.5 font-semibold"
+          onClick={goLive}
+          disabled={saving}
+          className="rounded-[8px] px-3 py-1.5 font-semibold disabled:opacity-50"
           style={{ background: "#8ee68e", color: "#06140c", fontSize: 12 }}
         >
-          Track on Live page →
+          {saving ? "Saving…" : "Track on Live page →"}
         </button>
         <button
-          onClick={onSave}
-          disabled={saving}
-          className="rounded-[8px] px-3 py-1.5 border border-line hover:bg-surface-2 disabled:opacity-40"
+          onClick={() => router.push("/dashboard/bets")}
+          className="rounded-[8px] px-3 py-1.5 border border-line hover:bg-surface-2"
           style={{ fontSize: 12 }}
         >
-          {saving ? "Saving…" : "Save to my tickets"}
+          View my tickets
         </button>
         {saved && (
-          <span className="text-text-dim" style={{ fontSize: 11 }}>
-            {saved}
+          <span style={{ fontSize: 11, color: "#8ee68e" }}>
+            ✓ {saved}
           </span>
         )}
         {bets.length > 1 && (

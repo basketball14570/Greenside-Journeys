@@ -140,6 +140,17 @@ export function parsedBetToSlipLeg(
     }
   }
 
+  // Round score / total strokes (e.g. "R1 round score under" with the
+  // line on b.line). Distinct from the birdie/bogey count props above.
+  if (
+    round &&
+    b.line !== null &&
+    /round\s*(score|strokes|total)|\b(score|strokes)\b/.test(m)
+  ) {
+    const side = /under|lower|\bu\b/.test(m) ? "under" : "over";
+    return { ...base, kind: "round_prop", metric: "strokes", side, line: b.line, round };
+  }
+
   // Make / miss cut
   if (/make.*cut/.test(m)) return { ...base, kind: "make_cut", side: "make" };
   if (/miss.*cut/.test(m)) return { ...base, kind: "make_cut", side: "miss" };
