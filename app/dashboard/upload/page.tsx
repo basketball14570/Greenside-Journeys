@@ -7,6 +7,7 @@ import { QuotaLimitBanner } from "@/components/edge/QuotaBanner";
 import { useQuota } from "@/lib/use-quota";
 import { QUOTA_ERROR_CODE } from "@/lib/usage";
 import { parsedBetToSlipLeg } from "@/lib/parsers/to-slip-leg";
+import { ManualBetEntry } from "@/components/edge/ManualBetEntry";
 import type { SlipLeg } from "@/lib/bet-slip";
 import {
   legToOpenBet,
@@ -79,6 +80,8 @@ export default function UploadPage() {
         <ScreenshotCard />
         <EmailForwardCard />
       </div>
+
+      <ManualBetEntry />
 
       <div
         className="rounded-[14px] p-5 border border-line"

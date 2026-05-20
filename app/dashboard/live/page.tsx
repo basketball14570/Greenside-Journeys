@@ -70,13 +70,42 @@ type ApiBet = {
 };
 
 function apiBetToOpenBet(b: ApiBet): OpenBet {
+  // The bets table has no opponent/group columns, so matchups encode the
+  // other players in the market text as "... vs A / B". Reconstruct the
+  // round, opponents, and over/under side here so the grader can settle
+  // 2-ball / 3-ball / round props that were entered manually.
+  const m = b.market.toLowerCase();
+  const rm = m.match(/\br\s*(\d)\b/) ?? m.match(/round\s*(\d)/);
+  const round = rm ? Number(rm[1]) : undefined;
+
+  const vsPart = b.market.split(/\bvs\b/i)[1]?.trim();
+  let others: string[] | undefined;
+  let opponent: string | undefined;
+  if (/3[\s-]?ball/.test(m) && vsPart) {
+    others = vsPart.split("/").map((s) => s.trim()).filter(Boolean);
+  } else if (vsPart) {
+    opponent = vsPart.split("/")[0]?.trim();
+  }
+
+  // Over/under props lose their side in the numeric `line` column, so
+  // rebuild an "O x" / "U x" line from the keyword in the market text.
+  const isOu = /\b(over|under|higher|lower)\b/.test(m) && b.line !== null;
+  const line = isOu
+    ? `${/\b(under|lower)\b/.test(m) ? "U" : "O"} ${b.line}`
+    : b.line !== null
+      ? String(b.line)
+      : String(b.american_odds);
+
   return {
     id: b.id,
     player: b.player,
     market: b.market,
-    line: b.line !== null ? String(b.line) : String(b.american_odds),
+    line,
     stake: Number(b.stake),
     payout: Number(b.to_win),
+    round,
+    others,
+    opponent,
   };
 }
 
