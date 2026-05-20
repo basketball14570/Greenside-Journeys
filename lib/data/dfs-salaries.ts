@@ -17,7 +17,6 @@ export const DK_SALARIES: DkSalaryRow[] = [
   { name: "Si Woo Kim", salary: 9900, ppg: 84.83 },
   { name: "Jordan Spieth", salary: 9800, ppg: 70.73 },
   { name: "Brooks Koepka", salary: 9600, ppg: 58.25 },
-  { name: "Aaron Rai", salary: 9500, ppg: 67 },
   { name: "Keith Mitchell", salary: 9400, ppg: 70.71 },
   { name: "Ryo Hisatsune", salary: 9300, ppg: 74.53 },
   { name: "Davis Thompson", salary: 9200, ppg: 61.95 },
