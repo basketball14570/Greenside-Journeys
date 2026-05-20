@@ -95,15 +95,34 @@ export default async function WeatherPage() {
 
       {waveSplit && <WaveSplitDetail summary={waveSplit} />}
 
-      {forecast && tz && <HourlyGridByDay forecast={forecast} tz={tz} />}
+      {forecast && tz && event && (
+        <HourlyGridByDay
+          forecast={forecast}
+          tz={tz}
+          startYmd={event.startDate}
+          endYmd={event.endDate}
+        />
+      )}
     </div>
   );
 }
 
-function HourlyGridByDay({ forecast, tz }: { forecast: Forecast; tz: string }) {
-  // Group hours into local-time days so the grid renders one card per
-  // tournament day. We cap at 4 days (Thu-Sun for a typical week).
-  const byDay = groupByLocalDay(forecast.hours, tz).slice(0, 4);
+function HourlyGridByDay({
+  forecast,
+  tz,
+  startYmd,
+  endYmd,
+}: {
+  forecast: Forecast;
+  tz: string;
+  startYmd: string;
+  endYmd: string;
+}) {
+  // Lock the grid to the tournament's Thu→Sun window so the page is
+  // always "the tournament forecast", never "the next 4 days from now".
+  const byDay = groupByLocalDay(forecast.hours, tz).filter(
+    (d) => d.ymd >= startYmd && d.ymd <= endYmd,
+  );
   if (byDay.length === 0) return null;
 
   return (
@@ -113,13 +132,13 @@ function HourlyGridByDay({ forecast, tz }: { forecast: Forecast; tz: string }) {
           className="num font-semibold uppercase"
           style={{ fontSize: 10, letterSpacing: 1.2, color: "#7cc0e8" }}
         >
-          ☀ Hourly forecast
+          ☀ Tournament forecast
         </span>
         <h2
           className="serif-italic mt-0.5"
           style={{ fontSize: 24, letterSpacing: -0.3, fontStyle: "normal" }}
         >
-          <em>Next {byDay.length} days.</em>
+          <em>Thursday through Sunday.</em>
         </h2>
       </div>
       {byDay.map((d) => (
@@ -240,9 +259,9 @@ function HourRow({
     hour: "numeric",
     hour12: true,
   });
-  const heavyWind = h.windMph >= 15;
-  const heavyGust = h.gustMph >= 25;
   const hasPrecip = h.precipChance >= 30 || h.precipIntensityMm > 0;
+  const windStyle = windCellStyle(h.windMph);
+  const gustStyle = windCellStyle(h.gustMph);
 
   return (
     <tr style={{ background: striped ? "rgba(255,255,255,0.015)" : "transparent" }}>
@@ -258,24 +277,38 @@ function HourRow({
       </Td>
       <Td>
         <span
-          className="num font-semibold"
-          style={{ fontSize: 12.5, color: heavyWind ? "#f5c558" : "#f0ebe0" }}
+          className="num font-semibold inline-block text-center"
+          style={{
+            fontSize: 13,
+            color: windStyle.fg,
+            background: windStyle.bg,
+            minWidth: 36,
+            padding: "3px 8px",
+            borderRadius: 4,
+          }}
         >
           {Math.round(h.windMph)}
         </span>
       </Td>
       <Td>
         <span
-          className="num"
-          style={{ fontSize: 12.5, color: heavyGust ? "#f5c558" : "#a8b3ac" }}
+          className="num font-semibold inline-block text-center"
+          style={{
+            fontSize: 13,
+            color: gustStyle.fg,
+            background: gustStyle.bg,
+            minWidth: 36,
+            padding: "3px 8px",
+            borderRadius: 4,
+          }}
         >
           {Math.round(h.gustMph)}
         </span>
       </Td>
       <Td>
-        <span className="inline-flex items-center gap-1.5">
-          <WindArrow degrees={h.windDirDeg} size={12} />
-          <span className="num" style={{ fontSize: 11.5, color: "#a8b3ac" }}>
+        <span className="inline-flex items-center gap-2">
+          <WindArrow degrees={h.windDirDeg} size={18} />
+          <span className="num" style={{ fontSize: 12, color: "#a8b3ac" }}>
             {degToCardinalShort(h.windDirDeg)}
           </span>
         </span>
@@ -298,6 +331,19 @@ function HourRow({
       </Td>
     </tr>
   );
+}
+
+// Color scale tuned for golf: calm under 8 mph, noticeable 8-15, club-
+// selection territory 15-22, "Sunday at Memorial" 22+. Same scale used
+// for both wind and gusts so a 14 mph wind and a 14 mph gust read the
+// same intensity at a glance.
+function windCellStyle(mph: number): { bg: string; fg: string } {
+  if (mph < 5) return { bg: "rgba(126, 192, 232, 0.10)", fg: "#a8b3ac" };
+  if (mph < 10) return { bg: "rgba(126, 192, 232, 0.22)", fg: "#dfe9f3" };
+  if (mph < 15) return { bg: "rgba(127, 212, 154, 0.30)", fg: "#0d1a12" };
+  if (mph < 20) return { bg: "rgba(245, 197, 88, 0.50)", fg: "#1a1305" };
+  if (mph < 25) return { bg: "rgba(232, 142, 79, 0.65)", fg: "#1a0f06" };
+  return { bg: "rgba(232, 92, 92, 0.78)", fg: "#1a0606" };
 }
 
 function Th({ children }: { children: React.ReactNode }) {

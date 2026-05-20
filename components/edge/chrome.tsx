@@ -263,13 +263,10 @@ const DFS_TABS = [
 // top bar. Order = how often we expect users to want them, roughly.
 const MORE_TABS = [
   { label: "Course Guide", href: "/dashboard/guide" },
-  { label: "Course Lab", href: "/dashboard/conditions" },
   { label: "Schedule", href: "/dashboard/schedule" },
-  { label: "Previews", href: "/dashboard/preview" },
   { label: "Hedge", href: "/dashboard/hedge" },
   { label: "Backtest", href: "/dashboard/backtest" },
   { label: "Model", href: "/dashboard/model" },
-  { label: "Newsletter", href: "/dashboard/newsletter" },
   { label: "Bankroll", href: "/dashboard/account" },
   { label: "Admin", href: "/dashboard/admin" },
 ];
