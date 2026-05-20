@@ -16,12 +16,12 @@ export type Tier = "free" | "pro" | "sharp";
 // endpoints get wired in.
 const QUOTAS: Record<UsageKind, Record<Tier, number | null>> = {
   screenshot_parse: {
-    free: 5,
+    free: 20,
     pro: null,
     sharp: null,
   },
   ask: {
-    free: 10,
+    free: 20,
     pro: null,
     sharp: null,
   },
