@@ -93,25 +93,14 @@ export async function getLiveTournamentStats(
   const res = await fetch(url, { next: { revalidate: 60 } });
   if (!res.ok) throw new Error(`DataGolf live-stats failed: ${res.status}`);
   const json = await res.json();
-  // DataGolf returns accuracy / gir / scrambling as fractions (0..1),
-  // not 0..100 — surface them as true percentages so the UI doesn't
-  // round 0.64 down to "1%". Values already on a 0..100 scale (>1.5)
-  // are passed through untouched.
-  const toPct = (v: number | null | undefined) =>
-    v == null ? v : v <= 1.5 ? +(v * 100).toFixed(1) : v;
-  const live_stats: DGLiveStatRow[] = (json.live_stats ?? []).map(
-    (r: DGLiveStatRow) => ({
-      ...r,
-      accuracy: toPct(r.accuracy),
-      gir: toPct(r.gir),
-      scrambling: toPct(r.scrambling),
-    }),
-  );
+  // accuracy / gir / scrambling come back as fractions (0..1). We keep
+  // them raw here and let the UI turn them into "hit / attempts" counts
+  // against holes played (e.g. 4/5 GIR), which is the tracking view.
   return {
     event_name: json.event_name ?? null,
     last_updated: json.last_updated ?? null,
     stat_round: json.stat_round ?? null,
-    live_stats,
+    live_stats: json.live_stats ?? [],
   };
 }
 

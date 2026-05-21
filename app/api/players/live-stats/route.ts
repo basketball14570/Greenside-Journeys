@@ -8,15 +8,23 @@ export const dynamic = "force-dynamic";
 // Surfaces FH%, GIR%, SG categories, scrambling, distance — the
 // "why is X +2 today" detail that ESPN's free leaderboard doesn't
 // expose. Cached 60s at the edge to avoid hammering DataGolf.
-export async function GET() {
+export async function GET(req: Request) {
   if (!datagolfEnabled()) {
     return NextResponse.json(
       { configured: false, stats: [] },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
+  // Scope to a single round when asked (?round=1..4) so the FH/GIR/
+  // scrambling counts line up with holes played THIS round; default to
+  // the tournament average.
+  const roundParam = new URL(req.url).searchParams.get("round");
+  const round =
+    roundParam && /^[1-4]$/.test(roundParam)
+      ? (Number(roundParam) as 1 | 2 | 3 | 4)
+      : "event_avg";
   try {
-    const result = await getLiveTournamentStats({ round: "event_avg" });
+    const result = await getLiveTournamentStats({ round });
     return NextResponse.json(
       {
         configured: true,

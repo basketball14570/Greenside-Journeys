@@ -6,7 +6,9 @@ import {
   fetchLeaderboard,
   type LeaderboardSnapshot,
   type LeaderboardPlayer,
+  type RoundLine,
 } from "@/lib/espn-leaderboard";
+import { holeParFor } from "@/lib/data/course-pars";
 import { gradeBet, type Decision, type OpenBet } from "@/lib/grading";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
@@ -131,12 +133,68 @@ function apiBetToOpenBet(b: ApiBet): OpenBet {
   };
 }
 
+type ShotCounts = {
+  fh: string | null;  // fairways hit / driving holes played, e.g. "4/5"
+  gir: string | null; // greens in regulation / holes played
+  scr: string | null; // up-and-downs / greens missed
+};
+
 type GradedLeg = {
   bet: ApiBet;
   decision: Decision | null;
   dg: DGStat | null;
   teeTime?: string | null;
+  shots?: ShotCounts | null;
 };
+
+// Turn DataGolf's fractional rates (0..1) into "hit / attempts" counts
+// against the holes this player has actually played in the current
+// round. GIR uses holes played; fairways use driving holes (par 4/5);
+// scrambling uses greens missed. Returns null when the player hasn't
+// teed off yet or the rate is missing.
+function asFraction(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  return v > 1.5 ? v / 100 : v; // tolerate either 0..1 or 0..100 inputs
+}
+
+function deriveShotCounts(
+  dg: DGStat | null,
+  round: RoundLine | null | undefined,
+  courseName: string | null | undefined,
+): ShotCounts | null {
+  if (!dg || !round) return null;
+  const playedHoles = round.holes.filter(
+    (h) => h.strokes !== null && h.strokes > 0,
+  );
+  const played = playedHoles.length || round.thru || 0;
+  if (!played) return null;
+
+  const drivingPlayed =
+    playedHoles.length > 0
+      ? playedHoles.filter(
+          (h) => (h.par ?? holeParFor(courseName, h.hole)) >= 4,
+        ).length
+      : 0;
+
+  const girFrac = asFraction(dg.gir);
+  const accFrac = asFraction(dg.accuracy);
+  const scrFrac = asFraction(dg.scrambling);
+
+  const girCount = girFrac != null ? Math.round(girFrac * played) : null;
+  const greensMissed = girCount != null ? played - girCount : null;
+
+  const fh =
+    accFrac != null && drivingPlayed > 0
+      ? `${Math.round(accFrac * drivingPlayed)}/${drivingPlayed}`
+      : null;
+  const gir = girCount != null ? `${girCount}/${played}` : null;
+  const scr =
+    scrFrac != null && greensMissed != null && greensMissed > 0
+      ? `${Math.round(scrFrac * greensMissed)}/${greensMissed}`
+      : null;
+
+  return { fh, gir, scr };
+}
 
 // Earliest tee time first; players with no tee time (already off, or not
 // in the field) sort to the bottom. ESPN tee times are ISO strings, so a
@@ -177,10 +235,14 @@ export default function MobileLivePage() {
     let cancelled = false;
     async function load() {
       try {
-        const [bRes, lb, dgRes] = await Promise.all([
+        // Leaderboard first so we know the active round, then pull
+        // round-scoped shot stats whose denominators match holes played.
+        const lb = await fetchLeaderboard().catch(() => null);
+        const round = lb?.event?.period;
+        const roundQ = round && round >= 1 && round <= 4 ? `?round=${round}` : "";
+        const [bRes, dgRes] = await Promise.all([
           fetch("/api/bets/mine?limit=200", { cache: "no-store" }),
-          fetchLeaderboard().catch(() => null),
-          fetch("/api/players/live-stats", { cache: "no-store" }).catch(
+          fetch(`/api/players/live-stats${roundQ}`, { cache: "no-store" }).catch(
             () => null,
           ),
         ]);
@@ -223,20 +285,27 @@ export default function MobileLivePage() {
     return m;
   }, [dgStats]);
 
-  // Tee time per player from the leaderboard, used to order legs by who
-  // tees off first so the user can track the course top-to-bottom.
-  const teeByName = useMemo(() => {
-    const m = new Map<string, string | null>();
-    if (snapshot) for (const p of snapshot.players) m.set(normName(p.name), p.teeTime);
+  // Leaderboard row per player — drives tee-time ordering and the shot
+  // counts (needs each player's current-round holes).
+  const playerByName = useMemo(() => {
+    const m = new Map<string, LeaderboardPlayer>();
+    if (snapshot) for (const p of snapshot.players) m.set(normName(p.name), p);
     return m;
   }, [snapshot]);
 
-  const graded: GradedLeg[] = (bets ?? []).map((b) => ({
-    bet: b,
-    decision: snapshot ? gradeBet(apiBetToOpenBet(b), snapshot) : null,
-    dg: statByName.get(normName(b.player)) ?? null,
-    teeTime: teeByName.get(normName(b.player)) ?? null,
-  }));
+  const courseName = snapshot?.event?.course ?? null;
+
+  const graded: GradedLeg[] = (bets ?? []).map((b) => {
+    const dg = statByName.get(normName(b.player)) ?? null;
+    const lp = playerByName.get(normName(b.player)) ?? null;
+    return {
+      bet: b,
+      decision: snapshot ? gradeBet(apiBetToOpenBet(b), snapshot) : null,
+      dg,
+      teeTime: lp?.teeTime ?? null,
+      shots: deriveShotCounts(dg, lp?.todayLine, courseName),
+    };
+  });
 
   // Group legs by the upload batch (every leg saved in one upload shares
   // a placed_at), so a parlay shows as one card instead of N loose legs.
@@ -439,6 +508,8 @@ function ParlayGroup({
             bet={g.bet}
             decision={g.decision}
             dg={g.dg}
+            shots={g.shots ?? null}
+            eventName={eventName}
             hideMoney={multi}
             onRemove={!multi ? onRemoveAll : undefined}
           />
@@ -457,17 +528,50 @@ function LiveBetCard({
   bet,
   decision,
   dg,
+  shots,
+  eventName,
   onRemove,
   hideMoney,
 }: {
   bet: ApiBet;
   decision: Decision | null;
   dg: DGStat | null;
+  shots?: ShotCounts | null;
+  eventName?: string | null;
   onRemove?: () => void;
   hideMoney?: boolean;
 }) {
   const status = decision?.status ?? "unknown";
   const color = STATUS_COLOR[status];
+
+  // Single-bet share — parlays share from their card header instead, so
+  // this only appears on standalone (non-grouped) tickets.
+  function onShareSingle() {
+    const combinedX =
+      Number(bet.stake) > 0
+        ? Number(bet.to_win) / Number(bet.stake)
+        : americanToDecimal(bet.american_odds);
+    void shareParlayImage({
+      eventName,
+      legCount: 1,
+      book: bet.book,
+      combinedX,
+      stake: Number(bet.stake),
+      payout: Number(bet.to_win),
+      statusText: STATUS_LABEL[status],
+      statusColor: color,
+      legs: [
+        {
+          player: bet.player,
+          market: bet.market,
+          line: bet.line !== null ? String(bet.line) : null,
+          standing: decision?.standing,
+          standingNote: decision?.standingNote,
+          status,
+        },
+      ],
+    });
+  }
   const label = STATUS_LABEL[status];
   return (
     <li
@@ -497,6 +601,16 @@ function LiveBetCard({
             >
               {bet.book.toUpperCase()} · {fmtOdds(bet.american_odds)}
             </span>
+            {!hideMoney && (
+              <button
+                onClick={onShareSingle}
+                title="Share this bet"
+                className="num uppercase rounded px-1.5 hover:bg-surface-2"
+                style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#8ee68e", lineHeight: 1 }}
+              >
+                Share
+              </button>
+            )}
             {onRemove && (
               <button
                 onClick={onRemove}
@@ -562,12 +676,12 @@ function LiveBetCard({
           {decision.reason}
         </p>
       )}
-      {dg && <DGStatStrip dg={dg} />}
+      {dg && <DGStatStrip dg={dg} shots={shots} />}
     </li>
   );
 }
 
-function DGStatStrip({ dg }: { dg: DGStat }) {
+function DGStatStrip({ dg, shots }: { dg: DGStat; shots?: ShotCounts | null }) {
   // Hide the strip if every interesting field is missing — happens before
   // a player tees off on Thursday.
   const hasAny =
@@ -582,6 +696,9 @@ function DGStatStrip({ dg }: { dg: DGStat }) {
       : (dg.sg_total ?? 0) < -0.5
         ? "#e57373"
         : "#a8b3ac";
+  // Prefer "hit / attempts" counts (4/5 GIR) over a bare percentage —
+  // it's the at-a-glance tracking the user wants. Falls back to nothing
+  // when we can't derive a count (e.g. pre-tee).
   return (
     <div
       className="mt-2.5 pt-2 flex items-baseline gap-3 num flex-wrap"
@@ -594,15 +711,9 @@ function DGStatStrip({ dg }: { dg: DGStat }) {
       {dg.sg_total != null && (
         <Stat label="SG" value={fmtSigned(dg.sg_total)} color={sgColor} />
       )}
-      {dg.accuracy != null && (
-        <Stat label="FH" value={`${Math.round(dg.accuracy)}%`} />
-      )}
-      {dg.gir != null && (
-        <Stat label="GIR" value={`${Math.round(dg.gir)}%`} />
-      )}
-      {dg.scrambling != null && (
-        <Stat label="Scr" value={`${Math.round(dg.scrambling)}%`} />
-      )}
+      {shots?.fh && <Stat label="FH" value={shots.fh} />}
+      {shots?.gir && <Stat label="GIR" value={shots.gir} />}
+      {shots?.scr && <Stat label="Scr" value={shots.scr} />}
       {dg.distance != null && (
         <Stat label="Dist" value={`${Math.round(dg.distance)}y`} />
       )}
