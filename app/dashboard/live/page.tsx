@@ -130,6 +130,25 @@ function apiBetToOpenBet(b: ApiBet): OpenBet {
   };
 }
 
+type GradedLeg = {
+  bet: ApiBet;
+  decision: Decision | null;
+  dg: DGStat | null;
+  teeTime?: string | null;
+};
+
+// Earliest tee time first; players with no tee time (already off, or not
+// in the field) sort to the bottom. ESPN tee times are ISO strings, so a
+// lexicographic compare is also chronological.
+function byTeeTime(a: GradedLeg, b: GradedLeg): number {
+  const ta = a.teeTime ?? null;
+  const tb = b.teeTime ?? null;
+  if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
+  if (ta) return -1;
+  if (tb) return 1;
+  return 0;
+}
+
 const STATUS_COLOR: Record<Decision["status"], string> = {
   won: "#7fd49a",
   lost: "#e57373",
@@ -203,17 +222,25 @@ export default function MobileLivePage() {
     return m;
   }, [dgStats]);
 
-  const graded: { bet: ApiBet; decision: Decision | null; dg: DGStat | null }[] =
-    (bets ?? []).map((b) => ({
-      bet: b,
-      decision: snapshot ? gradeBet(apiBetToOpenBet(b), snapshot) : null,
-      dg: statByName.get(normName(b.player)) ?? null,
-    }));
+  // Tee time per player from the leaderboard, used to order legs by who
+  // tees off first so the user can track the course top-to-bottom.
+  const teeByName = useMemo(() => {
+    const m = new Map<string, string | null>();
+    if (snapshot) for (const p of snapshot.players) m.set(normName(p.name), p.teeTime);
+    return m;
+  }, [snapshot]);
+
+  const graded: GradedLeg[] = (bets ?? []).map((b) => ({
+    bet: b,
+    decision: snapshot ? gradeBet(apiBetToOpenBet(b), snapshot) : null,
+    dg: statByName.get(normName(b.player)) ?? null,
+    teeTime: teeByName.get(normName(b.player)) ?? null,
+  }));
 
   // Group legs by the upload batch (every leg saved in one upload shares
   // a placed_at), so a parlay shows as one card instead of N loose legs.
   const groups = useMemo(() => {
-    const map = new Map<string, typeof graded>();
+    const map = new Map<string, GradedLeg[]>();
     for (const g of graded) {
       const key = g.bet.placed_at ?? g.bet.created_at ?? g.bet.id;
       const arr = map.get(key);
@@ -221,7 +248,7 @@ export default function MobileLivePage() {
       else map.set(key, [g]);
     }
     return Array.from(map.entries())
-      .map(([key, legs]) => ({ key, legs }))
+      .map(([key, legs]) => ({ key, legs: [...legs].sort(byTeeTime) }))
       .sort((a, b) => (a.key < b.key ? 1 : -1));
   }, [graded]);
 
@@ -288,7 +315,7 @@ function ParlayGroup({
   legs,
   onRemoveAll,
 }: {
-  legs: { bet: ApiBet; decision: Decision | null; dg: DGStat | null }[];
+  legs: GradedLeg[];
   onRemoveAll: () => void;
 }) {
   const first = legs[0].bet;
@@ -427,24 +454,55 @@ function LiveBetCard({
         >
           ● {label}
         </span>
-        <span className="flex items-center gap-2">
-          <span
-            className="num"
-            style={{ fontSize: 11, color: "#a8b3ac", letterSpacing: 0.3 }}
-          >
-            {bet.book.toUpperCase()} · {fmtOdds(bet.american_odds)}
-          </span>
-          {onRemove && (
-            <button
-              onClick={onRemove}
-              title="Remove this bet"
-              className="num rounded px-1.5 hover:bg-surface-2"
-              style={{ fontSize: 13, color: "#e57373", lineHeight: 1 }}
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="flex items-center gap-2">
+            <span
+              className="num"
+              style={{ fontSize: 11, color: "#a8b3ac", letterSpacing: 0.3 }}
             >
-              ✕
-            </button>
+              {bet.book.toUpperCase()} · {fmtOdds(bet.american_odds)}
+            </span>
+            {onRemove && (
+              <button
+                onClick={onRemove}
+                title="Remove this bet"
+                className="num rounded px-1.5 hover:bg-surface-2"
+                style={{ fontSize: 13, color: "#e57373", lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            )}
+          </span>
+          {decision?.standing && (
+            <div className="text-right leading-none">
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                  letterSpacing: -0.5,
+                  color:
+                    status === "won"
+                      ? "#7fd49a"
+                      : status === "lost"
+                        ? "#e57373"
+                        : status === "push"
+                          ? "#a8b3ac"
+                          : "#ffffff",
+                }}
+              >
+                {decision.standing}
+              </div>
+              {decision.standingNote && (
+                <div
+                  className="num"
+                  style={{ fontSize: 10, color: "#6c7a72", letterSpacing: 0.3, marginTop: 2 }}
+                >
+                  {decision.standingNote}
+                </div>
+              )}
+            </div>
           )}
-        </span>
+        </div>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3">
         <h3 style={{ fontSize: 16, fontWeight: 600 }}>{bet.player}</h3>
@@ -467,8 +525,6 @@ function LiveBetCard({
           style={{ fontSize: 11, color: "#a8b3ac", letterSpacing: 0.2 }}
         >
           {decision.reason}
-          {decision.observedValue !== undefined &&
-            ` · observed ${decision.observedValue}`}
         </p>
       )}
       {dg && <DGStatStrip dg={dg} />}

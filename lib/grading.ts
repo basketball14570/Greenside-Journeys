@@ -32,6 +32,11 @@ export type Decision = {
   status: "won" | "lost" | "live" | "push" | "unknown";
   reason: string;
   observedValue?: number | string;
+  // Short, bold "where it stands right now" shown on the right of the
+  // live card — e.g. "T36", "4", "-2", "Up 2", "Win". `standingNote` is
+  // the small secondary label beneath it — e.g. "birdies", "thru 7".
+  standing?: string;
+  standingNote?: string;
   pnl?: number; // net units if settled
 };
 
@@ -90,6 +95,7 @@ function gradeTopN(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
       status: "lost",
       reason: "Missed cut / withdrew",
       observedValue: p.posDisplay,
+      standing: "CUT",
       pnl: -bet.stake,
     };
   }
@@ -102,6 +108,7 @@ function gradeTopN(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Finished ${p.posDisplay}, inside top ${target}`
         : `Finished ${p.posDisplay}, outside top ${target}`,
       observedValue: p.posDisplay,
+      standing: p.posDisplay,
       pnl: meets ? payoutOnWin(bet) : -bet.stake,
     };
   }
@@ -134,6 +141,8 @@ function gradeTopN(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Currently ${p.posDisplay}, inside top ${target}`
         : `Currently ${p.posDisplay}, outside top ${target}`,
     observedValue: p.posDisplay,
+    standing: p.posDisplay,
+    standingNote: p.todayLine?.thru ? `thru ${p.todayLine.thru}` : undefined,
   };
 }
 
@@ -155,7 +164,7 @@ function gradeToWin(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const p = findPlayer(snapshot, bet.player);
   if (!p) return { bet, status: "unknown", reason: "Player not in field" };
   if (p.isCut) {
-    return { bet, status: "lost", reason: "Missed cut / withdrew", observedValue: p.posDisplay, pnl: -bet.stake };
+    return { bet, status: "lost", reason: "Missed cut / withdrew", observedValue: p.posDisplay, standing: "CUT", pnl: -bet.stake };
   }
   if (eventComplete(snapshot)) {
     const won = p.posNum === 1 && !p.posDisplay.startsWith("T");
@@ -164,6 +173,7 @@ function gradeToWin(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
       status: won ? "won" : "lost",
       reason: won ? "Won outright" : `Finished ${p.posDisplay}`,
       observedValue: p.posDisplay,
+      standing: won ? "Win" : p.posDisplay,
       pnl: won ? payoutOnWin(bet) : -bet.stake,
     };
   }
@@ -172,6 +182,8 @@ function gradeToWin(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
     status: "live",
     reason: `Currently ${p.posDisplay}`,
     observedValue: p.posDisplay,
+    standing: p.posDisplay,
+    standingNote: p.todayLine?.thru ? `thru ${p.todayLine.thru}` : undefined,
   };
 }
 
@@ -211,7 +223,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
     const tied = diff === 0;
     const roundComplete = !!mineRound?.complete && !!oppRound?.complete;
     if (roundComplete) {
-      if (tied) return { bet, status: "push", reason: "Tied on R" + bet.round + " — push", pnl: 0 };
+      if (tied) return { bet, status: "push", reason: "Tied on R" + bet.round + " — push", standing: "Push", pnl: 0 };
       return {
         bet,
         status: ahead ? "won" : "lost",
@@ -219,6 +231,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
           ? `Beat ${bet.opponent} by ${Math.abs(diff)} on R${bet.round}`
           : `Lost to ${bet.opponent} by ${Math.abs(diff)} on R${bet.round}`,
         observedValue: `${mineToPar} vs ${oppToPar}`,
+        standing: ahead ? "Win" : "Loss",
         pnl: ahead ? payoutOnWin(bet) : -bet.stake,
       };
     }
@@ -231,6 +244,8 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
           ? `Up ${Math.abs(diff)} on ${bet.opponent}`
           : `Down ${Math.abs(diff)} to ${bet.opponent}`,
       observedValue: `${mineToPar} vs ${oppToPar}`,
+      standing: tied ? "AS" : ahead ? `Up ${Math.abs(diff)}` : `Dn ${Math.abs(diff)}`,
+      standingNote: mineRound?.thru ? `thru ${mineRound.thru}` : undefined,
     };
   }
 
@@ -242,7 +257,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const ahead = diff < 0;
   const tied = diff === 0;
   if (eventComplete(snapshot)) {
-    if (tied) return { bet, status: "push", reason: "Tied on total — push", pnl: 0 };
+    if (tied) return { bet, status: "push", reason: "Tied on total — push", standing: "Push", pnl: 0 };
     return {
       bet,
       status: ahead ? "won" : "lost",
@@ -250,6 +265,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Beat ${bet.opponent} by ${Math.abs(diff)}`
         : `Lost to ${bet.opponent} by ${Math.abs(diff)}`,
       observedValue: `${mine.totalToPar} vs ${opp.totalToPar}`,
+      standing: ahead ? "Win" : "Loss",
       pnl: ahead ? payoutOnWin(bet) : -bet.stake,
     };
   }
@@ -262,6 +278,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Up ${Math.abs(diff)} on ${bet.opponent}`
         : `Down ${Math.abs(diff)} to ${bet.opponent}`,
     observedValue: `${mine.totalToPar} vs ${opp.totalToPar}`,
+    standing: tied ? "AS" : ahead ? `Up ${Math.abs(diff)}` : `Dn ${Math.abs(diff)}`,
   };
 }
 
@@ -323,6 +340,7 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         bet,
         status: "push",
         reason: `Tied for 1st on R${round} — push`,
+        standing: "Push",
         pnl: 0,
       };
     }
@@ -334,6 +352,7 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Won the 3-ball outright on R${round}`
         : `Finished ${minePos} of 3 on R${round}`,
       observedValue: `${mineRound?.toPar ?? "—"} vs ${aRound?.toPar ?? "—"} / ${bRound?.toPar ?? "—"}`,
+      standing: won ? "Win" : "Loss",
       pnl: won ? payoutOnWin(bet) : -bet.stake,
     };
   }
@@ -353,23 +372,34 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const next = scored[1];
   const mineEntry = scored.find((r) => r.isMine);
 
+  const thru = mineRound?.thru ?? null;
   let reason: string;
+  let standing: string | undefined;
+  let standingNote: string | undefined;
   if (!mineEntry) {
     reason = `Pre-tee — group leader at ${top.score === 0 ? "E" : top.score < 0 ? top.score : `+${top.score}`}`;
+    standing = "—";
   } else if (mineEntry === top) {
-    if (scored.filter((r) => r.score === top.score).length > 1) {
+    const tiedAtTop = scored.filter((r) => r.score === top.score).length > 1;
+    if (tiedAtTop) {
       reason = `T1 of 3 on R${round}`;
+      standing = "T1";
     } else if (next) {
       const lead = next.score - top.score;
       reason = `Leading by ${lead} on R${round}`;
+      standing = `Up ${lead}`;
     } else {
       reason = `Leading R${round}`;
+      standing = "1st";
     }
+    standingNote = thru ? `thru ${thru}` : undefined;
   } else {
     const back = mineEntry.score - top.score;
     const pos =
       scored.findIndex((r) => r.isMine) === 1 ? "2nd" : "3rd";
     reason = `${pos} of 3 · ${back} back of ${top.name.split(" ").slice(-1)[0]}`;
+    standing = `Dn ${back}`;
+    standingNote = thru ? `${pos} · thru ${thru}` : pos;
   }
 
   return {
@@ -377,6 +407,8 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
     status: "live",
     reason,
     observedValue: `${mineRound?.toPar ?? "—"} vs ${aRound?.toPar ?? "—"} / ${bRound?.toPar ?? "—"}`,
+    standing,
+    standingNote,
   };
 }
 
@@ -393,17 +425,19 @@ function gradeRoundProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   if (!rl || rl.strokes === null) {
     return { bet, status: "live", reason: `R${round} not started` };
   }
+  // Score relative to par drives the bold standing ("-2"); strokes count
+  // stays in the detail line. `thru` is the small note while in progress.
+  const standing = rl.toPar ?? String(rl.strokes);
+  const note = rl.thru && rl.thru < 18 ? `thru ${rl.thru}` : undefined;
   // Round complete or in progress
   if (side === "over") {
     if (rl.strokes > line) {
-      return rl.complete || eventComplete(snapshot)
-        ? { bet, status: "won", reason: `R${round} ${rl.strokes} > ${line}`, observedValue: rl.strokes, pnl: payoutOnWin(bet) }
-        : { bet, status: "won", reason: `R${round} ${rl.strokes} already exceeds ${line}`, observedValue: rl.strokes, pnl: payoutOnWin(bet) };
+      return { bet, status: "won", reason: rl.complete || eventComplete(snapshot) ? `R${round} ${rl.strokes} > ${line}` : `R${round} ${rl.strokes} already exceeds ${line}`, observedValue: rl.strokes, standing, standingNote: note, pnl: payoutOnWin(bet) };
     }
     if (!rl.complete && !eventComplete(snapshot)) {
-      return { bet, status: "live", reason: `R${round} ${rl.strokes} thru ${rl.thru ?? "?"}`, observedValue: rl.strokes };
+      return { bet, status: "live", reason: `R${round} ${rl.strokes} thru ${rl.thru ?? "?"}`, observedValue: rl.strokes, standing, standingNote: note };
     }
-    return { bet, status: "lost", reason: `R${round} ${rl.strokes} ≤ ${line}`, observedValue: rl.strokes, pnl: -bet.stake };
+    return { bet, status: "lost", reason: `R${round} ${rl.strokes} ≤ ${line}`, observedValue: rl.strokes, standing, pnl: -bet.stake };
   } else {
     // under
     if (rl.complete || eventComplete(snapshot)) {
@@ -413,13 +447,14 @@ function gradeRoundProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         status: won ? "won" : "lost",
         reason: `R${round} ${rl.strokes} ${won ? "<" : "≥"} ${line}`,
         observedValue: rl.strokes,
+        standing,
         pnl: won ? payoutOnWin(bet) : -bet.stake,
       };
     }
     if (rl.strokes >= line) {
-      return { bet, status: "lost", reason: `R${round} ${rl.strokes} already at/over ${line}`, observedValue: rl.strokes, pnl: -bet.stake };
+      return { bet, status: "lost", reason: `R${round} ${rl.strokes} already at/over ${line}`, observedValue: rl.strokes, standing, standingNote: note, pnl: -bet.stake };
     }
-    return { bet, status: "live", reason: `R${round} ${rl.strokes} thru ${rl.thru ?? "?"}`, observedValue: rl.strokes };
+    return { bet, status: "live", reason: `R${round} ${rl.strokes} thru ${rl.thru ?? "?"}`, observedValue: rl.strokes, standing, standingNote: note };
   }
 }
 
@@ -536,8 +571,11 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
       : stats.birdiesOrBetter;
 
   const label = m.includes("eagle") ? "eagles" : m.includes("bogey") ? "bogeys+" : "birdies+";
+  const unit = m.includes("eagle") ? "eagles" : m.includes("bogey") ? "bogeys" : "birdies";
   const remaining = 18 - stats.played;
   const isFinal = rl.complete || stats.played >= 18;
+  // Bold standing = the live count ("4"), with the unit as the small note.
+  const standing = String(observed);
 
   if (side === "over") {
     if (observed > line) {
@@ -546,6 +584,8 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
         status: "won",
         reason: `R${round} ${observed} ${label} thru ${stats.played} (need >${line})`,
         observedValue: observed,
+        standing,
+        standingNote: unit,
         pnl: payoutOnWin(bet),
       };
     }
@@ -555,6 +595,8 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
         status: "lost",
         reason: `R${round} final: ${observed} ${label} ≤ ${line}`,
         observedValue: observed,
+        standing,
+        standingNote: unit,
         pnl: -bet.stake,
       };
     }
@@ -563,6 +605,8 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
       status: "live",
       reason: `R${round} ${observed} ${label} thru ${stats.played} · need ${Math.ceil(line - observed + 0.5)} more in ${remaining}`,
       observedValue: observed,
+      standing,
+      standingNote: unit,
     };
   }
   // Under
@@ -572,6 +616,8 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
       status: "lost",
       reason: `R${round} ${observed} ${label} already over ${line}`,
       observedValue: observed,
+      standing,
+      standingNote: unit,
       pnl: -bet.stake,
     };
   }
@@ -581,6 +627,8 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
       status: "won",
       reason: `R${round} final: ${observed} ${label} < ${line}`,
       observedValue: observed,
+      standing,
+      standingNote: unit,
       pnl: payoutOnWin(bet),
     };
   }
@@ -589,6 +637,8 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
     status: "live",
     reason: `R${round} ${observed} ${label} thru ${stats.played} · ${remaining} holes left for line ${line}`,
     observedValue: observed,
+    standing,
+    standingNote: unit,
   };
 }
 
