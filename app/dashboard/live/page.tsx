@@ -14,6 +14,7 @@ import {
   FEATURED_PARLAYS,
   featuredParlayToParsedBets,
 } from "@/lib/data/featured-parlay";
+import { shareParlayImage, type ShareLeg } from "@/lib/parlay-share";
 
 // Per-player live shot-quality stats from DataGolf. Pulled separately
 // from the leaderboard so a DataGolf outage doesn't break grading.
@@ -302,6 +303,7 @@ export default function MobileLivePage() {
             <ParlayGroup
               key={group.key}
               legs={group.legs}
+              eventName={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null}
               onRemoveAll={() => dismissBatch(group.legs.map((g) => g.bet.id))}
             />
           ))}
@@ -313,9 +315,11 @@ export default function MobileLivePage() {
 
 function ParlayGroup({
   legs,
+  eventName,
   onRemoveAll,
 }: {
   legs: GradedLeg[];
+  eventName?: string | null;
   onRemoveAll: () => void;
 }) {
   const first = legs[0].bet;
@@ -350,6 +354,28 @@ function ParlayGroup({
     : won === legs.length
       ? "Hit — all legs"
       : `${won}/${legs.length} hit · alive`;
+
+  function onShare() {
+    const shareLegs: ShareLeg[] = legs.map((g) => ({
+      player: g.bet.player,
+      market: g.bet.market,
+      line: g.bet.line !== null ? String(g.bet.line) : null,
+      standing: g.decision?.standing,
+      standingNote: g.decision?.standingNote,
+      status: g.decision?.status ?? "unknown",
+    }));
+    void shareParlayImage({
+      eventName,
+      legCount: legs.length,
+      book: first.book,
+      combinedX: combined,
+      stake: stakeShown,
+      payout: payout10,
+      statusText,
+      statusColor,
+      legs: shareLegs,
+    });
+  }
 
   return (
     <div
@@ -388,13 +414,22 @@ function ParlayGroup({
               </span>
             </div>
           </div>
-          <button
-            onClick={onRemoveAll}
-            className="num uppercase rounded px-2 py-1 hover:bg-surface-2 shrink-0"
-            style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#e57373", border: "1px solid rgba(229,115,115,0.4)" }}
-          >
-            Remove
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={onShare}
+              className="num uppercase rounded px-2 py-1 hover:bg-surface-2"
+              style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#8ee68e", border: "1px solid rgba(142,230,142,0.4)" }}
+            >
+              Share
+            </button>
+            <button
+              onClick={onRemoveAll}
+              className="num uppercase rounded px-2 py-1 hover:bg-surface-2"
+              style={{ fontSize: 9.5, letterSpacing: 0.8, color: "#e57373", border: "1px solid rgba(229,115,115,0.4)" }}
+            >
+              Remove
+            </button>
+          </div>
         </div>
       )}
       <ul className="space-y-2.5">
