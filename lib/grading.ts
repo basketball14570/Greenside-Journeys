@@ -244,7 +244,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
           ? `Up ${Math.abs(diff)} on ${bet.opponent}`
           : `Down ${Math.abs(diff)} to ${bet.opponent}`,
       observedValue: `${mineToPar} vs ${oppToPar}`,
-      standing: tied ? "AS" : ahead ? `Up ${Math.abs(diff)}` : `Dn ${Math.abs(diff)}`,
+      standing: tied ? "AS" : ahead ? `${Math.abs(diff)} Up` : `${Math.abs(diff)} Down`,
       standingNote: mineRound?.thru ? `thru ${mineRound.thru}` : undefined,
     };
   }
@@ -278,7 +278,7 @@ function gradeMatchup(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
         ? `Up ${Math.abs(diff)} on ${bet.opponent}`
         : `Down ${Math.abs(diff)} to ${bet.opponent}`,
     observedValue: `${mine.totalToPar} vs ${opp.totalToPar}`,
-    standing: tied ? "AS" : ahead ? `Up ${Math.abs(diff)}` : `Dn ${Math.abs(diff)}`,
+    standing: tied ? "AS" : ahead ? `${Math.abs(diff)} Up` : `${Math.abs(diff)} Down`,
   };
 }
 
@@ -310,6 +310,13 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const mineNum = parseToParNum(mineRound?.toPar ?? null);
   const aNum = parseToParNum(aRound?.toPar ?? null);
   const bNum = parseToParNum(bRound?.toPar ?? null);
+
+  // Per-player scoreline for the detail row — "Ryder E · Willett +1 ·
+  // Villegas +2" — so the card shows where all three stand.
+  const lastName = (n: string) => n.split(" ").slice(-1)[0];
+  const fmtP = (n: number | null) =>
+    n == null ? "—" : n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`;
+  const scoreLine = `${lastName(mine.name)} ${fmtP(mineNum)} · ${lastName(a.name)} ${fmtP(aNum)} · ${lastName(b.name)} ${fmtP(bNum)}`;
 
   // Pre-tee for the whole group.
   if (mineNum === null && aNum === null && bNum === null) {
@@ -349,8 +356,8 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
       bet,
       status: won ? "won" : "lost",
       reason: won
-        ? `Won the 3-ball outright on R${round}`
-        : `Finished ${minePos} of 3 on R${round}`,
+        ? `Won the 3-ball outright on R${round} · ${scoreLine}`
+        : `Finished ${minePos} of 3 on R${round} · ${scoreLine}`,
       observedValue: `${mineRound?.toPar ?? "—"} vs ${aRound?.toPar ?? "—"} / ${bRound?.toPar ?? "—"}`,
       standing: won ? "Win" : "Loss",
       pnl: won ? payoutOnWin(bet) : -bet.stake,
@@ -377,19 +384,20 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   let standing: string | undefined;
   let standingNote: string | undefined;
   if (!mineEntry) {
-    reason = `Pre-tee — group leader at ${top.score === 0 ? "E" : top.score < 0 ? top.score : `+${top.score}`}`;
+    reason = `Pre-tee · ${scoreLine}`;
     standing = "—";
   } else if (mineEntry === top) {
     const tiedAtTop = scored.filter((r) => r.score === top.score).length > 1;
     if (tiedAtTop) {
-      reason = `T1 of 3 on R${round}`;
-      standing = "T1";
+      // Tied for the lead — match-play "all square" rather than a position.
+      reason = `Tied for 1st · ${scoreLine}`;
+      standing = "AS";
     } else if (next) {
       const lead = next.score - top.score;
-      reason = `Leading by ${lead} on R${round}`;
-      standing = `Up ${lead}`;
+      reason = `Leading by ${lead} · ${scoreLine}`;
+      standing = `${lead} Up`;
     } else {
-      reason = `Leading R${round}`;
+      reason = `Leading · ${scoreLine}`;
       standing = "1st";
     }
     standingNote = thru ? `thru ${thru}` : undefined;
@@ -397,8 +405,8 @@ function gradeThreeBall(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
     const back = mineEntry.score - top.score;
     const pos =
       scored.findIndex((r) => r.isMine) === 1 ? "2nd" : "3rd";
-    reason = `${pos} of 3 · ${back} back of ${top.name.split(" ").slice(-1)[0]}`;
-    standing = `Dn ${back}`;
+    reason = `${pos} of 3 · ${back} back · ${scoreLine}`;
+    standing = `${back} Down`;
     standingNote = thru ? `${pos} · thru ${thru}` : pos;
   }
 

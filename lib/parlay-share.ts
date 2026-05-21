@@ -36,7 +36,7 @@ const STATUS_COLOR: Record<ShareLeg["status"], string> = {
 
 const W = 1080;
 const PAD = 72;
-const HEADER_H = 400;
+const HEADER_H = 500;
 const LEG_H = 150;
 const FOOTER_H = 120;
 
@@ -91,17 +91,17 @@ function drawTicket(data: ShareData): HTMLCanvasElement {
   ctx.fillStyle = "#a8b3ac";
   ctx.font = "600 30px system-ui, -apple-system, sans-serif";
   const econLeft = `${data.book.toUpperCase()}  ·  ${data.combinedX.toFixed(1)}x`;
-  ctx.fillText(econLeft, PAD, PAD + 320);
+  ctx.fillText(econLeft, PAD, PAD + 332);
   ctx.fillStyle = "#8ee68e";
   ctx.font = "800 34px system-ui, -apple-system, sans-serif";
-  ctx.fillText(`${money(data.stake)} → ${money(data.payout)}`, PAD, PAD + 362);
+  ctx.fillText(`${money(data.stake)} → ${money(data.payout)}`, PAD, PAD + 376);
 
   // Divider
   ctx.strokeStyle = "rgba(255,255,255,0.12)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(PAD, HEADER_H - 14);
-  ctx.lineTo(W - PAD, HEADER_H - 14);
+  ctx.moveTo(PAD, HEADER_H - 28);
+  ctx.lineTo(W - PAD, HEADER_H - 28);
   ctx.stroke();
 
   // ── Legs ──
@@ -133,9 +133,9 @@ function drawTicket(data: ShareData): HTMLCanvasElement {
       ctx.font = "800 60px system-ui, -apple-system, sans-serif";
       ctx.fillText(leg.standing, W - PAD, top + 52);
       if (leg.standingNote) {
-        ctx.fillStyle = "#6c7a72";
-        ctx.font = "600 24px system-ui, -apple-system, sans-serif";
-        ctx.fillText(leg.standingNote, W - PAD, top + 90);
+        ctx.fillStyle = "#9aa6a0";
+        ctx.font = "700 26px system-ui, -apple-system, sans-serif";
+        ctx.fillText(leg.standingNote, W - PAD, top + 92);
       }
       ctx.textAlign = "left";
     }

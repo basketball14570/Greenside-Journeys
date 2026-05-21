@@ -644,7 +644,7 @@ function LiveBetCard({
               {decision.standingNote && (
                 <div
                   className="num"
-                  style={{ fontSize: 10, color: "#6c7a72", letterSpacing: 0.3, marginTop: 2 }}
+                  style={{ fontSize: 11.5, fontWeight: 700, color: "#9aa6a0", letterSpacing: 0.3, marginTop: 3 }}
                 >
                   {decision.standingNote}
                 </div>
