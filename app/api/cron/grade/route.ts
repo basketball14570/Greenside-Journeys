@@ -9,6 +9,7 @@ import {
   type ShotRates,
 } from "@/lib/bets/shot-props";
 import { datagolfEnabled, getLiveTournamentStats } from "@/lib/data/datagolf";
+import { resolveCourseName } from "@/lib/data/course-pars";
 import { DEMO_BETS } from "@/lib/demo-data";
 import { diffDecisions, renderAlertText } from "@/lib/notify/alerts";
 import { dispatchAll } from "@/lib/notify/webhooks";
@@ -124,7 +125,10 @@ async function gradeAndPushUserBets(snapshot: LeaderboardSnapshot): Promise<{
   // DataGolf fairways/GIR rates for the active round, so FH/GIR props can
   // settle server-side (ESPN's free feed has none). Keyed by normalized
   // name; empty when DataGolf isn't configured or the call fails.
-  const courseName = snapshot.event?.course ?? null;
+  const courseName = resolveCourseName(
+    snapshot.event?.course ?? null,
+    snapshot.event?.name ?? null,
+  );
   const round = snapshot.event?.period;
   const dgRates = new Map<string, ShotRates>();
   if (datagolfEnabled() && round && round >= 1 && round <= 4) {

@@ -42,17 +42,51 @@ export const COURSE_HOLE_PARS: Record<string, HolePar> = {
 // you'll under-count birdies on par-5s and miss eagles, but never claim
 // a fake birdie on a par-3.)
 export function holeParFor(courseName: string | null | undefined, hole: number): number {
-  if (!courseName) return 4;
-  const map = COURSE_HOLE_PARS[courseName];
+  return holeParStrict(courseName, hole) ?? 4;
+}
+
+// Like holeParFor but returns null (not a default 4) when the course or
+// hole isn't mapped — so callers can tell "known par 4" from "unknown".
+// Used for fairway counting, where guessing par 4 on an unmapped par-3
+// would wrongly count it as a driving hole.
+export function holeParStrict(
+  courseName: string | null | undefined,
+  hole: number,
+): number | null {
+  if (!courseName) return null;
+  let map = COURSE_HOLE_PARS[courseName];
   if (!map) {
-    // Try a fuzzy match — ESPN sometimes uses slightly different naming
     const key = Object.keys(COURSE_HOLE_PARS).find(
       (k) => normalize(k) === normalize(courseName),
     );
-    if (key) return COURSE_HOLE_PARS[key][hole - 1] ?? 4;
-    return 4;
+    if (key) map = COURSE_HOLE_PARS[key];
   }
-  return map[hole - 1] ?? 4;
+  return map?.[hole - 1] ?? null;
+}
+
+// ESPN sometimes leaves the course name blank; resolve it from the event
+// name so per-hole pars still load. Extend as new events are added.
+const EVENT_COURSE_ALIASES: { match: string; course: string }[] = [
+  { match: "byron nelson", course: "TPC Craig Ranch" },
+];
+
+export function resolveCourseName(
+  courseName: string | null | undefined,
+  eventName: string | null | undefined,
+): string | null {
+  if (courseName) {
+    if (COURSE_HOLE_PARS[courseName]) return courseName;
+    const key = Object.keys(COURSE_HOLE_PARS).find(
+      (k) => normalize(k) === normalize(courseName),
+    );
+    if (key) return key;
+  }
+  if (eventName) {
+    const en = eventName.toLowerCase();
+    const alias = EVENT_COURSE_ALIASES.find((a) => en.includes(a.match));
+    if (alias) return alias.course;
+  }
+  return courseName ?? null;
 }
 
 function normalize(s: string): string {

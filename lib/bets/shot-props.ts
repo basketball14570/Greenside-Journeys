@@ -5,7 +5,7 @@
 // them. Shared by the live page (display + on-screen grading) and the
 // settlement cron (server-side settlement) so both agree.
 
-import { holeParFor } from "@/lib/data/course-pars";
+import { holeParStrict } from "@/lib/data/course-pars";
 import type { RoundLine } from "@/lib/espn-leaderboard";
 import type { Decision, OpenBet } from "@/lib/grading";
 
@@ -66,9 +66,14 @@ export function deriveShotCounts(
   const played = playedHoles.length || round.thru || 0;
   if (!played) return null;
 
+  // Fairways are only contested on par-4/5 (driving) holes. Prefer the
+  // known scorecard over ESPN's per-hole par (which is often a blank
+  // default of 4) so par-3s are correctly excluded from the denominator.
   const drivingPlayed =
     playedHoles.length > 0
-      ? playedHoles.filter((h) => (h.par ?? holeParFor(courseName, h.hole)) >= 4).length
+      ? playedHoles.filter(
+          (h) => (holeParStrict(courseName, h.hole) ?? h.par ?? 4) >= 4,
+        ).length
       : 0;
 
   const girFrac = asFraction(rates.gir);

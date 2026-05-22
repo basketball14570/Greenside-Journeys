@@ -15,6 +15,7 @@ import {
   normShotName as normName,
   type ShotCounts,
 } from "@/lib/bets/shot-props";
+import { resolveCourseName } from "@/lib/data/course-pars";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
 import {
@@ -266,7 +267,10 @@ export default function MobileLivePage() {
     return m;
   }, [snapshot]);
 
-  const courseName = snapshot?.event?.course ?? null;
+  const courseName = resolveCourseName(
+    snapshot?.event?.course ?? null,
+    snapshot?.event?.name ?? null,
+  );
 
   const graded: GradedLeg[] = (bets ?? []).map((b) => {
     const dg = statByName.get(normName(b.player)) ?? null;
