@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
 import { gradeAll, type OpenBet } from "@/lib/grading";
 import { dbBetToOpenBet } from "@/lib/bets/open-bet";
+import {
+  deriveShotCounts,
+  gradeShotProp,
+  normShotName,
+  type ShotRates,
+} from "@/lib/bets/shot-props";
+import { datagolfEnabled, getLiveTournamentStats } from "@/lib/data/datagolf";
 import { DEMO_BETS } from "@/lib/demo-data";
 import { diffDecisions, renderAlertText } from "@/lib/notify/alerts";
 import { dispatchAll } from "@/lib/notify/webhooks";
@@ -114,6 +121,30 @@ async function gradeAndPushUserBets(snapshot: LeaderboardSnapshot): Promise<{
     byUser.set(row.user_id, arr);
   }
 
+  // DataGolf fairways/GIR rates for the active round, so FH/GIR props can
+  // settle server-side (ESPN's free feed has none). Keyed by normalized
+  // name; empty when DataGolf isn't configured or the call fails.
+  const courseName = snapshot.event?.course ?? null;
+  const round = snapshot.event?.period;
+  const dgRates = new Map<string, ShotRates>();
+  if (datagolfEnabled() && round && round >= 1 && round <= 4) {
+    try {
+      const res = await getLiveTournamentStats({ round: round as 1 | 2 | 3 | 4 });
+      for (const s of res.live_stats) {
+        dgRates.set(normShotName(s.player_name), {
+          accuracy: s.accuracy,
+          gir: s.gir,
+          scrambling: s.scrambling,
+        });
+      }
+    } catch {
+      /* leave FH/GIR props for manual settlement this tick */
+    }
+  }
+  const playerByName = new Map(
+    snapshot.players.map((p) => [normShotName(p.name), p]),
+  );
+
   let transitions = 0;
   let pushed = 0;
   let settled = 0;
@@ -124,6 +155,23 @@ async function gradeAndPushUserBets(snapshot: LeaderboardSnapshot): Promise<{
     const rowById = new Map(rows.map((r) => [r.id, r]));
     const openBets: OpenBet[] = rows.map((r) => dbBetToOpenBet(r));
     const report = gradeAll(openBets, snapshot);
+
+    // Grade FH/GIR props (which the base grader punts to manual) from the
+    // DataGolf rates, so they reach a terminal state once the round ends.
+    for (const d of report.decisions) {
+      if (d.status !== "unknown" || !d.bet.id) continue;
+      const mm = d.bet.market.toLowerCase();
+      if (!mm.includes("fairway") && !mm.includes("green")) continue;
+      const lp = playerByName.get(normShotName(d.bet.player));
+      const shots = deriveShotCounts(
+        dgRates.get(normShotName(d.bet.player)) ?? null,
+        lp?.todayLine,
+        courseName,
+      );
+      if (!shots) continue;
+      const sp = gradeShotProp(d.bet, shots);
+      if (sp) Object.assign(d, sp);
+    }
 
     // Persist any leg that reached a terminal state. The query above only
     // pulls live/pending rows, so this is idempotent across ticks. A
