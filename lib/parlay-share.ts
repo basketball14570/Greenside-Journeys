@@ -12,6 +12,8 @@ export type ShareLeg = {
   standing?: string;
   standingNote?: string;
   status: "won" | "lost" | "live" | "push" | "unknown";
+  // Pre-formatted shot line, e.g. "SG +0.9 · FH 13/18 · GIR 14/14 · 297y".
+  stats?: string | null;
 };
 
 export type ShareData = {
@@ -45,7 +47,11 @@ function money(n: number): string {
 }
 
 function drawTicket(data: ShareData): HTMLCanvasElement {
-  const height = HEADER_H + data.legs.length * LEG_H + FOOTER_H;
+  // Taller rows when any leg carries a shot line so it fits under the
+  // market without crowding the standing.
+  const hasStats = data.legs.some((l) => l.stats);
+  const legH = hasStats ? 182 : LEG_H;
+  const height = HEADER_H + data.legs.length * legH + FOOTER_H;
   const canvas = document.createElement("canvas");
   const scale = 2; // retina-crisp text
   canvas.width = W * scale;
@@ -106,7 +112,7 @@ function drawTicket(data: ShareData): HTMLCanvasElement {
 
   // ── Legs ──
   data.legs.forEach((leg, i) => {
-    const top = HEADER_H + i * LEG_H;
+    const top = HEADER_H + i * legH;
     const color = STATUS_COLOR[leg.status] ?? STATUS_COLOR.unknown;
 
     // status dot
@@ -124,7 +130,14 @@ function drawTicket(data: ShareData): HTMLCanvasElement {
     ctx.fillStyle = "#9aa6a0";
     ctx.font = "500 30px system-ui, -apple-system, sans-serif";
     const sub = leg.line ? `${leg.market} · ${leg.line}` : leg.market;
-    ctx.fillText(truncate(ctx, sub, W - PAD * 2 - 280), PAD + 36, top + 98);
+    ctx.fillText(truncate(ctx, sub, W - PAD * 2 - 280), PAD + 36, top + 96);
+
+    // shot line (SG / FH / GIR / Scr / Dist)
+    if (leg.stats) {
+      ctx.fillStyle = "#6c7a72";
+      ctx.font = "500 25px system-ui, -apple-system, sans-serif";
+      ctx.fillText(truncate(ctx, leg.stats, W - PAD * 2 - 60), PAD + 36, top + 138);
+    }
 
     // standing (right-aligned, bold, status color)
     if (leg.standing) {
@@ -145,8 +158,8 @@ function drawTicket(data: ShareData): HTMLCanvasElement {
       ctx.strokeStyle = "rgba(255,255,255,0.06)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(PAD, top + LEG_H - 1);
-      ctx.lineTo(W - PAD, top + LEG_H - 1);
+      ctx.moveTo(PAD, top + legH - 1);
+      ctx.lineTo(W - PAD, top + legH - 1);
       ctx.stroke();
     }
   });

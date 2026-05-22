@@ -196,6 +196,21 @@ function deriveShotCounts(
   return { fh, gir, scr };
 }
 
+// One-line shot summary for the shared image, mirroring the on-card
+// strip: "SG +0.9 · FH 13/18 · GIR 14/14 · Scr 1/2 · 297y".
+function formatShotLine(
+  dg: DGStat | null,
+  shots: ShotCounts | null,
+): string | null {
+  const parts: string[] = [];
+  if (dg?.sg_total != null) parts.push(`SG ${fmtSigned(dg.sg_total)}`);
+  if (shots?.fh) parts.push(`FH ${shots.fh}`);
+  if (shots?.gir) parts.push(`GIR ${shots.gir}`);
+  if (shots?.scr) parts.push(`Scr ${shots.scr}`);
+  if (dg?.distance != null) parts.push(`${Math.round(dg.distance)}y`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 // Earliest tee time first; players with no tee time (already off, or not
 // in the field) sort to the bottom. ESPN tee times are ISO strings, so a
 // lexicographic compare is also chronological.
@@ -432,6 +447,7 @@ function ParlayGroup({
       standing: g.decision?.standing,
       standingNote: g.decision?.standingNote,
       status: g.decision?.status ?? "unknown",
+      stats: formatShotLine(g.dg, g.shots ?? null),
     }));
     void shareParlayImage({
       eventName,
@@ -568,6 +584,7 @@ function LiveBetCard({
           standing: decision?.standing,
           standingNote: decision?.standingNote,
           status,
+          stats: formatShotLine(dg, shots ?? null),
         },
       ],
     });
