@@ -554,13 +554,19 @@ export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision 
   if (m.includes("birdie") || m.includes("bogey") || m.includes("eagle")) {
     return gradeRoundStatProp(bet, snapshot);
   }
-  // Fairways hit / greens in regulation are NOT in the free ESPN feed.
-  // Surface as manual until DataGolf or a paid feed is wired.
+  // Fairways hit / greens in regulation are graded from DataGolf live
+  // stats (see lib/bets/shot-props); the base grader only lands here
+  // before that data exists — usually because the player hasn't teed off.
+  // Surface a neutral "awaiting" state rather than a manual-settle note.
   if (m.includes("fairway") || m.includes("green")) {
+    const rnd = bet.round ?? deriveRoundFromMarket(bet.market);
+    const p = findPlayer(snapshot, bet.player);
+    const rl = rnd ? p?.rounds.find((r) => r.period === rnd) : undefined;
+    const started = !!rl && (rl.strokes !== null || (rl.thru ?? 0) > 0);
     return {
       bet,
-      status: "unknown",
-      reason: "FIR / GIR not in free ESPN feed — settle manually after round ends",
+      status: "live",
+      reason: rnd && !started ? `R${rnd} not started` : "Awaiting fairways / GIR",
     };
   }
   return { bet, status: "unknown", reason: `No grader for market '${bet.market}'` };

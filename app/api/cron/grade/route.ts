@@ -156,10 +156,11 @@ async function gradeAndPushUserBets(snapshot: LeaderboardSnapshot): Promise<{
     const openBets: OpenBet[] = rows.map((r) => dbBetToOpenBet(r));
     const report = gradeAll(openBets, snapshot);
 
-    // Grade FH/GIR props (which the base grader punts to manual) from the
-    // DataGolf rates, so they reach a terminal state once the round ends.
+    // Grade FH/GIR props (which the base grader can't settle from ESPN)
+    // from the DataGolf rates, so they reach a terminal state once the
+    // round ends. Match by market — the base grade is "live", not unknown.
     for (const d of report.decisions) {
-      if (d.status !== "unknown" || !d.bet.id) continue;
+      if (!d.bet.id) continue;
       const mm = d.bet.market.toLowerCase();
       if (!mm.includes("fairway") && !mm.includes("green")) continue;
       const lp = playerByName.get(normShotName(d.bet.player));
