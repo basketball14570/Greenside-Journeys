@@ -75,6 +75,18 @@ function eventComplete(snapshot: LeaderboardSnapshot): boolean {
   return snapshot.event?.state === "post";
 }
 
+// A specific round is "final" once every player still in the field has a
+// completed line for it. Used to settle round-scoped position bets ("R1
+// Top 10") at the end of that round rather than waiting for the whole
+// event — and since the next round is the next day, the leaderboard order
+// stays put long enough for the cron to lock it in.
+function roundComplete(snapshot: LeaderboardSnapshot, n: number): boolean {
+  if (eventComplete(snapshot)) return true;
+  const active = snapshot.players.filter((p) => !p.isCut);
+  if (active.length === 0) return false;
+  return active.every((p) => p.rounds.find((r) => r.period === n)?.complete === true);
+}
+
 function payoutOnWin(bet: OpenBet): number {
   // payout field in DEMO_BETS is the decimal odds multiplier including stake.
   // Net profit on win = stake * (payout - 1).
@@ -100,7 +112,10 @@ function gradeTopN(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
     };
   }
   const meets = p.posNum !== null && p.posNum <= target;
-  if (eventComplete(snapshot)) {
+  // Round-scoped position bets ("R1 Top 10") lock when that round is
+  // final; tournament-long ones wait for the event to post.
+  const settled = bet.round ? roundComplete(snapshot, bet.round) : eventComplete(snapshot);
+  if (settled) {
     return {
       bet,
       status: meets ? "won" : "lost",

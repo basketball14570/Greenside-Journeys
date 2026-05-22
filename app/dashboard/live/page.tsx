@@ -10,6 +10,7 @@ import {
 } from "@/lib/espn-leaderboard";
 import { holeParFor } from "@/lib/data/course-pars";
 import { gradeBet, type Decision, type OpenBet } from "@/lib/grading";
+import { dbBetToOpenBet } from "@/lib/bets/open-bet";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
 import {
@@ -77,66 +78,16 @@ type ApiBet = {
   created_at: string;
 };
 
-function apiBetToOpenBet(b: ApiBet): OpenBet {
-  // The bets table has no opponent/group columns, so matchups encode the
-  // other players in the market text as "... vs A / B". Reconstruct the
-  // round, opponents, and over/under side here so the grader can settle
-  // 2-ball / 3-ball / round props that were entered manually.
-  const m = b.market.toLowerCase();
-  const rm = m.match(/\br\s*(\d)\b/) ?? m.match(/round\s*(\d)/);
-  const round = rm ? Number(rm[1]) : undefined;
-
-  const vsPart = b.market.split(/\bvs\b/i)[1]?.trim();
-  let others: string[] | undefined;
-  let opponent: string | undefined;
-  if (/3[\s-]?ball/.test(m) && vsPart) {
-    others = vsPart.split("/").map((s) => s.trim()).filter(Boolean);
-  } else if (vsPart) {
-    opponent = vsPart.split("/")[0]?.trim();
-  }
-
-  // Underdog "leaderboard position better N.5" = a top-floor(N) finish.
-  // Rewrite to a "Top N" market so it routes to the top-N grader (lower
-  // position number is better, so "better than 10.5" → top 10).
-  let market = b.market;
-  if (/(leaderboard|finish\w*)\s*position/.test(m) && !/\btop\b/.test(m)) {
-    const stripped = m.replace(/\br\s*\d\b/g, " ").replace(/round\s*\d/g, " ");
-    const numMatch = stripped.match(/(\d{1,3}(?:\.\d)?)/);
-    const n =
-      b.line != null
-        ? Math.floor(Number(b.line))
-        : numMatch
-          ? Math.floor(parseFloat(numMatch[1]))
-          : null;
-    if (n) market = `${round ? `R${round} ` : ""}Top ${n}`;
-  }
-
-  // Over/under props lose their side in the numeric `line` column, so
-  // rebuild an "O x" / "U x" line from the keyword in the market text.
-  const isOu = /\b(over|under|higher|lower)\b/.test(m) && b.line !== null;
-  const line = isOu
-    ? `${/\b(under|lower)\b/.test(m) ? "U" : "O"} ${b.line}`
-    : b.line !== null
-      ? String(b.line)
-      : String(b.american_odds);
-
-  return {
-    id: b.id,
-    player: b.player,
-    market,
-    line,
-    stake: Number(b.stake),
-    payout: Number(b.to_win),
-    round,
-    others,
-    opponent,
-  };
-}
-
 type ShotCounts = {
   fh: string | null;  // fairways hit / driving holes played, e.g. "4/5"
   gir: string | null; // greens in regulation / holes played
   scr: string | null; // up-and-downs / greens missed
+  // Numeric counts behind the strings, for grading FH/GIR prop bets.
+  fhHit: number | null;
+  girHit: number | null;
+  drivingPlayed: number;
+  played: number;
+  roundComplete: boolean;
 };
 
 type GradedLeg = {
@@ -182,18 +133,69 @@ function deriveShotCounts(
 
   const girCount = girFrac != null ? Math.round(girFrac * played) : null;
   const greensMissed = girCount != null ? played - girCount : null;
-
-  const fh =
+  const fhHit =
     accFrac != null && drivingPlayed > 0
-      ? `${Math.round(accFrac * drivingPlayed)}/${drivingPlayed}`
+      ? Math.round(accFrac * drivingPlayed)
       : null;
+
+  const fh = fhHit != null ? `${fhHit}/${drivingPlayed}` : null;
   const gir = girCount != null ? `${girCount}/${played}` : null;
   const scr =
     scrFrac != null && greensMissed != null && greensMissed > 0
       ? `${Math.round(scrFrac * greensMissed)}/${greensMissed}`
       : null;
 
-  return { fh, gir, scr };
+  return {
+    fh,
+    gir,
+    scr,
+    fhHit,
+    girHit: girCount,
+    drivingPlayed,
+    played,
+    roundComplete: round.complete || round.thru === 18,
+  };
+}
+
+// Grade a fairways-hit / greens-in-regulation OVER/UNDER prop live from
+// DataGolf-derived counts. ESPN's free feed has no FIR/GIR, but DataGolf
+// does, so these no longer need manual settlement. Returns null when the
+// market isn't an FH/GIR prop or we have no count yet (falls back to the
+// standard grader's message).
+function gradeShotProp(ob: OpenBet, shots: ShotCounts): Decision | null {
+  const m = ob.market.toLowerCase();
+  const isFairway = m.includes("fairway");
+  const isGir = m.includes("green") || /\bgir\b/.test(m);
+  if (!isFairway && !isGir) return null;
+
+  const observed = isFairway ? shots.fhHit : shots.girHit;
+  if (observed == null) return null;
+
+  const lineMatch = ob.line.match(/(\d+(?:\.\d+)?)/);
+  if (!lineMatch) return null;
+  const line = parseFloat(lineMatch[1]);
+  const side: "over" | "under" =
+    /^u/i.test(ob.line.trim()) || /\b(under|lower)\b/.test(m) ? "under" : "over";
+
+  const unit = isFairway ? "fairways" : "GIR";
+  const played = isFairway ? shots.drivingPlayed : shots.played;
+  const isFinal = shots.roundComplete;
+  const standing = String(observed);
+  const r = ob.round ? `R${ob.round} ` : "";
+
+  if (side === "over") {
+    if (observed > line)
+      return { bet: ob, status: "won", reason: `${r}${observed} ${unit} > ${line}`, observedValue: observed, standing, standingNote: unit, pnl: undefined };
+    if (isFinal)
+      return { bet: ob, status: "lost", reason: `${r}final ${observed} ${unit} ≤ ${line}`, observedValue: observed, standing, standingNote: unit };
+    return { bet: ob, status: "live", reason: `${r}${observed} ${unit} thru ${played}`, observedValue: observed, standing, standingNote: unit };
+  }
+  // under
+  if (observed > line)
+    return { bet: ob, status: "lost", reason: `${r}${observed} ${unit} over ${line}`, observedValue: observed, standing, standingNote: unit };
+  if (isFinal)
+    return { bet: ob, status: "won", reason: `${r}final ${observed} ${unit} < ${line}`, observedValue: observed, standing, standingNote: unit };
+  return { bet: ob, status: "live", reason: `${r}${observed} ${unit} thru ${played}`, observedValue: observed, standing, standingNote: unit };
 }
 
 // One-line shot summary for the shared image, mirroring the on-card
@@ -313,12 +315,21 @@ export default function MobileLivePage() {
   const graded: GradedLeg[] = (bets ?? []).map((b) => {
     const dg = statByName.get(normName(b.player)) ?? null;
     const lp = playerByName.get(normName(b.player)) ?? null;
+    const shots = deriveShotCounts(dg, lp?.todayLine, courseName);
+    const ob = dbBetToOpenBet(b);
+    let decision = snapshot ? gradeBet(ob, snapshot) : null;
+    // Fairways / GIR props aren't in ESPN's feed, so the base grader punts
+    // them to manual. We have the counts from DataGolf — grade them live.
+    if (decision && shots) {
+      const sp = gradeShotProp(ob, shots);
+      if (sp) decision = sp;
+    }
     return {
       bet: b,
-      decision: snapshot ? gradeBet(apiBetToOpenBet(b), snapshot) : null,
+      decision,
       dg,
       teeTime: lp?.teeTime ?? null,
-      shots: deriveShotCounts(dg, lp?.todayLine, courseName),
+      shots,
     };
   });
 

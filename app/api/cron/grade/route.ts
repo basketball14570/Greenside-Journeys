@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
 import { gradeAll, type OpenBet } from "@/lib/grading";
+import { dbBetToOpenBet } from "@/lib/bets/open-bet";
 import { DEMO_BETS } from "@/lib/demo-data";
 import { diffDecisions, renderAlertText } from "@/lib/notify/alerts";
 import { dispatchAll } from "@/lib/notify/webhooks";
@@ -69,7 +70,8 @@ export async function GET(req: Request) {
       first_run: firstRun,
       changed: changed.length,
       dispatched,
-      user_push: userPush,
+      user_push: userPush.push,
+      settled: userPush.settled,
     });
   } catch (err) {
     return NextResponse.json(
@@ -92,17 +94,18 @@ function escapeHtml(s: string): string {
 // grades each user's bets, diffs against the prior tick scoped by
 // user_id, and fires a web-push to that user for every transition.
 // No-ops cleanly when the service role key or push aren't configured.
-async function gradeAndPushUserBets(
-  snapshot: LeaderboardSnapshot,
-): Promise<{ users: number; transitions: number; pushed: number }> {
+async function gradeAndPushUserBets(snapshot: LeaderboardSnapshot): Promise<{
+  push: { users: number; transitions: number; pushed: number };
+  settled: number;
+}> {
   const admin = supabaseAdmin();
-  if (!admin) return { users: 0, transitions: 0, pushed: 0 };
+  if (!admin) return { push: { users: 0, transitions: 0, pushed: 0 }, settled: 0 };
 
   const { data, error } = await admin
     .from("bets")
     .select("id, user_id, player, market, line, american_odds, stake, to_win, status")
     .in("status", ["live", "pending"]);
-  if (error || !data) return { users: 0, transitions: 0, pushed: 0 };
+  if (error || !data) return { push: { users: 0, transitions: 0, pushed: 0 }, settled: 0 };
 
   const byUser = new Map<string, typeof data>();
   for (const row of data) {
@@ -113,18 +116,38 @@ async function gradeAndPushUserBets(
 
   let transitions = 0;
   let pushed = 0;
+  let settled = 0;
   const canPush = pushEnabled();
+  const now = new Date().toISOString();
 
   for (const [userId, rows] of byUser) {
-    const openBets: OpenBet[] = rows.map((r) => ({
-      id: r.id,
-      player: r.player,
-      market: r.market,
-      line: r.line !== null ? String(r.line) : "",
-      stake: Number(r.stake),
-      payout: Number(r.to_win),
-    }));
+    const rowById = new Map(rows.map((r) => [r.id, r]));
+    const openBets: OpenBet[] = rows.map((r) => dbBetToOpenBet(r));
     const report = gradeAll(openBets, snapshot);
+
+    // Persist any leg that reached a terminal state. The query above only
+    // pulls live/pending rows, so this is idempotent across ticks. A
+    // parlay leg settles independently; bankroll aggregates by parlay.
+    for (const d of report.decisions) {
+      if (!d.bet.id) continue;
+      if (d.status !== "won" && d.status !== "lost" && d.status !== "push") continue;
+      const row = rowById.get(d.bet.id);
+      if (!row) continue;
+      const resolved_payout =
+        d.status === "won"
+          ? Number(row.to_win)
+          : d.status === "push"
+            ? Number(row.stake)
+            : 0;
+      const status = d.status === "push" ? "void" : d.status;
+      const { error: upErr } = await admin
+        .from("bets")
+        .update({ status, resolved_at: now, resolved_payout })
+        .eq("id", d.bet.id)
+        .in("status", ["live", "pending"]);
+      if (!upErr) settled++;
+    }
+
     const { changed, firstRun } = diffDecisions(`user:${userId}`, report.decisions);
     if (changed.length === 0 || firstRun) continue;
     transitions += changed.length;
@@ -140,5 +163,5 @@ async function gradeAndPushUserBets(
     pushed += res.sent;
   }
 
-  return { users: byUser.size, transitions, pushed };
+  return { push: { users: byUser.size, transitions, pushed }, settled };
 }

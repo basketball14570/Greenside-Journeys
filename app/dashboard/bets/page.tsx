@@ -20,6 +20,7 @@ type RawBet = {
   status: string;
   resolved_at: string | null;
   resolved_payout: number | null;
+  placed_at: string | null;
   created_at: string;
 };
 
@@ -33,32 +34,57 @@ const BOOK_MAP: Record<string, Book> = {
   underdog: "UD",
 };
 
-function rawBetToHistoryBet(b: RawBet): HistoryBet {
-  const won = b.status === "won";
-  const explicit = b.resolved_payout;
-  const resolvedPayout =
-    typeof explicit === "number"
-      ? Number(explicit)
-      : won
-        ? Number(b.to_win)
-        : b.status === "lost"
-          ? -Number(b.stake)
-          : 0;
-  return {
-    book: (BOOK_MAP[b.book.toLowerCase()] ?? "DK") as Book,
-    player: b.player,
-    market: b.market,
-    line: b.line !== null ? String(b.line) : "",
-    stake: Number(b.stake),
-    payout: Number(b.to_win),
-    status: "graded",
-    live: { score: won ? "W" : "L", thru: "F" },
-    ev: 0,
-    won: won || undefined,
-    resolvedAt: b.resolved_at ?? b.created_at,
-    resolvedPayout,
-    tournament: "",
-  };
+// Collapse the user's rows into decided "tickets": parlay legs (sharing a
+// placed_at) become ONE ticket, so a 9-leg parlay counts once — net is
+// (to_win − stake) on a clean sweep, −stake if any leg lost — instead of
+// nine inflated rows. Singles map straight through. Net P&L is profit, not
+// gross return, so the cumulative chart and ROI read correctly.
+function settledHistoryFromRows(rows: RawBet[]): HistoryBet[] {
+  const groups = new Map<string, RawBet[]>();
+  for (const b of rows) {
+    const key = b.placed_at ?? b.id;
+    const arr = groups.get(key);
+    if (arr) arr.push(b);
+    else groups.set(key, [b]);
+  }
+
+  const out: HistoryBet[] = [];
+  for (const legs of groups.values()) {
+    const anyLost = legs.some((l) => l.status === "lost");
+    const allTerminal = legs.every(
+      (l) => l.status === "won" || l.status === "lost" || l.status === "void",
+    );
+    // Skip parlays/singles that aren't fully decided yet.
+    if (!anyLost && !allTerminal) continue;
+
+    const head = legs[0];
+    const stake = Number(head.stake);
+    const toWin = Number(head.to_win);
+    const won = !anyLost; // every leg won or voided
+    const net = won ? toWin - stake : -stake;
+    const multi = legs.length > 1;
+
+    out.push({
+      book: (BOOK_MAP[head.book.toLowerCase()] ?? "DK") as Book,
+      player: multi ? `${legs.length}-leg parlay` : head.player,
+      market: multi ? "Parlay" : head.market,
+      line: multi ? "" : head.line !== null ? String(head.line) : "",
+      stake,
+      payout: toWin,
+      status: "graded",
+      live: { score: won ? "W" : "L", thru: "F" },
+      ev: 0,
+      won: won || undefined,
+      resolvedAt:
+        legs.map((l) => l.resolved_at).filter(Boolean).sort().slice(-1)[0] ??
+        head.placed_at ??
+        head.created_at,
+      resolvedPayout: net,
+      tournament: "",
+    });
+  }
+  // Most recent first.
+  return out.sort((a, b) => (a.resolvedAt < b.resolvedAt ? 1 : -1));
 }
 import {
   groupBy,
@@ -105,9 +131,7 @@ export default function BetsPage() {
         if (!r.ok) return;
         const j = await r.json();
         if (cancelled || !j.signedIn || !Array.isArray(j.bets)) return;
-        const settled = (j.bets as RawBet[])
-          .filter((b) => b.status === "won" || b.status === "lost" || b.status === "void")
-          .map(rawBetToHistoryBet);
+        const settled = settledHistoryFromRows(j.bets as RawBet[]);
         if (settled.length > 0) setRealHistory(settled);
       } catch {
         /* fall through to demo */
@@ -136,6 +160,7 @@ export default function BetsPage() {
     () =>
       groupBy(settledSource, (b) => {
         const m = b.market.toLowerCase();
+        if (m.includes("parlay")) return "Parlay";
         if (m.includes("top")) return "Top finish";
         if (m.includes("matchup")) return "Matchup";
         if (m.includes("win")) return "To win";

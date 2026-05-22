@@ -59,6 +59,7 @@ UNDERDOG / PRIZEPICKS SHARE CARDS (player photos, big ↑/↓ arrows, "N correct
 - "Birdies or Better"  →  market "R1 birdies or better over" (↑) / "... under" (↓), line = the number.
 - "Bogeys or Worse"  →  market "R1 bogeys or worse under" (↓) / "... over" (↑), line = the number.
 - "Round Strokes"  →  market "R1 round score under" (↓) / "... over" (↑), line = the number.
+- OUTRIGHT WINNER picks — "Tournament Winner", "{Event} Winner 2026", "To Win the Tournament", "Winner" (often in a separate "Prediction" / "UD Predict" section, shown with NO slider/line and a single selected player) → market "Tournament Winner", line null, NO round prefix. These are outright tournament bets — never label them "Round Strokes", "round score", or any round prop.
 If a player name is truncated (e.g. "Rasmus Hojgaa…"), complete it to the full PGA Tour player name.
 
 PARLAY PAYOUT: if the slip is a parlay / pick-em with a total payout multiplier, set "parlayMultiplier" on EVERY leg to that multiplier:
