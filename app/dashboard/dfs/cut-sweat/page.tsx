@@ -296,6 +296,20 @@ export default function CutSweatPage() {
     return n;
   }, [golferStates, live]);
 
+  // How many DISTINCT golfers actually used across the field's lineups got a
+  // live score. Any unmatched golfer falls back to the (possibly stale) CSV
+  // FPTS, which under-scores every entry that holds them and throws off the
+  // re-ranked standings — this surfaces exactly which names to fix.
+  const fieldMatch = useMemo(() => {
+    if (!standings || !live) return null;
+    const liveSet = new Set((live.players ?? []).map((p) => normalizeName(p.name)));
+    const distinct = new Map<string, string>();
+    for (const e of standings.entries) for (const g of e.golfers) distinct.set(normalizeName(g), g);
+    const unmatched: string[] = [];
+    for (const [norm, disp] of distinct) if (!liveSet.has(norm)) unmatched.push(disp);
+    return { matched: distinct.size - unmatched.length, total: distinct.size, unmatched };
+  }, [standings, live]);
+
   const projected = useMemo(() => {
     if (!standings || !golferStates || !live || live.players.length === 0) return null;
     const tiers = parsePayoutStructure(ladderText);
@@ -679,6 +693,20 @@ export default function CutSweatPage() {
                       {live.realParHoles < 18 ? " (rest estimated — scores may be off)" : ""}
                     </span>
                   </>
+                )}
+              </p>
+            )}
+            {fieldMatch && (
+              <p className="num mb-3" style={{ fontSize: 11 }}>
+                <span style={{ color: fieldMatch.unmatched.length === 0 ? GREEN : "#c9a23a" }}>
+                  {fieldMatch.matched}/{fieldMatch.total} field golfers matched to live scores
+                </span>
+                {fieldMatch.unmatched.length > 0 && (
+                  <span className="text-text-muted">
+                    {" "}· unmatched (using CSV value, may skew ranks):{" "}
+                    {fieldMatch.unmatched.slice(0, 12).join(", ")}
+                    {fieldMatch.unmatched.length > 12 ? ` +${fieldMatch.unmatched.length - 12} more` : ""}
+                  </span>
                 )}
               </p>
             )}
