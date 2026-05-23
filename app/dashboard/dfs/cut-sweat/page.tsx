@@ -50,6 +50,14 @@ const RED = "#e5544b";
 
 const PRESETS_KEY = "cutSweat.contestPresets";
 
+// A Showdown contest is fixed to one round (its name usually says which, e.g.
+// "... (Round 3 TOUR)"). Parse it so we score that round even after the
+// tournament has moved on — never auto-jump to the live tournament round.
+function parseRoundFromName(name: string): number | null {
+  const m = name.match(/round\s*([1-4])\b/i) ?? name.match(/\(\s*r\s*([1-4])\b/i) ?? name.match(/\br([1-4])\b/i);
+  return m ? Number(m[1]) : null;
+}
+
 type ContestPreset = {
   id: string;
   name: string;
@@ -250,16 +258,19 @@ export default function CutSweatPage() {
     return currentRoi(mine, tiers, standings.tieCounts, Number(fee) || 0);
   }, [standings, ladderText, entries, username, fee]);
 
+  // The round actually scored: an explicit entry wins, else parse it from the
+  // contest name. Empty only when neither is available (then the server falls
+  // back to the live tournament round — fine for a current-round contest).
+  const effectiveRound = roundParam || (parseRoundFromName(presetName) ?? "");
+
   async function pullLive() {
     setLivePending(true);
     const qs = new URLSearchParams({ format });
-    if (roundParam) qs.set("round", roundParam);
+    if (effectiveRound) qs.set("round", String(effectiveRound));
     try {
       const r = await fetch(`/api/dfs/live-points?${qs}`, { cache: "no-store" });
       const data: LivePoints = await r.json();
       setLive(data);
-      // Showdown without a pinned round: reflect the round the server scored.
-      if (!roundParam && data.round != null) setRoundParam(String(data.round));
     } catch {
       setLive({ source: "error", players: [] });
     } finally {
@@ -665,7 +676,7 @@ export default function CutSweatPage() {
               </span>
               <div className="flex items-center gap-2">
                 <span className="num capitalize text-text-dim" style={{ fontSize: 11 }}>
-                  {format}{format === "showdown" && roundParam ? ` · R${roundParam}` : ""} scoring
+                  {format}{format === "showdown" && effectiveRound ? ` · R${effectiveRound}` : ""} scoring
                 </span>
                 <button
                   onClick={pullLive}
@@ -678,6 +689,13 @@ export default function CutSweatPage() {
               </div>
             </div>
 
+            {format === "showdown" && !effectiveRound && (
+              <p className="num mb-3" style={{ fontSize: 11, color: RED }}>
+                ⚠ No contest round set — scoring the live tournament round
+                {live?.round != null ? ` (R${live.round})` : ""}. If this is a past-round contest
+                (e.g. a Round 3 Showdown), set the round in step 1 above.
+              </p>
+            )}
             {live && live.players.length > 0 && (
               <p className="num text-text-dim mb-3" style={{ fontSize: 11 }}>
                 {live.event ?? "live"}
