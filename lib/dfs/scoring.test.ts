@@ -14,6 +14,32 @@ function round(toPars: number[], par = 4): HoleResult[] {
   return toPars.map((tp) => ({ strokes: par + tp, par }));
 }
 
+// Reconstructs real DK Showdown scorecards (THE CJ CUP Byron Nelson R3,
+// contest 190706927) from DK's own hole-count breakdown, proving the scoring
+// engine matches DK exactly. Any live mismatch is therefore a hole-DATA
+// problem (wrong par / missing hole), never the scoring math.
+describe("matches DraftKings Showdown FPTS exactly", () => {
+  const cases: { name: string; toPars: number[]; expected: number }[] = [
+    // 13 PAR, 4 BIR, 1 EAG, bogey-free (+5)
+    { name: "Hisatsune", toPars: [-1, 0, -1, 0, -1, 0, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0], expected: 58.5 },
+    // 13 PAR, 4 BIR, 1 BOG (no bonus)
+    { name: "Mitchell", toPars: [-1, 0, -1, 0, -1, 0, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], expected: 40.7 },
+    // 11 PAR, 5 BIR, 1 EAG, 1 BOG, 3-birdie streak (+5)
+    { name: "Clark", toPars: [-1, -1, -1, 0, -1, 0, -2, 0, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0], expected: 59.45 },
+    // 13 PAR, 2 BIR, 1 EAG, 1 BOG, 1 DBB
+    { name: "Smith", toPars: [-2, 0, -1, 0, -1, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0], expected: 36.3 },
+    // 11 PAR, 5 BIR, 2 BOG (no bonus)
+    { name: "Kirk", toPars: [-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 0], expected: 41.65 },
+    // 10 PAR, 5 BIR, 1 EAG, 1 BOG, 1 DBB
+    { name: "Fisk", toPars: [-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -2, 0, 1, 0, 2, 0, 0, 0], expected: 49.05 },
+  ];
+  for (const c of cases) {
+    it(`${c.name} → ${c.expected}`, () => {
+      expect(scorePlayer([round(c.toPars)], null, SHOWDOWN_SCORING)).toBe(c.expected);
+    });
+  }
+});
+
 describe("holePoints", () => {
   it("classifies by config", () => {
     expect(holePoints(-3, CLASSIC_SCORING.perHole)).toBe(13);

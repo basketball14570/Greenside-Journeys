@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchLeaderboard } from "@/lib/espn-leaderboard";
-import { holeParStrict } from "@/lib/data/course-pars";
+import { resolveCourseName, holeParStrict } from "@/lib/data/course-pars";
 import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
 import {
   playerLivePoints,
@@ -47,11 +47,18 @@ export async function GET(req: NextRequest) {
     // Field-derived par UNDERcounts par-5s (the field's modal score on a par-5
     // is often 4, a birdie), so it must rank below the real scorecard or live
     // points come out low. The course pars fix that.
-    const courseName = snap.event?.course ?? null;
+    // Resolve the course from BOTH the course field and the event name —
+    // ESPN often leaves `course` blank, but the event-name alias (e.g. "byron
+    // nelson" → TPC Craig Ranch) still finds the right scorecard.
+    const courseName = resolveCourseName(snap.event?.course, snap.event?.name);
     const coursePars: number[] = [];
+    let realParHoles = 0;
     for (let h = 1; h <= 18; h++) {
       const p = holeParStrict(courseName, h);
-      if (p) coursePars[h - 1] = p;
+      if (p) {
+        coursePars[h - 1] = p;
+        realParHoles++;
+      }
     }
     const derived = deriveHolePars(snap.players.flatMap(pickRounds));
     const holePars = mergeHolePars(
@@ -82,6 +89,11 @@ export async function GET(req: NextRequest) {
         format: fmt,
         round: effectiveRound,
         event: snap.event?.name ?? null,
+        course: courseName,
+        // How many of the 18 holes have a REAL scorecard par (vs field-derived).
+        // 18 means scoring is exact; below 18 means some holes fell back to the
+        // unreliable field-derived par and recomputed points may be off.
+        realParHoles,
         state: snap.event?.state ?? null,
         // 1.0 means every played hole was scoreable; well below 1 means the
         // feed lacks hole pars and recomputed points are unreliable.

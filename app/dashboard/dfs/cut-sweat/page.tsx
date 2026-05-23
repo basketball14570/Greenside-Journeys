@@ -29,9 +29,11 @@ import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
 type LivePoints = {
   source: string;
   event?: string | null;
+  course?: string | null;
   state?: string | null;
   round?: number | null;
   parCoverage?: number | null;
+  realParHoles?: number | null;
   players: { name: string; points: number; thru?: number | null }[];
 };
 
@@ -664,10 +666,20 @@ export default function CutSweatPage() {
 
             {live && live.players.length > 0 && (
               <p className="num text-text-dim mb-3" style={{ fontSize: 11 }}>
-                {live.event ?? "live"} · projecting from CSV points + live pace ·{" "}
+                {live.event ?? "live"}
+                {live.course ? ` · ${live.course}` : ""} ·{" "}
                 <span style={{ color: matchedGolfers > 0 ? GREEN : "#c9a23a" }}>
-                  {matchedGolfers} golfers with live holes-played
+                  {matchedGolfers} golfers live
                 </span>
+                {live.realParHoles != null && (
+                  <>
+                    {" · "}
+                    <span style={{ color: live.realParHoles === 18 ? GREEN : RED }}>
+                      {live.realParHoles}/18 holes on real scorecard par
+                      {live.realParHoles < 18 ? " (rest estimated — scores may be off)" : ""}
+                    </span>
+                  </>
+                )}
               </p>
             )}
             {live && live.players.length === 0 && (
