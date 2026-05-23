@@ -401,8 +401,18 @@ function ParlayGroup({
   const combined = hasRealPayout
     ? storedPayout / storedStake
     : legs.reduce((acc, g) => acc * americanToDecimal(g.bet.american_odds), 1);
-  const payout10 = hasRealPayout ? storedPayout : 10 * combined;
   const stakeShown = hasRealPayout ? storedStake : 10;
+  // Stake is editable inline — handy when no real wager was captured and we
+  // defaulted to $10. Editing recomputes to-win at the same odds.
+  const [customStake, setCustomStake] = useState<number | null>(null);
+  const [editingStake, setEditingStake] = useState(false);
+  const stakeVal = customStake ?? stakeShown;
+  const payoutVal = stakeVal * combined;
+  function commitStake(raw: string) {
+    const n = Number(raw);
+    setCustomStake(Number.isFinite(n) && n > 0 ? n : null);
+    setEditingStake(false);
+  }
 
   // Parlay status — all legs must hit, so one loss busts the ticket.
   const lost = legs.filter((l) => l.decision?.status === "lost").length;
@@ -430,8 +440,8 @@ function ParlayGroup({
       legCount: legs.length,
       book: first.book,
       combinedX: combined,
-      stake: stakeShown,
-      payout: payout10,
+      stake: stakeVal,
+      payout: payoutVal,
       statusText,
       statusColor,
       legs: shareLegs,
@@ -471,7 +481,43 @@ function ParlayGroup({
               {first.book.toUpperCase()}
               {when ? ` · ${when}` : ""} · {combined.toFixed(1)}x ·{" "}
               <span style={{ color: "#8ee68e" }}>
-                ${stakeShown.toLocaleString()} → ${payout10.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                {editingStake ? (
+                  <input
+                    type="number"
+                    autoFocus
+                    min={1}
+                    defaultValue={stakeVal}
+                    onBlur={(e) => commitStake(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitStake(e.currentTarget.value);
+                      if (e.key === "Escape") setEditingStake(false);
+                    }}
+                    className="num"
+                    style={{
+                      width: 60,
+                      background: "#0c0f0c",
+                      border: "1px solid rgba(142,230,142,0.5)",
+                      borderRadius: 4,
+                      color: "#8ee68e",
+                      padding: "0 4px",
+                      fontSize: 11.5,
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingStake(true)}
+                    title="Edit stake"
+                    style={{
+                      color: "#8ee68e",
+                      textDecoration: "underline dotted",
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    ${stakeVal.toLocaleString()}
+                  </button>
+                )}
+                {" → "}${payoutVal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>
