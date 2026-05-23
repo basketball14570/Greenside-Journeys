@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchLeaderboard } from "@/lib/espn-leaderboard";
 import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
-import { playerLivePoints, parCoverage } from "@/lib/dfs/live-points";
+import { playerLivePoints, parCoverage, fillHolePars } from "@/lib/dfs/live-points";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,11 +20,13 @@ export async function GET(req: NextRequest) {
   try {
     const snap = await fetchLeaderboard();
     const isFinal = snap.event?.state === "post";
+    const holePars = snap.event?.holePars ?? [];
     let withStrokes = 0;
     let scoreable = 0;
 
     const players = snap.players.map((p) => {
-      const rounds = onlyRound ? p.rounds.filter((r) => r.period === onlyRound) : p.rounds;
+      const picked = onlyRound ? p.rounds.filter((r) => r.period === onlyRound) : p.rounds;
+      const rounds = fillHolePars(picked, holePars);
       const cov = parCoverage(rounds);
       withStrokes += cov.holesWithStrokes;
       scoreable += cov.holesScoreable;

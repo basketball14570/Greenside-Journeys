@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { roundsToHoleResults, parCoverage, playerLivePoints } from "./live-points";
+import { roundsToHoleResults, parCoverage, playerLivePoints, fillHolePars } from "./live-points";
 import { CLASSIC_SCORING } from "./scoring";
 import type { RoundLine } from "@/lib/espn-leaderboard";
 
@@ -18,6 +18,30 @@ describe("roundsToHoleResults", () => {
   it("flattens RoundLine holes into per-round hole results", () => {
     const r = mkRound(1, [{ strokes: 3, par: 4 }, { strokes: 4, par: 4 }]);
     expect(roundsToHoleResults([r])).toEqual([[{ strokes: 3, par: 4 }, { strokes: 4, par: 4 }]]);
+  });
+});
+
+describe("fillHolePars", () => {
+  it("backfills missing hole pars from the course map, lifting coverage", () => {
+    const r = mkRound(1, [
+      { strokes: 3, par: null }, // hole 1, par missing
+      { strokes: 4, par: null }, // hole 2, par missing
+    ]);
+    expect(parCoverage([r]).holesScoreable).toBe(0);
+    const filled = fillHolePars([r], [4, 4]); // course pars for holes 1,2
+    expect(parCoverage(filled).holesScoreable).toBe(2);
+    expect(filled[0].holes[0].par).toBe(4);
+  });
+
+  it("does not overwrite a par ESPN already supplied", () => {
+    const r = mkRound(1, [{ strokes: 3, par: 5 }]);
+    const filled = fillHolePars([r], [4]);
+    expect(filled[0].holes[0].par).toBe(5);
+  });
+
+  it("is a no-op with no course pars", () => {
+    const r = mkRound(1, [{ strokes: 3, par: null }]);
+    expect(fillHolePars([r], [])).toEqual([r]);
   });
 });
 

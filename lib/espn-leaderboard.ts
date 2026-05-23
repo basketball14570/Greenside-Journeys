@@ -49,6 +49,7 @@ export type LeaderboardSnapshot = {
     period: number;            // current active round
     course: string | null;
     coursePar: number | null;
+    holePars: number[];        // per-hole par, index 0 = hole 1 ([] if absent)
     location: string | null;
   } | null;
   players: LeaderboardPlayer[];
@@ -99,6 +100,20 @@ function coursePar(event: any): number | null {
     if (sum > 50 && sum < 80) return sum;
   }
   return null;
+}
+
+// Per-hole par for the course (index 0 = hole 1). Static for the event, so
+// it backfills hole pars that ESPN omits from individual player linescores.
+function extractHolePars(courseRec: any): number[] {
+  const holes = courseRec?.holes;
+  if (!Array.isArray(holes)) return [];
+  const pars: number[] = [];
+  holes.forEach((h: any, idx: number) => {
+    const num = Number(h?.number ?? h?.period ?? idx + 1);
+    const par = Number(h?.par);
+    if (num >= 1 && num <= 18 && Number.isFinite(par)) pars[num - 1] = par;
+  });
+  return pars;
 }
 
 function pickEvent(json: any) {
@@ -244,6 +259,7 @@ export async function fetchLeaderboard(signal?: AbortSignal): Promise<Leaderboar
       period,
       course: courseRec?.name || null,
       coursePar: par,
+      holePars: extractHolePars(courseRec),
       location:
         comp?.venue?.fullName ||
         comp?.venue?.address?.city ||

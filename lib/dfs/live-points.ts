@@ -11,6 +11,19 @@ export function roundsToHoleResults(rounds: RoundLine[]): HoleResult[][] {
   return rounds.map((r) => r.holes.map((h) => ({ strokes: h.strokes, par: h.par })));
 }
 
+// Backfill hole pars ESPN omitted from player linescores using the course's
+// static per-hole par (index 0 = hole 1). Big driver of par coverage.
+export function fillHolePars(rounds: RoundLine[], holePars: number[]): RoundLine[] {
+  if (!holePars.length) return rounds;
+  return rounds.map((r) => ({
+    ...r,
+    holes: r.holes.map((h) => ({
+      ...h,
+      par: h.par ?? (holePars[h.hole - 1] ?? null),
+    })),
+  }));
+}
+
 export type ParCoverage = { holesWithStrokes: number; holesScoreable: number };
 
 // How many played holes also carry a par (and are therefore scoreable). A

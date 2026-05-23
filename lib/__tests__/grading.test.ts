@@ -72,6 +72,7 @@ function snapshot(
       period: override.period ?? 2,
       course: override.course ?? null,
       coursePar: override.coursePar ?? 72,
+      holePars: override.holePars ?? [],
       location: override.location ?? null,
     },
     players,
