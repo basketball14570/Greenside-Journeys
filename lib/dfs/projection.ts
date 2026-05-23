@@ -14,12 +14,35 @@ export type GolferState = {
   holesRemaining: number;
 };
 
-// Mean projected final = current + pace * holes left. With no holes played we
-// can't infer a pace, so we hold at current points.
-export function projectGolferFinal(s: GolferState): number {
-  if (s.holesPlayed < 1) return s.points;
-  const pace = s.points / s.holesPlayed;
-  return +(s.points + pace * Math.max(0, s.holesRemaining)).toFixed(2);
+// Mean projected final = current points + an estimated pace over the holes
+// left. The pace is SHRUNK toward a baseline (the field's average pts/hole)
+// using `priorHoles` pseudo-holes, so a golfer thru only 2-3 holes doesn't
+// extrapolate a hot start into an absurd projection. As real holes pile up,
+// the estimate converges on the golfer's true pace.
+export function projectGolferFinal(
+  s: GolferState,
+  opts?: { priorPace?: number; priorHoles?: number },
+): number {
+  const remaining = Math.max(0, s.holesRemaining);
+  if (remaining <= 0) return +s.points.toFixed(2);
+  const priorPace = opts?.priorPace ?? 2.0;
+  const priorHoles = opts?.priorHoles ?? 6;
+  const played = Math.max(0, s.holesPlayed);
+  const effPace = (s.points + priorPace * priorHoles) / (played + priorHoles);
+  return +(s.points + effPace * remaining).toFixed(2);
+}
+
+// Field-average pace (pts per hole played) — the baseline to shrink toward.
+export function fieldAveragePace(states: Iterable<GolferState>): number {
+  let pts = 0;
+  let holes = 0;
+  for (const s of states) {
+    if (s.holesPlayed > 0) {
+      pts += s.points;
+      holes += s.holesPlayed;
+    }
+  }
+  return holes > 0 ? pts / holes : 2.0;
 }
 
 // Small, fast, seedable PRNG so simulations are reproducible.
@@ -63,11 +86,12 @@ export function winProbability(
   const rng = mulberry32(opts.seed ?? 0x9e3779b9);
   const topN = opts.topN ?? 300;
 
+  const priorPace = fieldAveragePace(states.values());
   const mean = new Map<string, number>();
   const sdFinal = new Map<string, number>();
   let totalHolesRemaining = 0;
   for (const [name, s] of states) {
-    mean.set(name, projectGolferFinal(s));
+    mean.set(name, projectGolferFinal(s, { priorPace }));
     sdFinal.set(name, sd * Math.sqrt(Math.max(0, s.holesRemaining)));
     totalHolesRemaining += Math.max(0, s.holesRemaining);
   }

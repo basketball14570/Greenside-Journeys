@@ -1,22 +1,48 @@
 import { describe, it, expect } from "vitest";
-import { projectGolferFinal, mulberry32, winProbability, type GolferState } from "./projection";
+import {
+  projectGolferFinal,
+  fieldAveragePace,
+  mulberry32,
+  winProbability,
+  type GolferState,
+} from "./projection";
 import { normalizeName } from "./cut-sweat";
 import type { StandingEntry } from "./payouts";
 
 describe("projectGolferFinal", () => {
-  it("extrapolates current points by pace over holes left", () => {
-    // 100 pts thru 13 (5 left) → pace 7.69 → ~138.5
-    expect(projectGolferFinal({ points: 100, holesPlayed: 13, holesRemaining: 5 })).toBeCloseTo(138.46, 1);
+  it("adds shrunk pace over the holes left", () => {
+    // 100 pts thru 13 (5 left), default prior 2.0/6: effPace=(100+12)/19=5.89
+    // → 100 + 5.89*5 = 129.5
+    expect(projectGolferFinal({ points: 100, holesPlayed: 13, holesRemaining: 5 })).toBeCloseTo(129.47, 1);
   });
 
-  it("the user's scenario: fewer points + more holes can project higher", () => {
-    const a = projectGolferFinal({ points: 100, holesPlayed: 13, holesRemaining: 5 });
-    const b = projectGolferFinal({ points: 99, holesPlayed: 10, holesRemaining: 8 });
-    expect(b).toBeGreaterThan(a); // 99 with 8 to play out-projects 100 with 5
+  it("shrinks a small-sample hot start toward the baseline", () => {
+    // Thru 3 holes, 30 pts (raw pace 10/hole) — must NOT extrapolate ~180.
+    const hot = projectGolferFinal({ points: 30, holesPlayed: 3, holesRemaining: 15 }, { priorPace: 2 });
+    const naive = 30 + (30 / 3) * 15; // 180
+    expect(hot).toBeLessThan(120); // heavily regressed
+    expect(hot).toBeLessThan(naive - 60);
   });
 
-  it("holds at current points when no holes are played", () => {
-    expect(projectGolferFinal({ points: 0, holesPlayed: 0, holesRemaining: 18 })).toBe(0);
+  it("trusts pace more once many holes are in the books", () => {
+    // Thru 15 (3 left): the estimate is close to the real pace.
+    const p = projectGolferFinal({ points: 45, holesPlayed: 15, holesRemaining: 3 }, { priorPace: 2 });
+    expect(p).toBeGreaterThan(45); // still adds for remaining holes
+    expect(p).toBeLessThan(45 + (45 / 15) * 3 + 1); // not above naive
+  });
+
+  it("returns current points when the round is done", () => {
+    expect(projectGolferFinal({ points: 60, holesPlayed: 18, holesRemaining: 0 })).toBe(60);
+  });
+});
+
+describe("fieldAveragePace", () => {
+  it("is total points over total holes played", () => {
+    const states: GolferState[] = [
+      { points: 40, holesPlayed: 10, holesRemaining: 8 },
+      { points: 20, holesPlayed: 10, holesRemaining: 8 },
+    ];
+    expect(fieldAveragePace(states)).toBeCloseTo(3, 5); // 60 / 20
   });
 });
 
