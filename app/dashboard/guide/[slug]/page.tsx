@@ -1,20 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
-  getCourseGuide,
-  COURSE_GUIDE_LIST,
   type CourseGuide,
   type DriverTier,
   type HoleGuide,
   type BettingAngle,
 } from "@/lib/course-guides";
+import { getGuide } from "@/lib/course-guides/store";
 
-export function generateStaticParams() {
-  return COURSE_GUIDE_LIST.map((g) => ({ slug: g.slug }));
-}
+export const dynamic = "force-dynamic";
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  const g = getCourseGuide(params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const g = await getGuide(params.slug);
   if (!g) return { title: "Course Guide · Greenside" };
   return {
     title: `${g.courseName} · ${g.tournament} · Greenside`,
@@ -22,8 +19,8 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   };
 }
 
-export default function CourseGuidePage({ params }: { params: { slug: string } }) {
-  const guide = getCourseGuide(params.slug);
+export default async function CourseGuidePage({ params }: { params: { slug: string } }) {
+  const guide = await getGuide(params.slug);
   if (!guide) return notFound();
 
   return (

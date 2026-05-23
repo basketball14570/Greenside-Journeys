@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { COURSE_GUIDE_LIST, currentWeekGuide } from "@/lib/course-guides";
+import { listGuides, currentGuide } from "@/lib/course-guides/store";
 
 export const metadata = {
   title: "Course Guides · Greenside",
 };
 
-export default function GuideIndex() {
-  const current = currentWeekGuide();
+export const dynamic = "force-dynamic";
+
+export default async function GuideIndex() {
+  const [current, guideList] = await Promise.all([currentGuide(), listGuides()]);
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-5xl mx-auto">
       <header>
@@ -84,7 +86,7 @@ export default function GuideIndex() {
         </section>
       )}
 
-      {COURSE_GUIDE_LIST.length > 1 && (
+      {guideList.length > 1 && (
         <section>
           <div
             className="num font-semibold uppercase text-text-muted mb-3"
@@ -93,7 +95,7 @@ export default function GuideIndex() {
             ● Archive
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            {COURSE_GUIDE_LIST.filter((g) => g.slug !== current?.slug).map((g) => (
+            {guideList.filter((g) => g.slug !== current?.slug).map((g) => (
               <Link
                 key={g.slug}
                 href={`/dashboard/guide/${g.slug}`}

@@ -20,28 +20,35 @@ export const COURSE_GUIDE_LIST: CourseGuide[] = Object.values(COURSE_GUIDES).sor
 // starts within the next 7 days, OR is already in-progress. Falls back
 // to the chronologically nearest guide so the surface always renders
 // something useful.
-export function currentWeekGuide(now: Date = new Date()): CourseGuide | null {
-  if (COURSE_GUIDE_LIST.length === 0) return null;
+export function pickCurrentGuide(
+  list: CourseGuide[],
+  now: Date = new Date(),
+): CourseGuide | null {
+  if (list.length === 0) return null;
+  const sorted = [...list].sort((a, b) =>
+    a.tournamentStartsAt.localeCompare(b.tournamentStartsAt),
+  );
   const t = now.getTime();
   const WEEK = 7 * 24 * 60 * 60 * 1000;
-  // Tournament-active: started ≤ 4d ago, hasn't ended (assume 4-day event).
-  const active = COURSE_GUIDE_LIST.find((g) => {
+  const active = sorted.find((g) => {
     const start = new Date(g.tournamentStartsAt).getTime();
     return start <= t && t - start <= 4.5 * 24 * 60 * 60 * 1000;
   });
   if (active) return active;
-  // Upcoming within the next 7 days.
-  const upcoming = COURSE_GUIDE_LIST.find((g) => {
+  const upcoming = sorted.find((g) => {
     const start = new Date(g.tournamentStartsAt).getTime();
     return start > t && start - t <= WEEK;
   });
   if (upcoming) return upcoming;
-  // Fallback: nearest by absolute distance.
-  return [...COURSE_GUIDE_LIST].sort((a, b) => {
+  return [...sorted].sort((a, b) => {
     const da = Math.abs(new Date(a.tournamentStartsAt).getTime() - t);
     const db = Math.abs(new Date(b.tournamentStartsAt).getTime() - t);
     return da - db;
   })[0];
+}
+
+export function currentWeekGuide(now: Date = new Date()): CourseGuide | null {
+  return pickCurrentGuide(COURSE_GUIDE_LIST, now);
 }
 
 export function getCourseGuide(slug: string): CourseGuide | null {
