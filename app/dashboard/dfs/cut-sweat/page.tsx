@@ -363,25 +363,23 @@ export default function CutSweatPage() {
           Your entries are matched {entries.length > 0 ? "by Entry ID from the file above" : "by your DK username"}.
         </p>
 
-        {/* Saved contest presets — store the payout ladder so it isn't re-pasted each time */}
-        <div className="mb-4 rounded-[10px] border border-line bg-bg p-3">
-          <div className="flex items-center justify-between mb-2">
+        {/* Saved contests — load a stored setup (CSV is still re-uploaded fresh each round) */}
+        {presets.length > 0 && (
+          <div className="mb-4">
             <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 9.5, letterSpacing: 1.2 }}>
-              ● Saved contests
+              ● Saved contests · tap to load
             </span>
-          </div>
-          {presets.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {presets.map((p) => (
                 <span
                   key={p.id}
-                  className="num inline-flex items-center gap-1.5 rounded-[6px] border border-line px-2 py-1"
-                  style={{ fontSize: 11 }}
+                  className="num inline-flex items-center gap-1.5 rounded-[6px] border border-line-strong bg-bg px-2.5 py-1.5"
+                  style={{ fontSize: 11.5 }}
                 >
                   <button
                     onClick={() => applyPreset(p.id)}
-                    className="text-text hover:text-[var(--green,#2faa5f)]"
-                    title="Load this payout ladder"
+                    className="text-text hover:text-[#2faa5f]"
+                    title="Load this contest's fee, payout ladder, format and round"
                   >
                     {p.name}
                   </button>
@@ -389,58 +387,47 @@ export default function CutSweatPage() {
                     onClick={() => deletePreset(p.id)}
                     className="text-text-muted hover:text-[#e5544b]"
                     title="Delete preset"
-                    style={{ fontSize: 13, lineHeight: 1 }}
+                    style={{ fontSize: 14, lineHeight: 1 }}
                   >
                     ×
                   </button>
                 </span>
               ))}
             </div>
-          ) : (
-            <p className="text-text-dim mb-2" style={{ fontSize: 11 }}>
-              Paste a payout ladder below, name it, and save — e.g. “PGA TOUR Showdown $70K Sand Trap [$20K to 1st] (R3)”.
-            </p>
-          )}
-          <div className="flex gap-2">
-            <input
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveCurrentPreset();
-              }}
-              placeholder="Name this contest to save…"
-              className="num rounded-[8px] border border-line bg-surface-1 px-3 py-1.5 text-text flex-1"
-              style={{ fontSize: 12 }}
-            />
-            <button
-              onClick={saveCurrentPreset}
-              disabled={!presetName.trim() || !ladderText.trim()}
-              className="num rounded-[8px] border border-line px-3 py-1.5 hover:border-line-strong disabled:opacity-40"
-              style={{ fontSize: 12 }}
-            >
-              Save current
-            </button>
           </div>
-        </div>
+        )}
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <label className="inline-flex items-center gap-2 rounded-[8px] border border-line px-3 py-2 cursor-pointer hover:border-line-strong" style={{ fontSize: 13 }}>
+        {/* One setup: upload CSV → name + fee → payout → save & it runs automatically */}
+        <div className="space-y-4">
+          <div>
+            <SetupStep n={1} label="Upload this contest's standings CSV" />
+            <label className="inline-flex items-center gap-2 rounded-[8px] border border-line-strong px-3 py-2 cursor-pointer hover:border-[#2faa5f]" style={{ fontSize: 13 }}>
               <input type="file" accept=".csv,text/csv" onChange={onStandings} className="hidden" />
               {standingsName ? `📄 ${standingsName}` : "Choose standings CSV…"}
             </label>
             {standings && (
-              <div className="num text-text-dim" style={{ fontSize: 12 }}>
+              <span className="num text-text-dim ml-3" style={{ fontSize: 12 }}>
                 {standings.entries.length.toLocaleString()} entries in field
-              </div>
+              </span>
             )}
-            <div className="flex gap-2">
+          </div>
+
+          <div>
+            <SetupStep n={2} label="Name this contest + entry fee" />
+            <div className="flex gap-2 flex-wrap">
+              <input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="Contest name (e.g. PGA TOUR Showdown $70K Sand Trap [$20K to 1st] R3)"
+                className="num rounded-[8px] border border-line-strong bg-bg px-3 py-2 text-text flex-1 min-w-[240px] placeholder:text-text-muted focus:outline-none focus:border-[#2faa5f]"
+                style={{ fontSize: 13 }}
+              />
               <input
                 value={fee}
                 onChange={(e) => setFee(e.target.value)}
-                placeholder="Entry fee $"
+                placeholder="Fee $"
                 inputMode="decimal"
-                className="num rounded-[8px] border border-line bg-bg px-3 py-2 text-text w-32"
+                className="num rounded-[8px] border border-line-strong bg-bg px-3 py-2 text-text w-24 placeholder:text-text-muted focus:outline-none focus:border-[#2faa5f]"
                 style={{ fontSize: 13 }}
               />
               {entries.length === 0 && (
@@ -448,20 +435,47 @@ export default function CutSweatPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="DK username"
-                  className="num rounded-[8px] border border-line bg-bg px-3 py-2 text-text flex-1"
+                  className="num rounded-[8px] border border-line-strong bg-bg px-3 py-2 text-text w-40 placeholder:text-text-muted focus:outline-none focus:border-[#2faa5f]"
                   style={{ fontSize: 13 }}
                 />
               )}
             </div>
           </div>
-          <textarea
-            value={ladderText}
-            onChange={(e) => setLadderText(e.target.value)}
-            placeholder={"Paste payout ladder, e.g.\n1st\n$200,000\n2nd\n$75,000\n7th - 8th\n$4,000"}
-            rows={5}
-            className="num rounded-[8px] border border-line bg-bg px-3 py-2 text-text"
-            style={{ fontSize: 12 }}
-          />
+
+          <div>
+            <SetupStep n={3} label="Paste the payout structure" />
+            <textarea
+              value={ladderText}
+              onChange={(e) => setLadderText(e.target.value)}
+              placeholder={"1st\n$20,000\n2nd\n$10,000\n7th - 8th\n$1,000"}
+              rows={4}
+              className="num rounded-[8px] border border-line-strong bg-bg px-3 py-2 text-text w-full placeholder:text-text-muted focus:outline-none focus:border-[#2faa5f]"
+              style={{ fontSize: 12 }}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={saveCurrentPreset}
+              disabled={!presetName.trim() || !ladderText.trim()}
+              className="num rounded-[8px] px-5 py-2.5 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                fontSize: 13,
+                background: !presetName.trim() || !ladderText.trim() ? "transparent" : GREEN,
+                color: !presetName.trim() || !ladderText.trim() ? "#8a8f98" : "#0a1f12",
+                border: `1px solid ${!presetName.trim() || !ladderText.trim() ? "#3a3f48" : GREEN}`,
+              }}
+            >
+              Save contest
+            </button>
+            <span className="num text-text-muted" style={{ fontSize: 11 }}>
+              {!presetName.trim() || !ladderText.trim()
+                ? "Add a name + payout structure to save."
+                : standings
+                  ? "Saved contests reload instantly — results update automatically below."
+                  : "Saved. Upload the standings CSV above and ROI runs automatically."}
+            </span>
+          </div>
         </div>
 
         {roi && (
@@ -762,6 +776,22 @@ export default function CutSweatPage() {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+function SetupStep({ n, label }: { n: number; label: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-1.5">
+      <span
+        className="num inline-flex items-center justify-center rounded-full font-semibold"
+        style={{ width: 18, height: 18, fontSize: 10.5, background: "rgba(47,170,95,0.18)", color: GREEN }}
+      >
+        {n}
+      </span>
+      <span className="num uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.1 }}>
+        {label}
+      </span>
     </div>
   );
 }
