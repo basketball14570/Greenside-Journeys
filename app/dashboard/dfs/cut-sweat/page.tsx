@@ -30,6 +30,7 @@ type LivePoints = {
   source: string;
   event?: string | null;
   state?: string | null;
+  round?: number | null;
   parCoverage?: number | null;
   players: { name: string; points: number; thru?: number | null }[];
 };
@@ -187,7 +188,10 @@ export default function CutSweatPage() {
     if (roundParam) qs.set("round", roundParam);
     try {
       const r = await fetch(`/api/dfs/live-points?${qs}`, { cache: "no-store" });
-      setLive(await r.json());
+      const data: LivePoints = await r.json();
+      setLive(data);
+      // Showdown without a pinned round: reflect the round the server scored.
+      if (!roundParam && data.round != null) setRoundParam(String(data.round));
     } catch {
       setLive({ source: "error", players: [] });
     } finally {
@@ -195,15 +199,14 @@ export default function CutSweatPage() {
     }
   }
 
-  // Per-golfer state for projections: CURRENT points come from the standings
-  // CSV's FPTS column (DK-official, and the names match the lineup column
-  // exactly); HOLES PLAYED come from ESPN's live `thru` (no hole-par needed).
-  // This is why projections work even when ESPN omits hole pars.
+  // Per-golfer state for projections. CURRENT points come from the standings
+  // CSV's FPTS column — DK's official score for THIS contest's exact format and
+  // round (Showdown = one round, Classic = cumulative), so we never have to
+  // re-derive scoring. ESPN supplies only HOLES PLAYED, for pace. Live recompute
+  // is used only as a fallback for golfers whose CSV FPTS is still 0 (CSV
+  // exported at lock, before any points accrued).
   const golferStates = useMemo(() => {
     if (!standings) return null;
-    // Live points (computed from ESPN holes) are always fresh, so prefer them
-    // — this works even when the CSV was exported at lock (FPTS all 0). Fall
-    // back to the CSV's FPTS for any golfer ESPN hasn't listed.
     const liveByName = new Map<string, { points: number; thru: number }>();
     for (const p of live?.players ?? [])
       liveByName.set(normalizeName(p.name), { points: p.points, thru: p.thru ?? 18 });
@@ -211,8 +214,9 @@ export default function CutSweatPage() {
     for (const pl of standings.players) {
       const key = normalizeName(pl.name);
       const l = liveByName.get(key);
-      const points = l ? l.points : pl.fpts;
-      const thru = l ? l.thru : 18; // unknown → treat as done
+      // Official CSV points first; live recompute only fills in a 0 (lock export).
+      const points = pl.fpts > 0 ? pl.fpts : l ? l.points : 0;
+      const thru = l ? l.thru : 18; // no live hole data → treat round as done
       states.set(key, { points, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
     }
     return states;
@@ -400,14 +404,46 @@ export default function CutSweatPage() {
         {/* One setup: upload CSV → name + fee → payout → save & it runs automatically */}
         <div className="space-y-4">
           <div>
-            <SetupStep n={1} label="Upload this contest's standings CSV" />
-            <label className="inline-flex items-center gap-2 rounded-[8px] border border-line-strong px-3 py-2 cursor-pointer hover:border-[#2faa5f]" style={{ fontSize: 13 }}>
-              <input type="file" accept=".csv,text/csv" onChange={onStandings} className="hidden" />
-              {standingsName ? `📄 ${standingsName}` : "Choose standings CSV…"}
-            </label>
+            <SetupStep n={1} label="Upload standings CSV + pick the scoring format" />
+            <div className="flex gap-2 flex-wrap items-center">
+              <label className="inline-flex items-center gap-2 rounded-[8px] border border-line-strong px-3 py-2 cursor-pointer hover:border-[#2faa5f]" style={{ fontSize: 13 }}>
+                <input type="file" accept=".csv,text/csv" onChange={onStandings} className="hidden" />
+                {standingsName ? `📄 ${standingsName}` : "Choose standings CSV…"}
+              </label>
+              {/* Format drives the live-scoring engine: Showdown = single round
+                  (DK Showdown points), Classic = cumulative across rounds. */}
+              <div className="inline-flex rounded-[8px] border border-line-strong overflow-hidden" style={{ fontSize: 12 }}>
+                {(["classic", "showdown"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFormat(f)}
+                    className="num px-3 py-2 capitalize"
+                    style={{
+                      background: format === f ? GREEN : "transparent",
+                      color: format === f ? "#0a1f12" : "#8a8f98",
+                      fontWeight: format === f ? 600 : 400,
+                    }}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+              {format === "showdown" && (
+                <input
+                  value={roundParam}
+                  onChange={(e) => setRoundParam(e.target.value)}
+                  placeholder="Round #"
+                  inputMode="numeric"
+                  className="num rounded-[8px] border border-line-strong bg-bg px-3 py-2 text-text w-24 placeholder:text-text-muted focus:outline-none focus:border-[#2faa5f]"
+                  style={{ fontSize: 13 }}
+                  title="Which round this Showdown contest scores"
+                />
+              )}
+            </div>
             {standings && (
-              <span className="num text-text-dim ml-3" style={{ fontSize: 12 }}>
+              <span className="num text-text-dim" style={{ fontSize: 12 }}>
                 {standings.entries.length.toLocaleString()} entries in field
+                {format === "showdown" ? " · scored as a single Showdown round" : " · scored cumulative (Classic)"}
               </span>
             )}
           </div>
@@ -515,29 +551,13 @@ export default function CutSweatPage() {
                 ● Projected ROI · where it&apos;s heading
               </span>
               <div className="flex items-center gap-2">
-                <select
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value as "classic" | "showdown")}
-                  className="num rounded-[8px] border border-line bg-bg px-2 py-1.5 text-text"
-                  style={{ fontSize: 12 }}
-                >
-                  <option value="classic">Classic</option>
-                  <option value="showdown">Showdown</option>
-                </select>
-                {format === "showdown" && (
-                  <input
-                    value={roundParam}
-                    onChange={(e) => setRoundParam(e.target.value)}
-                    placeholder="Rd"
-                    inputMode="numeric"
-                    className="num rounded-[8px] border border-line bg-bg px-2 py-1.5 text-text w-14"
-                    style={{ fontSize: 12 }}
-                  />
-                )}
+                <span className="num capitalize text-text-dim" style={{ fontSize: 11 }}>
+                  {format}{format === "showdown" && roundParam ? ` · R${roundParam}` : ""} scoring
+                </span>
                 <button
                   onClick={pullLive}
                   disabled={livePending}
-                  className="num rounded-[8px] border border-line px-3 py-1.5 hover:border-line-strong disabled:opacity-50"
+                  className="num rounded-[8px] border border-line-strong px-3 py-1.5 hover:border-[#2faa5f] disabled:opacity-50"
                   style={{ fontSize: 12 }}
                 >
                   {livePending ? "Pulling…" : "Pull live scores"}

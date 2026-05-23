@@ -26,8 +26,18 @@ export async function GET(req: NextRequest) {
   try {
     const snap = await fetchLeaderboard();
     const isFinal = snap.event?.state === "post";
+
+    // Showdown is a single-round contest. If the caller didn't pin a round,
+    // default to the latest round any golfer has started — otherwise we'd sum
+    // every round's points, which massively inflates Showdown scores and breaks
+    // the field ranking. Classic stays cumulative (all rounds) by design.
+    let effectiveRound = onlyRound;
+    if (effectiveRound === null && fmt === "showdown") {
+      const periods = snap.players.flatMap((p) => p.rounds.map((r) => r.period));
+      effectiveRound = periods.length ? Math.max(...periods) : null;
+    }
     const pickRounds = (p: (typeof snap.players)[number]) =>
-      onlyRound ? p.rounds.filter((r) => r.period === onlyRound) : p.rounds;
+      effectiveRound ? p.rounds.filter((r) => r.period === effectiveRound) : p.rounds;
 
     // Per-hole par: prefer ESPN's course pars, fall back to pars derived from
     // the whole field's scores (modal stroke per hole). This is what lets us
@@ -56,6 +66,7 @@ export async function GET(req: NextRequest) {
       {
         source: "espn",
         format: fmt,
+        round: effectiveRound,
         event: snap.event?.name ?? null,
         state: snap.event?.state ?? null,
         // 1.0 means every played hole was scoreable; well below 1 means the
