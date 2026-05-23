@@ -14,8 +14,18 @@ export type DkEntry = {
 export function normalizeName(s: string): string {
   const base = s
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[̀-ͯ]/g, "") // strip combining diacritics (é → e)
     .toLowerCase()
+    // Standalone Latin letters that don't decompose under NFD — map to ASCII
+    // so "Højgaard"/"Olesen" match "Hojgaard"/"Olesen" from a DK export.
+    .replace(/ø/g, "o")
+    .replace(/ł/g, "l")
+    .replace(/æ/g, "ae")
+    .replace(/œ/g, "oe")
+    .replace(/ð/g, "d")
+    .replace(/þ/g, "th")
+    .replace(/ß/g, "ss")
+    .replace(/[ıİ]/g, "i")
     .replace(/[^a-z\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();

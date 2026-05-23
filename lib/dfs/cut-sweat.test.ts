@@ -44,6 +44,13 @@ describe("normalizeName", () => {
     expect(normalizeName("Si Woo Kim")).toBe("si woo kim");
     expect(normalizeName("Scottie Scheffler")).toBe("scottie scheffler");
   });
+
+  it("maps special Latin letters so ESPN ø/accents match a DK export", () => {
+    expect(normalizeName("Rasmus Højgaard")).toBe(normalizeName("Rasmus Hojgaard"));
+    expect(normalizeName("Thorbjørn Olesen")).toBe(normalizeName("Thorbjorn Olesen"));
+    expect(normalizeName("Højgaard")).toBe("hojgaard");
+    expect(normalizeName("Ludvig Åberg")).toBe(normalizeName("Ludvig Aberg"));
+  });
 });
 
 describe("survivalDistribution", () => {
