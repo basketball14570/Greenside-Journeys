@@ -18,7 +18,12 @@ import {
   projectedRoi,
   type ContestStandings,
 } from "@/lib/dfs/payouts";
-import { winProbability, projectGolferFinal, type GolferState } from "@/lib/dfs/projection";
+import {
+  winProbability,
+  projectGolferFinal,
+  fieldAveragePace,
+  type GolferState,
+} from "@/lib/dfs/projection";
 import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
 
 type LivePoints = {
@@ -160,9 +165,11 @@ export default function CutSweatPage() {
     if (!standings || !golferStates || !live || live.players.length === 0) return null;
     const tiers = parsePayoutStructure(ladderText);
     if (tiers.length === 0) return null;
-    // Pace-project each golfer's final, then re-rank the field on projections.
+    // Pace-project each golfer's final (pace shrunk toward field average),
+    // then re-rank the field on projections.
+    const priorPace = fieldAveragePace(golferStates.values());
     const pts = new Map<string, number>();
-    for (const [name, st] of golferStates) pts.set(name, projectGolferFinal(st));
+    for (const [name, st] of golferStates) pts.set(name, projectGolferFinal(st, { priorPace }));
     const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
     const res = projectedRoi(
       standings.entries,
@@ -424,14 +431,38 @@ export default function CutSweatPage() {
                   {projected.detail
                     .slice()
                     .sort((a, b) => a.rank - b.rank)
-                    .map((d) => (
-                      <div key={d.entryId} className="flex items-center justify-between rounded-[8px] border border-line px-3 py-1.5 bg-bg num" style={{ fontSize: 12 }}>
-                        <span className="text-text-dim truncate">proj #{d.rank.toLocaleString()} · {d.entryName}</span>
-                        <span style={{ color: d.prize > 0 ? GREEN : "#8a8f98", fontWeight: 600 }}>
-                          {d.prize > 0 ? `$${d.prize.toLocaleString()}` : "—"}
-                        </span>
-                      </div>
-                    ))}
+                    .map((d) => {
+                      const ent = standings?.entries.find((e) => e.entryId === d.entryId);
+                      const prior = golferStates ? fieldAveragePace(golferStates.values()) : 2;
+                      return (
+                        <div key={d.entryId} className="rounded-[8px] border border-line bg-bg" style={{ fontSize: 12 }}>
+                          <div className="flex items-center justify-between px-3 py-1.5 num">
+                            <span className="text-text-dim truncate">proj #{d.rank.toLocaleString()} · {d.entryName}</span>
+                            <span style={{ color: d.prize > 0 ? GREEN : "#8a8f98", fontWeight: 600 }}>
+                              {d.prize > 0 ? `$${d.prize.toLocaleString()}` : "—"}
+                            </span>
+                          </div>
+                          {ent && golferStates && (
+                            <div className="px-3 pb-2 pt-0.5 border-t border-line/60">
+                              {ent.golfers.map((g) => {
+                                const st = golferStates.get(normalizeName(g));
+                                if (!st) return null;
+                                const proj = projectGolferFinal(st, { priorPace: prior });
+                                return (
+                                  <div key={g} className="flex items-center justify-between num text-text-dim" style={{ fontSize: 10.5, padding: "1px 0" }}>
+                                    <span className="truncate" style={{ maxWidth: "55%" }}>{g}</span>
+                                    <span>
+                                      {st.points.toFixed(1)} pt · thru {st.holesPlayed} ({st.holesRemaining} left) →{" "}
+                                      <span className="text-text" style={{ fontWeight: 600 }}>{proj.toFixed(1)}</span>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
                 {projected.unmatchedGolfers.length > 0 && (
                   <p className="text-text-dim mt-2" style={{ fontSize: 11 }}>
