@@ -33,7 +33,7 @@ export const COURSE_HOLE_PARS: Record<string, HolePar> = {
   "East Lake Golf Club": [4, 5, 4, 3, 4, 3, 4, 4, 4, 4, 4, 3, 5, 4, 4, 3, 4, 5],
   "Sea Island Golf Club": [4, 4, 4, 5, 3, 5, 4, 4, 3, 4, 4, 3, 4, 4, 4, 3, 4, 4],
   "Caves Valley": [4, 5, 4, 4, 4, 3, 4, 3, 5, 4, 3, 4, 5, 4, 4, 3, 4, 4],
-  "TPC Craig Ranch": [4, 4, 4, 3, 5, 4, 3, 4, 4, 4, 5, 4, 3, 4, 4, 3, 4, 4],
+  "TPC Craig Ranch": [4, 4, 4, 3, 5, 4, 3, 4, 5, 4, 4, 5, 4, 4, 3, 4, 3, 4],
   "Memorial Park Golf Course": [4, 4, 4, 3, 5, 4, 3, 4, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5],
 };
 
