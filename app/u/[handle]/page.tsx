@@ -8,6 +8,7 @@ import {
   cumulativeSeries,
   type RawBetRow,
 } from "@/lib/bets/performance";
+import { clvSummary } from "@/lib/bets/clv";
 import { BrandMark } from "@/components/edge/primitives";
 
 export const runtime = "nodejs";
@@ -31,18 +32,23 @@ async function loadProfile(handle: string) {
   const { data: bets } = await admin
     .from("bets")
     .select(
-      "id, player, market, book, line, stake, to_win, status, placed_at, resolved_at, created_at",
+      "id, player, market, book, line, stake, to_win, status, american_odds, closing_odds, placed_at, resolved_at, created_at",
     )
     .eq("user_id", profile.id)
     .in("status", ["won", "lost", "void", "push"]);
 
-  const tickets = settledTickets((bets ?? []) as RawBetRow[]);
+  const rows = (bets ?? []) as (RawBetRow & {
+    american_odds: number;
+    closing_odds: number | null;
+  })[];
+  const tickets = settledTickets(rows);
   return {
     handle: profile.public_handle as string,
     tickets,
     summary: summarize(tickets),
     byBook: breakdownBy(tickets, "book"),
     series: cumulativeSeries(tickets),
+    clv: clvSummary(rows),
   };
 }
 
@@ -107,6 +113,21 @@ export default async function PublicProfilePage({
             </section>
 
             <Sparkline series={p.series} pos={pos} />
+
+            {p.clv.graded > 0 && (
+              <section className="grid grid-cols-2 gap-3">
+                <Stat
+                  label="Beat the close"
+                  value={`${(p.clv.beatRate * 100).toFixed(0)}%`}
+                  tone={p.clv.beatRate >= 0.5 ? "pos" : "neg"}
+                />
+                <Stat
+                  label={`Avg CLV (${p.clv.graded} futures)`}
+                  value={`${p.clv.avgClvPct >= 0 ? "+" : ""}${(p.clv.avgClvPct * 100).toFixed(1)}%`}
+                  tone={p.clv.avgClvPct >= 0 ? "pos" : "neg"}
+                />
+              </section>
+            )}
 
             <section>
               <div className="num font-semibold uppercase text-text-muted mb-2" style={{ fontSize: 10, letterSpacing: 1.4 }}>
