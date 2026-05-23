@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/course-guide",
       "schedule": "0 23 * * 0"
+    },
+    {
+      "path": "/api/cron/tee-reminders",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
