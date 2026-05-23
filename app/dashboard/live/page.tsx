@@ -408,14 +408,28 @@ function ParlayGroup({
   const [editingStake, setEditingStake] = useState(false);
   const stakeVal = customStake ?? stakeShown;
   const payoutVal = stakeVal * combined;
-  // The $10 is a placeholder, not a real wager, whenever no payout was
-  // captured OR it's a parlay (the save path always normalizes parlays to
-  // a $10 stake — see api/bets/save). Those are the only editable slips.
-  const stakeIsDefault = !hasRealPayout || (multi && storedStake === 10);
+  // Parlays never carry a real captured wager (the save path normalizes to
+  // a $10 stake), so their stake is always user-editable — including after
+  // a previous edit. Singles stay static once a real payout is captured.
+  const stakeIsDefault = multi || !hasRealPayout;
   function commitStake(raw: string) {
     const n = Number(raw);
-    setCustomStake(Number.isFinite(n) && n > 0 ? n : null);
     setEditingStake(false);
+    if (!Number.isFinite(n) || n <= 0) {
+      setCustomStake(null);
+      return;
+    }
+    setCustomStake(n);
+    // Persist to every leg so the edit survives a reload.
+    void fetch("/api/bets/stake", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ids: legs.map((l) => l.bet.id),
+        stake: n,
+        to_win: Number((n * combined).toFixed(2)),
+      }),
+    });
   }
 
   // Parlay status — all legs must hit, so one loss busts the ticket.
