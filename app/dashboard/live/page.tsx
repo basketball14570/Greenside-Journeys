@@ -481,7 +481,7 @@ function ParlayGroup({
               {first.book.toUpperCase()}
               {when ? ` · ${when}` : ""} · {combined.toFixed(1)}x ·{" "}
               <span style={{ color: "#8ee68e" }}>
-                {editingStake ? (
+                {!hasRealPayout && editingStake ? (
                   <input
                     type="number"
                     autoFocus
@@ -503,7 +503,7 @@ function ParlayGroup({
                       fontSize: 11.5,
                     }}
                   />
-                ) : (
+                ) : !hasRealPayout ? (
                   <button
                     type="button"
                     onClick={() => setEditingStake(true)}
@@ -516,6 +516,8 @@ function ParlayGroup({
                   >
                     ${stakeVal.toLocaleString()}
                   </button>
+                ) : (
+                  `$${stakeVal.toLocaleString()}`
                 )}
                 {" → "}${payoutVal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </span>
