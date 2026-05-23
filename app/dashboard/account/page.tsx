@@ -218,6 +218,8 @@ export default function AccountPage() {
 
       <ForwardingAddress />
 
+      <PublicProfileCard />
+
       {/* Push permission */}
       <div className="rounded-[14px] bg-surface-1 border border-line p-5">
         {pushStatus && (
@@ -561,6 +563,111 @@ function ForwardingAddress() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function PublicProfileCard() {
+  const [handle, setHandle] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/account/profile", { cache: "no-store" });
+        const j = await r.json();
+        if (j.handle) setHandle(j.handle);
+        setIsPublic(!!j.public);
+      } catch {
+        /* not signed in / unconfigured */
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  async function save(next: { handle?: string; public?: boolean }) {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/account/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        setMsg(j.error ?? "Couldn't save.");
+        return false;
+      }
+      if (next.public !== undefined) setIsPublic(next.public);
+      setMsg("Saved.");
+      setTimeout(() => setMsg(null), 1800);
+      return true;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div
+            className="serif-italic mb-1 text-text"
+            style={{ fontSize: 18, letterSpacing: -0.2, fontStyle: "normal" }}
+          >
+            Public profile
+          </div>
+          <p className="text-text-dim" style={{ fontSize: 13 }}>
+            Share a verified track record at <code className="num">/u/&lt;handle&gt;</code>.
+            Settled record + ROI only — never your stakes or personal info.
+          </p>
+        </div>
+        <Toggle on={isPublic} onClick={() => save({ public: !isPublic })} />
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        <span className="num text-text-dim" style={{ fontSize: 13 }}>
+          /u/
+        </span>
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value.toLowerCase())}
+          placeholder="your-handle"
+          spellCheck={false}
+          className="num flex-1 rounded-[8px] border border-line bg-bg px-3 py-2 text-text"
+          style={{ fontSize: 13 }}
+        />
+        <button
+          onClick={() => save({ handle })}
+          disabled={saving || !loaded || handle.length < 3}
+          className="rounded-[6px] px-3 py-2 border border-line hover:border-line-strong disabled:opacity-40"
+          style={{ fontSize: 12 }}
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+
+      {msg && (
+        <p className="mt-2 text-text-dim" style={{ fontSize: 12 }}>
+          {msg}
+        </p>
+      )}
+      {isPublic && handle.length >= 3 && (
+        <a
+          href={`/u/${handle}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-block"
+          style={{ fontSize: 12, color: "#8ee68e" }}
+        >
+          View public profile →
+        </a>
+      )}
     </div>
   );
 }
