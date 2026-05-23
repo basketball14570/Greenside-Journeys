@@ -29,6 +29,66 @@ export async function getLiveLeaderboard(tourCode = "pga"): Promise<DGLeaderboar
   return json.data ?? [];
 }
 
+// Live cut projection from the same /preds/in-play feed: each player's
+// make-cut probability plus the projected cut line. The in-play payload
+// carries far more than getLiveLeaderboard exposes; this reads the cut
+// fields. Probabilities are normalized to 0..1. When DataGolf doesn't
+// surface an explicit cut line we derive one as the worst (highest) score
+// still projected to make the cut.
+export type DGCutPlayer = {
+  name: string;
+  makeCut: number; // 0..1
+  scoreToPar: number | null;
+  thru: number | null;
+};
+export type DGCutProjection = {
+  cutLine: number | null; // to-par
+  lastUpdate: string | null;
+  round: number | null;
+  players: DGCutPlayer[];
+};
+
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace("+", ""));
+  return Number.isFinite(n) ? n : null;
+}
+function normProb(v: unknown): number {
+  const n = toNum(v);
+  if (n === null) return 0;
+  const p = n > 1 ? n / 100 : n; // accept 0..1 or 0..100
+  return Math.min(1, Math.max(0, p));
+}
+
+export async function getLiveCutProjection(tourCode = "pga"): Promise<DGCutProjection> {
+  const url = `${BASE}/preds/in-play?tour=${tourCode}&file_format=json&key=${key()}`;
+  const res = await fetch(url, { next: { revalidate: 60 } });
+  if (!res.ok) throw new Error(`DataGolf in-play failed: ${res.status}`);
+  const json = await res.json();
+  const rows: Record<string, unknown>[] = json.data ?? [];
+  const players: DGCutPlayer[] = rows.map((r) => ({
+    name: String(r.player_name ?? ""),
+    makeCut: normProb(r.make_cut),
+    scoreToPar: toNum(r.current_score),
+    thru: toNum(r.thru),
+  }));
+
+  const info = (json.info ?? {}) as Record<string, unknown>;
+  let cutLine = toNum(info.cut_line ?? (json as Record<string, unknown>).cut_line);
+  if (cutLine === null) {
+    const projectedIn = players.filter((p) => p.makeCut >= 0.5 && p.scoreToPar !== null);
+    cutLine = projectedIn.length
+      ? Math.max(...projectedIn.map((p) => p.scoreToPar as number))
+      : null;
+  }
+  return {
+    cutLine,
+    lastUpdate: (info.last_updated as string) ?? null,
+    round: toNum(info.current_round),
+    players,
+  };
+}
+
 // Live tournament stats — refreshed every few minutes during play.
 // Returns per-player accuracy (driving accuracy / FH%), GIR%, SG by
 // category, distance, scrambling, and proximity. Used by the Live tab

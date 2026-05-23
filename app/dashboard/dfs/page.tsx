@@ -48,6 +48,13 @@ export default function DfsPage() {
             wired. The ownership database is real.
           </p>
         </div>
+        <Link
+          href="/dashboard/dfs/cut-sweat"
+          className="num rounded-[8px] border border-line px-3 py-2 hover:border-line-strong shrink-0"
+          style={{ fontSize: 12.5 }}
+        >
+          Cut sweat →
+        </Link>
       </header>
 
       {/* Sample lineup summary */}
