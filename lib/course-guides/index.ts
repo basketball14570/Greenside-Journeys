@@ -1,5 +1,6 @@
 import type { CourseGuide } from "./types";
 import { TPC_CRAIG_RANCH } from "./tpc-craig-ranch";
+import { COLONIAL_COUNTRY_CLUB } from "./colonial-country-club";
 
 export type { CourseGuide, DriverTier, HoleGuide, BettingAngle } from "./types";
 
@@ -8,6 +9,7 @@ export type { CourseGuide, DriverTier, HoleGuide, BettingAngle } from "./types";
 // automatically via currentWeekGuide().
 export const COURSE_GUIDES: Record<string, CourseGuide> = {
   [TPC_CRAIG_RANCH.slug]: TPC_CRAIG_RANCH,
+  [COLONIAL_COUNTRY_CLUB.slug]: COLONIAL_COUNTRY_CLUB,
 };
 
 export const COURSE_GUIDE_LIST: CourseGuide[] = Object.values(COURSE_GUIDES).sort(
