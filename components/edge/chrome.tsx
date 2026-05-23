@@ -256,6 +256,7 @@ const PRIMARY_TABS = [
 // the top-level click still works.
 const DFS_TABS = [
   { label: "Optimizer", href: "/dashboard/dfs" },
+  { label: "Cut Sweat", href: "/dashboard/dfs/cut-sweat" },
   { label: "Ownership", href: "/dashboard/ownership" },
 ];
 

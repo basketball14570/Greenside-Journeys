@@ -18,13 +18,14 @@ import {
   projectedRoi,
   type ContestStandings,
 } from "@/lib/dfs/payouts";
+import { winProbability, type GolferState } from "@/lib/dfs/projection";
 
 type LivePoints = {
   source: string;
   event?: string | null;
   state?: string | null;
   parCoverage?: number | null;
-  players: { name: string; points: number }[];
+  players: { name: string; points: number; thru?: number | null }[];
 };
 
 type Projection = {
@@ -129,6 +130,36 @@ export default function CutSweatPage() {
     );
     return res.entries > 0 ? res : null;
   }, [standings, live, ladderText, entries, username, fee]);
+
+  // Showdown win probability: extrapolate each golfer's pace over holes left
+  // and Monte-Carlo the rest of the round. Only meaningful for single-round.
+  const winProb = useMemo(() => {
+    if (format !== "showdown" || !standings || !live || live.players.length === 0) return null;
+    const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
+    const wantUser = username ? normalizeName(username.replace(/\s*\(.*$/, "")) : null;
+    const myIds = new Set(
+      standings.entries
+        .filter((e) =>
+          entryIds.size > 0
+            ? entryIds.has(e.entryId)
+            : wantUser
+              ? normalizeName(e.entryName.replace(/\s*\(.*$/, "")) === wantUser
+              : false,
+        )
+        .map((e) => e.entryId),
+    );
+    if (myIds.size === 0) return null;
+    const states = new Map<string, GolferState>();
+    for (const p of live.players) {
+      const played = p.thru ?? 0;
+      states.set(normalizeName(p.name), {
+        points: p.points,
+        holesPlayed: played,
+        holesRemaining: Math.max(0, 18 - played),
+      });
+    }
+    return winProbability(standings.entries, states, { myIds, sims: 1500 });
+  }, [format, standings, live, entries, username]);
 
   const lookup: CutLookup = useMemo(() => {
     const m: CutLookup = new Map();
@@ -374,6 +405,47 @@ export default function CutSweatPage() {
                   </p>
                 )}
               </>
+            )}
+
+            {winProb && (
+              <div className="mt-4 pt-3 border-t border-line">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.4 }}>
+                    ● Chance of winning · pace-adjusted
+                  </span>
+                  <span className="num text-text-dim" style={{ fontSize: 11 }}>
+                    {winProb.totalHolesRemaining} golfer-holes left
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <RoiStat
+                    label="Win (any entry)"
+                    value={`${(winProb.anyMine * 100).toFixed(1)}%`}
+                    tone={winProb.anyMine > 0 ? "pos" : undefined}
+                  />
+                </div>
+                <div className="mt-3 space-y-1">
+                  {[...winProb.perEntry.entries()]
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([id, p]) => {
+                      const entry = standings?.entries.find((e) => e.entryId === id);
+                      return (
+                        <div key={id} className="flex items-center justify-between rounded-[8px] border border-line px-3 py-1.5 bg-bg num" style={{ fontSize: 12 }}>
+                          <span className="text-text-dim truncate">
+                            proj #{winProb.projectedRank.get(id)?.toLocaleString() ?? "?"} · {entry?.entryName ?? id}
+                          </span>
+                          <span style={{ color: p > 0.01 ? GREEN : "#8a8f98", fontWeight: 600 }}>
+                            {(p * 100).toFixed(1)}% win
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+                <p className="text-text-muted mt-2" style={{ fontSize: 10.5 }}>
+                  Projects each golfer&apos;s points-per-hole over their remaining holes, then simulates the rest of the
+                  round 1,500×. Most reliable late, when fewer holes remain.
+                </p>
+              </div>
             )}
           </div>
         )}
