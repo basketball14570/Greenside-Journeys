@@ -84,6 +84,7 @@ export default function CutSweatPage() {
   const [loading, setLoading] = useState(true);
   const [standings, setStandings] = useState<ContestStandings | null>(null);
   const [standingsName, setStandingsName] = useState<string | null>(null);
+  const [standingsCsv, setStandingsCsv] = useState("");
   const [ladderText, setLadderText] = useState("");
   const [fee, setFee] = useState("");
   const [username, setUsername] = useState("");
@@ -93,10 +94,72 @@ export default function CutSweatPage() {
   const [livePending, setLivePending] = useState(false);
   const [presets, setPresets] = useState<ContestPreset[]>([]);
   const [presetName, setPresetName] = useState("");
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharePending, setSharePending] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
 
   useEffect(() => {
     setPresets(loadPresets());
   }, []);
+
+  // Open a shared contest from ?contest=<id> — populates everything except the
+  // visitor's username, so they just type their DK name to see their ROI.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("contest");
+    if (!id) return;
+    fetch(`/api/dfs/contests/${id}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+      .then((c) => {
+        setPresetName(c.name ?? "");
+        setLadderText(c.payoutLadder ?? "");
+        setFee(c.fee != null ? String(c.fee) : "");
+        setFormat(c.format === "showdown" ? "showdown" : "classic");
+        setRoundParam(c.round != null ? String(c.round) : "");
+        if (c.standingsCsv) {
+          setStandingsCsv(c.standingsCsv);
+          setStandings(parseStandingsCsv(c.standingsCsv));
+          setStandingsName(`${c.name} (shared)`);
+        }
+        setLoadedFrom(c.name ?? id);
+      })
+      .catch(() => setShareError("That shared contest link wasn't found."));
+  }, []);
+
+  async function shareContest() {
+    if (!standingsCsv || !presetName.trim() || !ladderText.trim()) return;
+    setSharePending(true);
+    setShareError(null);
+    try {
+      const r = await fetch("/api/dfs/contests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: presetName.trim(),
+          fee: fee ? Number(fee) : null,
+          format,
+          round: roundParam ? Number(roundParam) : null,
+          payoutLadder: ladderText,
+          eventName: live?.event ?? null,
+          standingsCsv,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        setShareError(j.error === "not signed in" ? "Sign in to publish a shareable link." : j.error ?? "Share failed.");
+        return;
+      }
+      const url = `${window.location.origin}${window.location.pathname}?contest=${j.id}`;
+      setShareUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {}
+    } catch {
+      setShareError("Share failed — check your connection.");
+    } finally {
+      setSharePending(false);
+    }
+  }
 
   function persistPresets(next: ContestPreset[]) {
     setPresets(next);
@@ -165,8 +228,11 @@ export default function CutSweatPage() {
   async function onStandings(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    const text = await f.text();
     setStandingsName(f.name);
-    setStandings(parseStandingsCsv(await f.text()));
+    setStandingsCsv(text);
+    setStandings(parseStandingsCsv(text));
+    setShareUrl(null); // a new CSV needs a fresh share link
   }
 
   const roi = useMemo(() => {
@@ -367,6 +433,17 @@ export default function CutSweatPage() {
           Your entries are matched {entries.length > 0 ? "by Entry ID from the file above" : "by your DK username"}.
         </p>
 
+        {loadedFrom && (
+          <div className="mb-4 rounded-[10px] border border-[#2faa5f] bg-bg px-3 py-2.5">
+            <div className="num font-semibold" style={{ fontSize: 12, color: GREEN }}>
+              Shared contest loaded · {loadedFrom}
+            </div>
+            <p className="text-text-dim mt-0.5" style={{ fontSize: 11.5 }}>
+              Field and payouts are pre-filled. Just enter your DK username below to see your ROI.
+            </p>
+          </div>
+        )}
+
         {/* Saved contests — load a stored setup (CSV is still re-uploaded fresh each round) */}
         {presets.length > 0 && (
           <div className="mb-4">
@@ -504,14 +581,36 @@ export default function CutSweatPage() {
             >
               Save contest
             </button>
+            <button
+              onClick={shareContest}
+              disabled={sharePending || !standingsCsv || !presetName.trim() || !ladderText.trim()}
+              className="num rounded-[8px] border border-line-strong px-4 py-2.5 hover:border-[#2faa5f] disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ fontSize: 13 }}
+              title="Publish a link anyone can open and just type their username"
+            >
+              {sharePending ? "Publishing…" : "Share link"}
+            </button>
             <span className="num text-text-muted" style={{ fontSize: 11 }}>
               {!presetName.trim() || !ladderText.trim()
-                ? "Add a name + payout structure to save."
-                : standings
-                  ? "Saved contests reload instantly — results update automatically below."
-                  : "Saved. Upload the standings CSV above and ROI runs automatically."}
+                ? "Add a name + payout structure to save or share."
+                : !standingsCsv
+                  ? "Save stores it in this browser; upload a CSV to publish a share link."
+                  : "Save = this browser. Share link = anyone can open it and type their username."}
             </span>
           </div>
+
+          {shareUrl && (
+            <div className="rounded-[8px] border border-[#2faa5f] bg-bg px-3 py-2" style={{ fontSize: 12 }}>
+              <span className="num text-text-dim">Share link (copied):</span>{" "}
+              <a href={shareUrl} className="num" style={{ color: GREEN, wordBreak: "break-all" }}>{shareUrl}</a>
+              <p className="num text-text-muted mt-1" style={{ fontSize: 10.5 }}>
+                Anyone who opens this sees the field + payouts pre-loaded and just types their DK username.
+              </p>
+            </div>
+          )}
+          {shareError && (
+            <p className="num" style={{ fontSize: 11, color: RED }}>{shareError}</p>
+          )}
         </div>
 
         {roi && (
