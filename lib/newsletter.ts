@@ -7,6 +7,14 @@
 
 import { buildPreviewAsync } from "@/lib/preview";
 import { listPreviewable } from "@/lib/preview";
+import { currentGuide } from "@/lib/course-guides/store";
+
+export type GuideHighlight = {
+  slug: string;
+  tldr: string;
+  opportunityHoles: number[];
+  penaltyHoles: number[];
+};
 
 export type NewsletterSection = {
   tournament: string;
@@ -15,6 +23,7 @@ export type NewsletterSection = {
   weather: string;
   topFits: { player: string; rationale: string; edge: number }[];
   primaryAngle: { title: string; body: string } | null;
+  guide?: GuideHighlight | null;
 };
 
 export type Newsletter = {
@@ -25,12 +34,24 @@ export type Newsletter = {
   sections: NewsletterSection[];
 };
 
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 export async function buildDailyDigest(): Promise<Newsletter> {
   const items = listPreviewable();
+  const guide = await currentGuide().catch(() => null);
   const sections: NewsletterSection[] = [];
   for (const item of items) {
     const preview = await buildPreviewAsync(item.slug);
     if (!preview) continue;
+    const matchedGuide =
+      guide && norm(guide.tournament) === norm(preview.tournament)
+        ? {
+            slug: guide.slug,
+            tldr: guide.tldr,
+            opportunityHoles: guide.opportunityHoles,
+            penaltyHoles: guide.penaltyHoles,
+          }
+        : null;
     sections.push({
       tournament: preview.tournament,
       course: preview.snapshot.name,
@@ -42,6 +63,7 @@ export async function buildDailyDigest(): Promise<Newsletter> {
         edge: f.windAdjusted,
       })),
       primaryAngle: preview.angles[0] ?? null,
+      guide: matchedGuide,
     });
   }
   const today = new Date();
@@ -90,6 +112,17 @@ export function renderMarkdown(nl: Newsletter): string {
       lines.push(`**Angle: ${s.primaryAngle.title}**`);
       lines.push(s.primaryAngle.body);
     }
+    if (s.guide) {
+      lines.push("");
+      lines.push(`**Course guide** — ${s.guide.tldr}`);
+      if (s.guide.opportunityHoles.length) {
+        lines.push(`- Scoring holes: ${s.guide.opportunityHoles.join(", ")}`);
+      }
+      if (s.guide.penaltyHoles.length) {
+        lines.push(`- Danger holes: ${s.guide.penaltyHoles.join(", ")}`);
+      }
+      lines.push(`- Full breakdown: /dashboard/guide/${s.guide.slug}`);
+    }
     lines.push("");
     lines.push(`---`);
     lines.push("");
@@ -116,12 +149,21 @@ export function renderHtml(nl: Newsletter): string {
       const angle = s.primaryAngle
         ? `<p><strong>Angle: ${escapeHtml(s.primaryAngle.title)}</strong><br/>${escapeHtml(s.primaryAngle.body)}</p>`
         : "";
+      const guide = s.guide
+        ? `<p style="background:#f4f7f4;border-left:3px solid #8ee68e;padding:8px 12px">
+            <strong>Course guide</strong> — ${escapeHtml(s.guide.tldr)}<br/>
+            ${s.guide.opportunityHoles.length ? `Scoring holes: ${s.guide.opportunityHoles.join(", ")}<br/>` : ""}
+            ${s.guide.penaltyHoles.length ? `Danger holes: ${s.guide.penaltyHoles.join(", ")}<br/>` : ""}
+            <a href="/dashboard/guide/${escapeHtml(s.guide.slug)}">Read the full breakdown →</a>
+          </p>`
+        : "";
       return `
         <h2 style="margin-top:32px;font-family:Georgia,serif;font-style:italic">${escapeHtml(s.tournament)}</h2>
         <p style="color:#555"><strong>${escapeHtml(s.course)}</strong> — <em>${escapeHtml(s.headline)}</em></p>
         <p><strong>Conditions:</strong> ${escapeHtml(s.weather)}</p>
         <ul>${fits}</ul>
         ${angle}
+        ${guide}
         <hr style="border:0;border-top:1px solid #ddd;margin:24px 0"/>
       `;
     })
