@@ -18,7 +18,7 @@ import {
   projectedRoi,
   type ContestStandings,
 } from "@/lib/dfs/payouts";
-import { winProbability, type GolferState } from "@/lib/dfs/projection";
+import { winProbability, projectGolferFinal, type GolferState } from "@/lib/dfs/projection";
 import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
 
 type LivePoints = {
@@ -125,12 +125,38 @@ export default function CutSweatPage() {
     }
   }
 
+  // Per-golfer state for projections: CURRENT points come from the standings
+  // CSV's FPTS column (DK-official, and the names match the lineup column
+  // exactly); HOLES PLAYED come from ESPN's live `thru` (no hole-par needed).
+  // This is why projections work even when ESPN omits hole pars.
+  const golferStates = useMemo(() => {
+    if (!standings) return null;
+    const thruByName = new Map<string, number>();
+    for (const p of live?.players ?? []) thruByName.set(normalizeName(p.name), p.thru ?? 18);
+    const states = new Map<string, GolferState>();
+    for (const pl of standings.players) {
+      const key = normalizeName(pl.name);
+      const thru = thruByName.has(key) ? thruByName.get(key)! : 18; // unknown → treat as done
+      states.set(key, { points: pl.fpts, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
+    }
+    return states;
+  }, [standings, live]);
+
+  const matchedGolfers = useMemo(() => {
+    if (!golferStates || !live) return 0;
+    const thru = new Set((live.players ?? []).map((p) => normalizeName(p.name)));
+    let n = 0;
+    for (const k of golferStates.keys()) if (thru.has(k)) n++;
+    return n;
+  }, [golferStates, live]);
+
   const projected = useMemo(() => {
-    if (!standings || !live || live.players.length === 0) return null;
+    if (!standings || !golferStates || !live || live.players.length === 0) return null;
     const tiers = parsePayoutStructure(ladderText);
     if (tiers.length === 0) return null;
+    // Pace-project each golfer's final, then re-rank the field on projections.
     const pts = new Map<string, number>();
-    for (const p of live.players) pts.set(normalizeName(p.name), p.points);
+    for (const [name, st] of golferStates) pts.set(name, projectGolferFinal(st));
     const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
     const res = projectedRoi(
       standings.entries,
@@ -140,12 +166,13 @@ export default function CutSweatPage() {
       Number(fee) || 0,
     );
     return res.entries > 0 ? res : null;
-  }, [standings, live, ladderText, entries, username, fee]);
+  }, [standings, golferStates, live, ladderText, entries, username, fee]);
 
-  // Showdown win probability: extrapolate each golfer's pace over holes left
-  // and Monte-Carlo the rest of the round. Only meaningful for single-round.
+  // Showdown win probability: Monte-Carlo the rest of the round from each
+  // golfer's pace. Only meaningful single-round.
   const winProb = useMemo(() => {
-    if (format !== "showdown" || !standings || !live || live.players.length === 0) return null;
+    if (format !== "showdown" || !standings || !golferStates || !live || live.players.length === 0)
+      return null;
     const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
     const wantUser = username ? normalizeName(username.replace(/\s*\(.*$/, "")) : null;
     const myIds = new Set(
@@ -160,17 +187,8 @@ export default function CutSweatPage() {
         .map((e) => e.entryId),
     );
     if (myIds.size === 0) return null;
-    const states = new Map<string, GolferState>();
-    for (const p of live.players) {
-      const played = p.thru ?? 0;
-      states.set(normalizeName(p.name), {
-        points: p.points,
-        holesPlayed: played,
-        holesRemaining: Math.max(0, 18 - played),
-      });
-    }
-    return winProbability(standings.entries, states, { myIds, sims: 1500 });
-  }, [format, standings, live, entries, username]);
+    return winProbability(standings.entries, golferStates, { myIds, sims: 1500 });
+  }, [format, standings, golferStates, live, entries, username]);
 
   const lookup: CutLookup = useMemo(() => {
     const m: CutLookup = new Map();
@@ -376,11 +394,10 @@ export default function CutSweatPage() {
 
             {live && live.players.length > 0 && (
               <p className="num text-text-dim mb-3" style={{ fontSize: 11 }}>
-                {live.event ?? "live"} · {live.players.length} golfers scored ·{" "}
-                <span style={{ color: (live.parCoverage ?? 0) >= 0.95 ? GREEN : "#c9a23a" }}>
-                  {Math.round((live.parCoverage ?? 0) * 100)}% hole-par coverage
+                {live.event ?? "live"} · projecting from CSV points + live pace ·{" "}
+                <span style={{ color: matchedGolfers > 0 ? GREEN : "#c9a23a" }}>
+                  {matchedGolfers} golfers with live holes-played
                 </span>
-                {(live.parCoverage ?? 1) < 0.95 ? " — projection may be off" : ""}
               </p>
             )}
             {live && live.players.length === 0 && (
