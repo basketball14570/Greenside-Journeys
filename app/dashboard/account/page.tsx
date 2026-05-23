@@ -220,6 +220,8 @@ export default function AccountPage() {
 
       <PublicProfileCard />
 
+      <DraftKingsCard />
+
       {/* Push permission */}
       <div className="rounded-[14px] bg-surface-1 border border-line p-5">
         {pushStatus && (
@@ -667,6 +669,82 @@ function PublicProfileCard() {
         >
           View public profile →
         </a>
+      )}
+    </div>
+  );
+}
+
+function DraftKingsCard() {
+  const [dk, setDk] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/account/profile", { cache: "no-store" });
+        const j = await r.json();
+        if (j.dkUsername) setDk(j.dkUsername);
+      } catch {
+        /* not signed in / unconfigured */
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/account/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dkUsername: dk.trim() }),
+      });
+      const j = await r.json();
+      setMsg(r.ok ? "Saved." : (j.error ?? "Couldn't save."));
+      if (r.ok) setTimeout(() => setMsg(null), 1800);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+      <div
+        className="serif-italic mb-1 text-text"
+        style={{ fontSize: 18, letterSpacing: -0.2, fontStyle: "normal" }}
+      >
+        DraftKings username
+      </div>
+      <p className="text-text-dim" style={{ fontSize: 13 }}>
+        Saved so the DFS cut-sweat & ROI tools auto-match your entries in an uploaded contest-standings
+        file. Matching only — DraftKings has no public API, so you still export contests/standings yourself.
+      </p>
+      <div className="mt-4 flex items-center gap-2">
+        <input
+          value={dk}
+          onChange={(e) => setDk(e.target.value)}
+          placeholder="your DK username"
+          spellCheck={false}
+          className="num flex-1 rounded-[8px] border border-line bg-bg px-3 py-2 text-text"
+          style={{ fontSize: 13 }}
+        />
+        <button
+          onClick={save}
+          disabled={saving || !loaded}
+          className="rounded-[6px] px-3 py-2 border border-line hover:border-line-strong disabled:opacity-40"
+          style={{ fontSize: 12 }}
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {msg && (
+        <p className="mt-2 text-text-dim" style={{ fontSize: 12 }}>
+          {msg}
+        </p>
       )}
     </div>
   );

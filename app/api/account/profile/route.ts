@@ -17,6 +17,7 @@ const PayloadSchema = z.object({
     .regex(/^[a-z0-9-]{3,20}$/, "3-20 chars: lowercase letters, numbers, dashes")
     .optional(),
   public: z.boolean().optional(),
+  dkUsername: z.string().trim().max(50).optional(),
 });
 
 export async function GET() {
@@ -25,12 +26,13 @@ export async function GET() {
   if (!userData.user) return NextResponse.json({ error: "not signed in" }, { status: 401 });
   const { data } = await supabase
     .from("profiles")
-    .select("public_handle, public_profile")
+    .select("public_handle, public_profile, dk_username")
     .eq("id", userData.user.id)
     .maybeSingle();
   return NextResponse.json({
     handle: data?.public_handle ?? null,
     public: data?.public_profile ?? false,
+    dkUsername: data?.dk_username ?? null,
   });
 }
 
@@ -47,6 +49,8 @@ export async function POST(req: NextRequest) {
   const update: Record<string, unknown> = { id: userData.user.id };
   if (body.data.handle !== undefined) update.public_handle = body.data.handle;
   if (body.data.public !== undefined) update.public_profile = body.data.public;
+  if (body.data.dkUsername !== undefined)
+    update.dk_username = body.data.dkUsername || null;
 
   const { error } = await supabase.from("profiles").upsert(update, { onConflict: "id" });
   if (error) {

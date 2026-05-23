@@ -19,6 +19,7 @@ import {
   type ContestStandings,
 } from "@/lib/dfs/payouts";
 import { winProbability, type GolferState } from "@/lib/dfs/projection";
+import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
 
 type LivePoints = {
   source: string;
@@ -69,6 +70,16 @@ export default function CutSweatPage() {
       .then((j: Projection) => setProj(j))
       .catch(() => setProj({ source: "error", cutLine: null, players: [] }))
       .finally(() => setLoading(false));
+  }, []);
+
+  // Prefill the matcher from the user's saved DraftKings username.
+  useEffect(() => {
+    fetch("/api/account/profile", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.dkUsername) setUsername((u) => u || j.dkUsername);
+      })
+      .catch(() => {});
   }, []);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -450,6 +461,11 @@ export default function CutSweatPage() {
           </div>
         )}
       </div>
+
+      <PortfolioRoi
+        entryIds={new Set(entries.map((e) => e.entryId).filter(Boolean))}
+        username={username}
+      />
 
       {entries.length > 0 && (
         <>
