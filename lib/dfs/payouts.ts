@@ -162,6 +162,96 @@ export function currentRoi(
   };
 }
 
+export type ProjectedEntry = StandingEntry & {
+  projectedPoints: number;
+  projectedRank: number;
+  matchedGolfers: number; // how many of the 6 had a live point value
+};
+
+// Recompute every entry's total from a per-golfer points map and re-rank the
+// whole field. Standard competition ranking (1,2,2,4) so ties share a rank.
+// Golfers missing from the map contribute 0 and lower `matchedGolfers`, which
+// flags an entry whose projection is incomplete.
+export function reRankField(
+  field: StandingEntry[],
+  pointsByName: Map<string, number>,
+): { ranked: ProjectedEntry[]; tieCounts: Map<number, number> } {
+  const scored: ProjectedEntry[] = field.map((e) => {
+    let pts = 0;
+    let matched = 0;
+    for (const g of e.golfers) {
+      const p = pointsByName.get(normalizeName(g));
+      if (p !== undefined) {
+        pts += p;
+        matched++;
+      }
+    }
+    return { ...e, projectedPoints: +pts.toFixed(2), projectedRank: 0, matchedGolfers: matched };
+  });
+
+  scored.sort((a, b) => b.projectedPoints - a.projectedPoints);
+  const tieCounts = new Map<number, number>();
+  let rank = 0;
+  let prev: number | null = null;
+  scored.forEach((e, i) => {
+    if (prev === null || e.projectedPoints < prev) {
+      rank = i + 1;
+      prev = e.projectedPoints;
+    }
+    e.projectedRank = rank;
+    tieCounts.set(rank, (tieCounts.get(rank) ?? 0) + 1);
+  });
+  return { ranked: scored, tieCounts };
+}
+
+export type ProjectedRoiResult = RoiResult & {
+  // golfers across the user's entries that we had no live point for
+  unmatchedGolfers: string[];
+};
+
+// Projected "where it's heading" ROI: re-rank the field from live points,
+// then price the user's entries at their PROJECTED ranks.
+export function projectedRoi(
+  field: StandingEntry[],
+  pointsByName: Map<string, number>,
+  opts: { entryIds?: Set<string>; username?: string },
+  tiers: PayoutTier[],
+  entryFee: number,
+): ProjectedRoiResult {
+  const { ranked, tieCounts } = reRankField(field, pointsByName);
+  const useIds = !!opts.entryIds && opts.entryIds.size > 0;
+  const wantUser = opts.username ? normalizeName(opts.username.replace(/\s*\(.*$/, "")) : null;
+  const mine = ranked.filter((e) => {
+    if (useIds) return opts.entryIds!.has(e.entryId);
+    if (wantUser) return normalizeName(e.entryName.replace(/\s*\(.*$/, "")) === wantUser;
+    return false;
+  });
+  const detail = mine.map((e) => ({
+    entryId: e.entryId,
+    entryName: e.entryName,
+    rank: e.projectedRank,
+    prize: prizeForRankWithTies(e.projectedRank, tieCounts.get(e.projectedRank) ?? 1, tiers),
+  }));
+  const prizes = detail.reduce((s, d) => s + d.prize, 0);
+  const fees = mine.length * entryFee;
+
+  const unmatched = new Set<string>();
+  for (const e of mine)
+    for (const g of e.golfers)
+      if (!pointsByName.has(normalizeName(g))) unmatched.add(g);
+
+  return {
+    entries: mine.length,
+    fees,
+    prizes,
+    net: prizes - fees,
+    roi: fees ? (prizes - fees) / fees : 0,
+    cashes: detail.filter((d) => d.prize > 0).length,
+    detail,
+    unmatchedGolfers: [...unmatched],
+  };
+}
+
 // Find the user's entries within the full field by EntryId (preferred) or,
 // failing that, by a username prefix on EntryName (DK appends "(33/150)").
 export function findMyEntries(

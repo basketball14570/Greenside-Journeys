@@ -15,8 +15,17 @@ import {
   parsePayoutStructure,
   findMyEntries,
   currentRoi,
+  projectedRoi,
   type ContestStandings,
 } from "@/lib/dfs/payouts";
+
+type LivePoints = {
+  source: string;
+  event?: string | null;
+  state?: string | null;
+  parCoverage?: number | null;
+  players: { name: string; points: number }[];
+};
 
 type Projection = {
   source: string;
@@ -48,6 +57,10 @@ export default function CutSweatPage() {
   const [ladderText, setLadderText] = useState("");
   const [fee, setFee] = useState("");
   const [username, setUsername] = useState("");
+  const [format, setFormat] = useState<"classic" | "showdown">("classic");
+  const [roundParam, setRoundParam] = useState("");
+  const [live, setLive] = useState<LivePoints | null>(null);
+  const [livePending, setLivePending] = useState(false);
 
   useEffect(() => {
     fetch("/api/dfs/cut-projection", { cache: "no-store" })
@@ -85,6 +98,37 @@ export default function CutSweatPage() {
     if (mine.length === 0) return null;
     return currentRoi(mine, tiers, standings.tieCounts, Number(fee) || 0);
   }, [standings, ladderText, entries, username, fee]);
+
+  async function pullLive() {
+    setLivePending(true);
+    const qs = new URLSearchParams({ format });
+    if (roundParam) qs.set("round", roundParam);
+    try {
+      const r = await fetch(`/api/dfs/live-points?${qs}`, { cache: "no-store" });
+      setLive(await r.json());
+    } catch {
+      setLive({ source: "error", players: [] });
+    } finally {
+      setLivePending(false);
+    }
+  }
+
+  const projected = useMemo(() => {
+    if (!standings || !live || live.players.length === 0) return null;
+    const tiers = parsePayoutStructure(ladderText);
+    if (tiers.length === 0) return null;
+    const pts = new Map<string, number>();
+    for (const p of live.players) pts.set(normalizeName(p.name), p.points);
+    const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
+    const res = projectedRoi(
+      standings.entries,
+      pts,
+      entryIds.size > 0 ? { entryIds } : { username },
+      tiers,
+      Number(fee) || 0,
+    );
+    return res.entries > 0 ? res : null;
+  }, [standings, live, ladderText, entries, username, fee]);
 
   const lookup: CutLookup = useMemo(() => {
     const m: CutLookup = new Map();
@@ -248,6 +292,90 @@ export default function CutSweatPage() {
           <p className="text-text-dim mt-3" style={{ fontSize: 12 }}>
             No matching entries found — {entries.length > 0 ? "the standings file may be for a different contest than your entries." : "enter the DK username exactly as it appears in the standings."}
           </p>
+        )}
+
+        {/* Projected ROI — re-rank the whole field from live scoring */}
+        {standings && (
+          <div className="mt-5 pt-4 border-t border-line">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.4 }}>
+                ● Projected ROI · where it&apos;s heading
+              </span>
+              <div className="flex items-center gap-2">
+                <select
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as "classic" | "showdown")}
+                  className="num rounded-[8px] border border-line bg-bg px-2 py-1.5 text-text"
+                  style={{ fontSize: 12 }}
+                >
+                  <option value="classic">Classic</option>
+                  <option value="showdown">Showdown</option>
+                </select>
+                {format === "showdown" && (
+                  <input
+                    value={roundParam}
+                    onChange={(e) => setRoundParam(e.target.value)}
+                    placeholder="Rd"
+                    inputMode="numeric"
+                    className="num rounded-[8px] border border-line bg-bg px-2 py-1.5 text-text w-14"
+                    style={{ fontSize: 12 }}
+                  />
+                )}
+                <button
+                  onClick={pullLive}
+                  disabled={livePending}
+                  className="num rounded-[8px] border border-line px-3 py-1.5 hover:border-line-strong disabled:opacity-50"
+                  style={{ fontSize: 12 }}
+                >
+                  {livePending ? "Pulling…" : "Pull live scores"}
+                </button>
+              </div>
+            </div>
+
+            {live && live.players.length > 0 && (
+              <p className="num text-text-dim mb-3" style={{ fontSize: 11 }}>
+                {live.event ?? "live"} · {live.players.length} golfers scored ·{" "}
+                <span style={{ color: (live.parCoverage ?? 0) >= 0.95 ? GREEN : "#c9a23a" }}>
+                  {Math.round((live.parCoverage ?? 0) * 100)}% hole-par coverage
+                </span>
+                {(live.parCoverage ?? 1) < 0.95 ? " — projection may be off" : ""}
+              </p>
+            )}
+            {live && live.players.length === 0 && (
+              <p className="text-text-dim mb-3" style={{ fontSize: 12 }}>
+                No live scoring available — either no round is in progress or the feed has no hole data yet.
+              </p>
+            )}
+
+            {projected && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <RoiStat label="Proj ROI" value={`${projected.roi >= 0 ? "+" : ""}${(projected.roi * 100).toFixed(0)}%`} tone={projected.roi >= 0 ? "pos" : "neg"} />
+                  <RoiStat label="Proj net" value={`${projected.net >= 0 ? "+" : "-"}$${Math.abs(projected.net).toLocaleString()}`} tone={projected.net >= 0 ? "pos" : "neg"} />
+                  <RoiStat label="Proj prizes" value={`$${projected.prizes.toLocaleString()}`} />
+                  <RoiStat label="Cashing" value={`${projected.cashes}/${projected.entries}`} />
+                </div>
+                <div className="mt-3 space-y-1">
+                  {projected.detail
+                    .slice()
+                    .sort((a, b) => a.rank - b.rank)
+                    .map((d) => (
+                      <div key={d.entryId} className="flex items-center justify-between rounded-[8px] border border-line px-3 py-1.5 bg-bg num" style={{ fontSize: 12 }}>
+                        <span className="text-text-dim truncate">proj #{d.rank.toLocaleString()} · {d.entryName}</span>
+                        <span style={{ color: d.prize > 0 ? GREEN : "#8a8f98", fontWeight: 600 }}>
+                          {d.prize > 0 ? `$${d.prize.toLocaleString()}` : "—"}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+                {projected.unmatchedGolfers.length > 0 && (
+                  <p className="text-text-dim mt-2" style={{ fontSize: 11 }}>
+                    No live score for: {projected.unmatchedGolfers.join(", ")} (counted as 0)
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
 

@@ -6,7 +6,10 @@ import {
   parseStandingsCsv,
   currentRoi,
   findMyEntries,
+  reRankField,
+  projectedRoi,
 } from "./payouts";
+import { normalizeName } from "./cut-sweat";
 
 const LADDER = `1st
 $200,000
@@ -90,5 +93,50 @@ describe("findMyEntries + currentRoi", () => {
     const mine = findMyEntries(s.entries, { username: "me_one" });
     expect(mine).toHaveLength(1);
     expect(mine[0].entryId).toBe("222");
+  });
+});
+
+describe("reRankField", () => {
+  it("recomputes totals from live points and re-ranks with competition ties", () => {
+    const s = parseStandingsCsv(STANDINGS);
+    // Make entry 333's golfers worth more than the rest so it jumps to #1.
+    const pts = new Map<string, number>();
+    for (const g of s.entries.flatMap((e) => e.golfers)) pts.set(normalizeName(g), 1);
+    pts.set(normalizeName("Mac Meissner"), 100); // only on entry 333
+    const { ranked, tieCounts } = reRankField(s.entries, pts);
+    expect(ranked[0].entryId).toBe("333");
+    expect(ranked[0].projectedRank).toBe(1);
+    expect(ranked[0].matchedGolfers).toBe(6);
+    // remaining three entries tie on equal points → all share rank 2
+    expect(tieCounts.get(2)).toBe(3);
+    expect(ranked[ranked.length - 1].projectedRank).toBe(2);
+  });
+
+  it("counts unmatched golfers as zero", () => {
+    const s = parseStandingsCsv(STANDINGS);
+    const { ranked } = reRankField(s.entries, new Map());
+    expect(ranked.every((e) => e.projectedPoints === 0)).toBe(true);
+    expect(ranked[0].matchedGolfers).toBe(0);
+  });
+});
+
+describe("projectedRoi", () => {
+  it("prices the user's entries at their projected ranks", () => {
+    const s = parseStandingsCsv(STANDINGS);
+    const tiers = parsePayoutStructure(LADDER);
+    const pts = new Map<string, number>();
+    for (const g of s.entries.flatMap((e) => e.golfers)) pts.set(normalizeName(g), 1);
+    pts.set(normalizeName("Mac Meissner"), 100); // pushes entry 333 to #1
+    const roi = projectedRoi(s.entries, pts, { entryIds: new Set(["333"]) }, tiers, 5);
+    expect(roi.detail[0].rank).toBe(1);
+    expect(roi.prizes).toBe(200000); // 1st place
+    expect(roi.unmatchedGolfers).toEqual([]);
+  });
+
+  it("reports golfers with no live point", () => {
+    const s = parseStandingsCsv(STANDINGS);
+    const tiers = parsePayoutStructure(LADDER);
+    const roi = projectedRoi(s.entries, new Map(), { entryIds: new Set(["222"]) }, tiers, 5);
+    expect(roi.unmatchedGolfers.length).toBe(6);
   });
 });
