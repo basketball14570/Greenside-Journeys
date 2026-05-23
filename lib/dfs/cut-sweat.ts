@@ -12,13 +12,17 @@ export type DkEntry = {
 };
 
 export function normalizeName(s: string): string {
-  return s
+  const base = s
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  // Drop single-letter tokens (middle initials) so "Jordan L. Smith" and
+  // "Jordan Smith" match. Keep the whole string if that would empty it.
+  const tokens = base.split(" ").filter((t) => t.length > 1);
+  return tokens.length > 0 ? tokens.join(" ") : base;
 }
 
 // Minimal RFC-4180-ish line splitter: handles double-quoted fields that

@@ -38,6 +38,14 @@ describe("parseEntriesCsv", () => {
   });
 });
 
+describe("normalizeName", () => {
+  it("ignores middle initials so CSV and ESPN names match", () => {
+    expect(normalizeName("Jordan L. Smith")).toBe(normalizeName("Jordan Smith"));
+    expect(normalizeName("Si Woo Kim")).toBe("si woo kim");
+    expect(normalizeName("Scottie Scheffler")).toBe("scottie scheffler");
+  });
+});
+
 describe("survivalDistribution", () => {
   it("sums to 1 and matches a hand-computed 2-golfer case", () => {
     const d = survivalDistribution([0.6, 0.5]);
