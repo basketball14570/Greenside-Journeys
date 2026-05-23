@@ -10,6 +10,13 @@ import {
   type DkEntry,
   type CutLookup,
 } from "@/lib/dfs/cut-sweat";
+import {
+  parseStandingsCsv,
+  parsePayoutStructure,
+  findMyEntries,
+  currentRoi,
+  type ContestStandings,
+} from "@/lib/dfs/payouts";
 
 type Projection = {
   source: string;
@@ -36,6 +43,11 @@ export default function CutSweatPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [proj, setProj] = useState<Projection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [standings, setStandings] = useState<ContestStandings | null>(null);
+  const [standingsName, setStandingsName] = useState<string | null>(null);
+  const [ladderText, setLadderText] = useState("");
+  const [fee, setFee] = useState("");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     fetch("/api/dfs/cut-projection", { cache: "no-store" })
@@ -49,8 +61,30 @@ export default function CutSweatPage() {
     const f = e.target.files?.[0];
     if (!f) return;
     setFileName(f.name);
-    setEntries(parseEntriesCsv(await f.text()));
+    const parsed = parseEntriesCsv(await f.text());
+    setEntries(parsed);
+    if (!fee && parsed[0]) setFee(String(parsed[0].entryFee));
   }
+
+  async function onStandings(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setStandingsName(f.name);
+    setStandings(parseStandingsCsv(await f.text()));
+  }
+
+  const roi = useMemo(() => {
+    if (!standings) return null;
+    const tiers = parsePayoutStructure(ladderText);
+    if (tiers.length === 0) return null;
+    const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
+    const mine = findMyEntries(
+      standings.entries,
+      entryIds.size > 0 ? { entryIds } : { username },
+    );
+    if (mine.length === 0) return null;
+    return currentRoi(mine, tiers, standings.tieCounts, Number(fee) || 0);
+  }, [standings, ladderText, entries, username, fee]);
 
   const lookup: CutLookup = useMemo(() => {
     const m: CutLookup = new Map();
@@ -134,6 +168,86 @@ export default function CutSweatPage() {
           <span className="num text-text-dim ml-3" style={{ fontSize: 12 }}>
             {entries.length} entries · {summaries.length} contests · ${totalFees.toFixed(2)} in fees
           </span>
+        )}
+      </div>
+
+      {/* Contest ROI — "if it ended now" from the standings CSV + payout ladder */}
+      <div className="rounded-[14px] bg-surface-1 border border-line p-5">
+        <div className="serif-italic mb-1 text-text" style={{ fontSize: 18, fontStyle: "normal" }}>
+          Contest ROI · if it ended now
+        </div>
+        <p className="text-text-dim mb-3" style={{ fontSize: 13 }}>
+          Upload one contest&apos;s standings CSV (the full field) and paste that contest&apos;s payout ladder.
+          Your entries are matched {entries.length > 0 ? "by Entry ID from the file above" : "by your DK username"}.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <label className="inline-flex items-center gap-2 rounded-[8px] border border-line px-3 py-2 cursor-pointer hover:border-line-strong" style={{ fontSize: 13 }}>
+              <input type="file" accept=".csv,text/csv" onChange={onStandings} className="hidden" />
+              {standingsName ? `📄 ${standingsName}` : "Choose standings CSV…"}
+            </label>
+            {standings && (
+              <div className="num text-text-dim" style={{ fontSize: 12 }}>
+                {standings.entries.length.toLocaleString()} entries in field
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
+                placeholder="Entry fee $"
+                inputMode="decimal"
+                className="num rounded-[8px] border border-line bg-bg px-3 py-2 text-text w-32"
+                style={{ fontSize: 13 }}
+              />
+              {entries.length === 0 && (
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="DK username"
+                  className="num rounded-[8px] border border-line bg-bg px-3 py-2 text-text flex-1"
+                  style={{ fontSize: 13 }}
+                />
+              )}
+            </div>
+          </div>
+          <textarea
+            value={ladderText}
+            onChange={(e) => setLadderText(e.target.value)}
+            placeholder={"Paste payout ladder, e.g.\n1st\n$200,000\n2nd\n$75,000\n7th - 8th\n$4,000"}
+            rows={5}
+            className="num rounded-[8px] border border-line bg-bg px-3 py-2 text-text"
+            style={{ fontSize: 12 }}
+          />
+        </div>
+
+        {roi && (
+          <div className="mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <RoiStat label="ROI" value={`${roi.roi >= 0 ? "+" : ""}${(roi.roi * 100).toFixed(0)}%`} tone={roi.roi >= 0 ? "pos" : "neg"} />
+              <RoiStat label="Net" value={`${roi.net >= 0 ? "+" : "-"}$${Math.abs(roi.net).toLocaleString()}`} tone={roi.net >= 0 ? "pos" : "neg"} />
+              <RoiStat label="Prizes" value={`$${roi.prizes.toLocaleString()}`} />
+              <RoiStat label="Cashing" value={`${roi.cashes}/${roi.entries}`} />
+            </div>
+            <div className="mt-3 space-y-1">
+              {roi.detail
+                .slice()
+                .sort((a, b) => a.rank - b.rank)
+                .map((d) => (
+                  <div key={d.entryId} className="flex items-center justify-between rounded-[8px] border border-line px-3 py-1.5 bg-bg num" style={{ fontSize: 12 }}>
+                    <span className="text-text-dim truncate">#{d.rank.toLocaleString()} · {d.entryName}</span>
+                    <span style={{ color: d.prize > 0 ? GREEN : "#8a8f98", fontWeight: 600 }}>
+                      {d.prize > 0 ? `$${d.prize.toLocaleString()}` : "—"}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+        {standings && ladderText && !roi && (
+          <p className="text-text-dim mt-3" style={{ fontSize: 12 }}>
+            No matching entries found — {entries.length > 0 ? "the standings file may be for a different contest than your entries." : "enter the DK username exactly as it appears in the standings."}
+          </p>
         )}
       </div>
 
@@ -252,6 +366,16 @@ export default function CutSweatPage() {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+function RoiStat({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
+  const color = tone === "pos" ? GREEN : tone === "neg" ? RED : "#f0ebe0";
+  return (
+    <div className="rounded-[12px] border border-line p-3 bg-bg">
+      <div className="num uppercase text-text-muted" style={{ fontSize: 9.5, letterSpacing: 1.2 }}>{label}</div>
+      <div className="num font-semibold mt-1" style={{ fontSize: 20, color }}>{value}</div>
     </div>
   );
 }

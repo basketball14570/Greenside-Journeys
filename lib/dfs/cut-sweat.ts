@@ -23,7 +23,7 @@ export function normalizeName(s: string): string {
 
 // Minimal RFC-4180-ish line splitter: handles double-quoted fields that
 // contain commas (DK contest names like "...[$30K to 1st, Single Entry]").
-function splitCsvLine(line: string): string[] {
+export function splitCsvLine(line: string): string[] {
   const out: string[] = [];
   let cur = "";
   let inQuotes = false;
