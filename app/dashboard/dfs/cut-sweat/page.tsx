@@ -131,13 +131,19 @@ export default function CutSweatPage() {
   // This is why projections work even when ESPN omits hole pars.
   const golferStates = useMemo(() => {
     if (!standings) return null;
-    const thruByName = new Map<string, number>();
-    for (const p of live?.players ?? []) thruByName.set(normalizeName(p.name), p.thru ?? 18);
+    // Live points (computed from ESPN holes) are always fresh, so prefer them
+    // — this works even when the CSV was exported at lock (FPTS all 0). Fall
+    // back to the CSV's FPTS for any golfer ESPN hasn't listed.
+    const liveByName = new Map<string, { points: number; thru: number }>();
+    for (const p of live?.players ?? [])
+      liveByName.set(normalizeName(p.name), { points: p.points, thru: p.thru ?? 18 });
     const states = new Map<string, GolferState>();
     for (const pl of standings.players) {
       const key = normalizeName(pl.name);
-      const thru = thruByName.has(key) ? thruByName.get(key)! : 18; // unknown → treat as done
-      states.set(key, { points: pl.fpts, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
+      const l = liveByName.get(key);
+      const points = l ? l.points : pl.fpts;
+      const thru = l ? l.thru : 18; // unknown → treat as done
+      states.set(key, { points, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
     }
     return states;
   }, [standings, live]);

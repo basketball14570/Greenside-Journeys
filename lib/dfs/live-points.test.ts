@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { roundsToHoleResults, parCoverage, playerLivePoints, fillHolePars } from "./live-points";
+import {
+  roundsToHoleResults,
+  parCoverage,
+  playerLivePoints,
+  fillHolePars,
+  deriveHolePars,
+  mergeHolePars,
+} from "./live-points";
 import { CLASSIC_SCORING } from "./scoring";
 import type { RoundLine } from "@/lib/espn-leaderboard";
 
@@ -18,6 +25,40 @@ describe("roundsToHoleResults", () => {
   it("flattens RoundLine holes into per-round hole results", () => {
     const r = mkRound(1, [{ strokes: 3, par: 4 }, { strokes: 4, par: 4 }]);
     expect(roundsToHoleResults([r])).toEqual([[{ strokes: 3, par: 4 }, { strokes: 4, par: 4 }]]);
+  });
+});
+
+describe("deriveHolePars", () => {
+  it("takes the modal score per hole across the field as par", () => {
+    // Hole 1: most players make 4 (one birdie 3). Hole 2: most make 3.
+    const field = [
+      mkRound(1, [{ strokes: 4, par: null }, { strokes: 3, par: null }]),
+      mkRound(1, [{ strokes: 4, par: null }, { strokes: 3, par: null }]),
+      mkRound(1, [{ strokes: 3, par: null }, { strokes: 4, par: null }]),
+    ];
+    const pars = deriveHolePars(field);
+    expect(pars[0]).toBe(4); // hole 1 par
+    expect(pars[1]).toBe(3); // hole 2 par
+  });
+
+  it("makes live scoring possible when ESPN omits par entirely", () => {
+    const field = Array.from({ length: 5 }, () =>
+      mkRound(1, [{ strokes: 4, par: null }]),
+    );
+    const derived = deriveHolePars(field);
+    const player = mkRound(1, [{ strokes: 3, par: null }]); // birdie on a par 4
+    const filled = fillHolePars([player], derived);
+    expect(filled[0].holes[0].par).toBe(4);
+    expect(parCoverage(filled).holesScoreable).toBe(1);
+  });
+});
+
+describe("mergeHolePars", () => {
+  it("prefers real pars, falls back to derived per hole", () => {
+    const merged = mergeHolePars([4, 0, 5], [4, 3, 4]);
+    expect(merged[0]).toBe(4); // real
+    expect(merged[1]).toBe(3); // fell back to derived (real was 0)
+    expect(merged[2]).toBe(5); // real
   });
 });
 
