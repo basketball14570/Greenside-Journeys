@@ -60,6 +60,23 @@ describe("mergeHolePars", () => {
     expect(merged[1]).toBe(3); // fell back to derived (real was 0)
     expect(merged[2]).toBe(5); // real
   });
+
+  it("lets real course pars override the field-derived par-5 undercount", () => {
+    // Most of the field birdies a par-5 (modal score 4), so deriving par from
+    // the field labels the hole a par-4 — turning real birdies into "pars" and
+    // undercounting Showdown points. The real scorecard par (5) must win.
+    const field = [
+      mkRound(1, [{ strokes: 4, par: null }]),
+      mkRound(1, [{ strokes: 4, par: null }]),
+      mkRound(1, [{ strokes: 5, par: null }]),
+    ];
+    const derived = deriveHolePars(field);
+    expect(derived[0]).toBe(4); // wrong: it's really a par 5
+
+    const coursePars = [5]; // from the published scorecard
+    const merged = mergeHolePars(mergeHolePars([], coursePars), derived);
+    expect(merged[0]).toBe(5); // course par wins over the bad derived value
+  });
 });
 
 describe("fillHolePars", () => {

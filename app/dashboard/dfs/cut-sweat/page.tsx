@@ -265,12 +265,11 @@ export default function CutSweatPage() {
     }
   }
 
-  // Per-golfer state for projections. CURRENT points come from the standings
-  // CSV's FPTS column — DK's official score for THIS contest's exact format and
-  // round (Showdown = one round, Classic = cumulative), so we never have to
-  // re-derive scoring. ESPN supplies only HOLES PLAYED, for pace. Live recompute
-  // is used only as a fallback for golfers whose CSV FPTS is still 0 (CSV
-  // exported at lock, before any points accrued).
+  // Per-golfer state for projections. CURRENT points are recomputed LIVE from
+  // ESPN's hole-by-hole feed with the chosen format (Showdown scores a single
+  // round; Classic is cumulative), using the course's real scorecard pars — so
+  // they stay correct as the round plays out and don't go stale like a CSV
+  // snapshot. The CSV's FPTS is only a fallback for golfers ESPN hasn't listed.
   const golferStates = useMemo(() => {
     if (!standings) return null;
     const liveByName = new Map<string, { points: number; thru: number }>();
@@ -280,8 +279,7 @@ export default function CutSweatPage() {
     for (const pl of standings.players) {
       const key = normalizeName(pl.name);
       const l = liveByName.get(key);
-      // Official CSV points first; live recompute only fills in a 0 (lock export).
-      const points = pl.fpts > 0 ? pl.fpts : l ? l.points : 0;
+      const points = l ? l.points : pl.fpts;
       const thru = l ? l.thru : 18; // no live hole data → treat round as done
       states.set(key, { points, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
     }

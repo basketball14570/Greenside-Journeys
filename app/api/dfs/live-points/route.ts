@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchLeaderboard } from "@/lib/espn-leaderboard";
+import { holeParStrict } from "@/lib/data/course-pars";
 import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
 import {
   playerLivePoints,
@@ -39,11 +40,24 @@ export async function GET(req: NextRequest) {
     const pickRounds = (p: (typeof snap.players)[number]) =>
       effectiveRound ? p.rounds.filter((r) => r.period === effectiveRound) : p.rounds;
 
-    // Per-hole par: prefer ESPN's course pars, fall back to pars derived from
-    // the whole field's scores (modal stroke per hole). This is what lets us
-    // score live points even when the feed carries no par.
+    // Per-hole par, in priority order:
+    //  1. ESPN's own per-hole pars (rarely present on the free feed)
+    //  2. the course's published scorecard (lib/data/course-pars.ts) — exact
+    //  3. field-derived pars (modal stroke per hole) — last resort only
+    // Field-derived par UNDERcounts par-5s (the field's modal score on a par-5
+    // is often 4, a birdie), so it must rank below the real scorecard or live
+    // points come out low. The course pars fix that.
+    const courseName = snap.event?.course ?? null;
+    const coursePars: number[] = [];
+    for (let h = 1; h <= 18; h++) {
+      const p = holeParStrict(courseName, h);
+      if (p) coursePars[h - 1] = p;
+    }
     const derived = deriveHolePars(snap.players.flatMap(pickRounds));
-    const holePars = mergeHolePars(snap.event?.holePars ?? [], derived);
+    const holePars = mergeHolePars(
+      mergeHolePars(snap.event?.holePars ?? [], coursePars),
+      derived,
+    );
 
     let withStrokes = 0;
     let scoreable = 0;
