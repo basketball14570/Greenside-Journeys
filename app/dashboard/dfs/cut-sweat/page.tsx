@@ -45,6 +45,28 @@ type Projection = {
 const GREEN = "#2faa5f";
 const RED = "#e5544b";
 
+const PRESETS_KEY = "cutSweat.contestPresets";
+
+type ContestPreset = {
+  id: string;
+  name: string;
+  ladder: string;
+  fee: string;
+  format: "classic" | "showdown";
+  round: string;
+};
+
+function loadPresets(): ContestPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function fmtToPar(n: number | null): string {
   if (n === null) return "—";
   return n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`;
@@ -68,6 +90,49 @@ export default function CutSweatPage() {
   const [roundParam, setRoundParam] = useState("");
   const [live, setLive] = useState<LivePoints | null>(null);
   const [livePending, setLivePending] = useState(false);
+  const [presets, setPresets] = useState<ContestPreset[]>([]);
+  const [presetName, setPresetName] = useState("");
+
+  useEffect(() => {
+    setPresets(loadPresets());
+  }, []);
+
+  function persistPresets(next: ContestPreset[]) {
+    setPresets(next);
+    try {
+      localStorage.setItem(PRESETS_KEY, JSON.stringify(next));
+    } catch {}
+  }
+
+  function saveCurrentPreset() {
+    const name = presetName.trim();
+    if (!name || !ladderText.trim()) return;
+    const preset: ContestPreset = {
+      id: `${Date.now()}`,
+      name,
+      ladder: ladderText,
+      fee,
+      format,
+      round: roundParam,
+    };
+    // Replace an existing preset with the same name, otherwise append.
+    const next = [...presets.filter((p) => p.name !== name), preset];
+    persistPresets(next);
+    setPresetName("");
+  }
+
+  function applyPreset(id: string) {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    setLadderText(p.ladder);
+    setFee(p.fee);
+    setFormat(p.format);
+    setRoundParam(p.round);
+  }
+
+  function deletePreset(id: string) {
+    persistPresets(presets.filter((p) => p.id !== id));
+  }
 
   useEffect(() => {
     fetch("/api/dfs/cut-projection", { cache: "no-store" })
@@ -297,6 +362,67 @@ export default function CutSweatPage() {
           Upload one contest&apos;s standings CSV (the full field) and paste that contest&apos;s payout ladder.
           Your entries are matched {entries.length > 0 ? "by Entry ID from the file above" : "by your DK username"}.
         </p>
+
+        {/* Saved contest presets — store the payout ladder so it isn't re-pasted each time */}
+        <div className="mb-4 rounded-[10px] border border-line bg-bg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 9.5, letterSpacing: 1.2 }}>
+              ● Saved contests
+            </span>
+          </div>
+          {presets.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {presets.map((p) => (
+                <span
+                  key={p.id}
+                  className="num inline-flex items-center gap-1.5 rounded-[6px] border border-line px-2 py-1"
+                  style={{ fontSize: 11 }}
+                >
+                  <button
+                    onClick={() => applyPreset(p.id)}
+                    className="text-text hover:text-[var(--green,#2faa5f)]"
+                    title="Load this payout ladder"
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    onClick={() => deletePreset(p.id)}
+                    className="text-text-muted hover:text-[#e5544b]"
+                    title="Delete preset"
+                    style={{ fontSize: 13, lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-text-dim mb-2" style={{ fontSize: 11 }}>
+              Paste a payout ladder below, name it, and save — e.g. “PGA TOUR Showdown $70K Sand Trap [$20K to 1st] (R3)”.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveCurrentPreset();
+              }}
+              placeholder="Name this contest to save…"
+              className="num rounded-[8px] border border-line bg-surface-1 px-3 py-1.5 text-text flex-1"
+              style={{ fontSize: 12 }}
+            />
+            <button
+              onClick={saveCurrentPreset}
+              disabled={!presetName.trim() || !ladderText.trim()}
+              className="num rounded-[8px] border border-line px-3 py-1.5 hover:border-line-strong disabled:opacity-40"
+              style={{ fontSize: 12 }}
+            >
+              Save current
+            </button>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <label className="inline-flex items-center gap-2 rounded-[8px] border border-line px-3 py-2 cursor-pointer hover:border-line-strong" style={{ fontSize: 13 }}>
