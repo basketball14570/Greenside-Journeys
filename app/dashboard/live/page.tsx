@@ -408,6 +408,10 @@ function ParlayGroup({
   const [editingStake, setEditingStake] = useState(false);
   const stakeVal = customStake ?? stakeShown;
   const payoutVal = stakeVal * combined;
+  // The $10 is a placeholder, not a real wager, whenever no payout was
+  // captured OR it's a parlay (the save path always normalizes parlays to
+  // a $10 stake — see api/bets/save). Those are the only editable slips.
+  const stakeIsDefault = !hasRealPayout || (multi && storedStake === 10);
   function commitStake(raw: string) {
     const n = Number(raw);
     setCustomStake(Number.isFinite(n) && n > 0 ? n : null);
@@ -481,7 +485,7 @@ function ParlayGroup({
               {first.book.toUpperCase()}
               {when ? ` · ${when}` : ""} · {combined.toFixed(1)}x ·{" "}
               <span style={{ color: "#8ee68e" }}>
-                {!hasRealPayout && editingStake ? (
+                {stakeIsDefault && editingStake ? (
                   <input
                     type="number"
                     autoFocus
@@ -503,7 +507,7 @@ function ParlayGroup({
                       fontSize: 11.5,
                     }}
                   />
-                ) : !hasRealPayout ? (
+                ) : stakeIsDefault ? (
                   <button
                     type="button"
                     onClick={() => setEditingStake(true)}
