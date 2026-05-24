@@ -582,7 +582,19 @@ function americanToDecimal(a: number): number {
 // Parlay "to cash" sweat bar. Estimate only — labeled as such — derived
 // from each leg's live state, not a book price.
 function SweatMeter({ pct, unpriced }: { pct: number; unpriced: number }) {
-  const p = Math.round(pct * 100);
+  const pctNum = pct * 100;
+  // A long parlay's joint odds are tiny but nonzero — round-to-integer would
+  // show a still-alive ticket as a flat "0%". Keep a decimal under 10% so the
+  // user can see it's a longshot, not dead.
+  const label =
+    pctNum <= 0
+      ? "0%"
+      : pctNum < 0.1
+        ? "<0.1%"
+        : pctNum < 10
+          ? `${pctNum.toFixed(1)}%`
+          : `${Math.round(pctNum)}%`;
+  const barWidth = Math.max(2, Math.round(pctNum));
   const color = pct >= 0.5 ? "#7fd49a" : pct >= 0.2 ? "#f5c558" : "#e57373";
   return (
     <div className="px-1 pb-3">
@@ -594,7 +606,7 @@ function SweatMeter({ pct, unpriced }: { pct: number; unpriced: number }) {
           Live cash est.
         </span>
         <span className="num font-semibold" style={{ fontSize: 12, color }}>
-          ≈ {p}% to cash
+          ≈ {label} to cash
           {unpriced ? (
             <span style={{ color: "#6c7a72", fontWeight: 400 }}>
               {" "}
@@ -613,7 +625,7 @@ function SweatMeter({ pct, unpriced }: { pct: number; unpriced: number }) {
       >
         <div
           style={{
-            width: `${Math.max(2, p)}%`,
+            width: `${Math.max(2, barWidth)}%`,
             height: "100%",
             background: color,
             borderRadius: 99,
