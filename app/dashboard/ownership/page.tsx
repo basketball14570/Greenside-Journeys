@@ -17,6 +17,7 @@ import {
   type ArchiveDataset,
 } from "@/lib/data/ownership-archive";
 import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
+import { OwnershipAccuracy } from "@/components/dfs/OwnershipAccuracy";
 
 // DFS ownership browser. Three views: tournaments grid, player leaderboard,
 // drill-down on either. Mirrors the standalone HTML viewer but uses the
@@ -24,6 +25,7 @@ import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
 
 type View =
   | { kind: "projections" }
+  | { kind: "accuracy" }
   | { kind: "tournaments" }
   | { kind: "players" }
   | { kind: "courses" }
@@ -105,6 +107,12 @@ export default function OwnershipPage() {
           This week
         </Tab>
         <Tab
+          active={view.kind === "accuracy"}
+          onClick={() => setView({ kind: "accuracy" })}
+        >
+          vs Actual
+        </Tab>
+        <Tab
           active={view.kind === "tournaments" || view.kind === "tournament"}
           onClick={() => setView({ kind: "tournaments" })}
         >
@@ -156,6 +164,7 @@ export default function OwnershipPage() {
       </div>
 
       {view.kind === "projections" && <ProjectedOwnership />}
+      {view.kind === "accuracy" && <OwnershipAccuracy />}
       {view.kind === "tournaments" && (
         <TournamentsTable
           rows={tournaments}
