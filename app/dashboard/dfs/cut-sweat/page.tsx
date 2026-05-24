@@ -63,6 +63,10 @@ const GREEN = "#2faa5f";
 const RED = "#e5544b";
 
 const PRESETS_KEY = "cutSweat.contestPresets";
+// Standings CSVs are large, so store each preset's CSV under its own key
+// rather than inline in the presets array — keeps the metadata list tiny and
+// avoids loading every CSV just to render the saved-contest chips.
+const csvKey = (id: string) => `cutSweat.csv.${id}`;
 
 // A Showdown contest is fixed to one round (its name usually says which, e.g.
 // "... (Round 3 TOUR)"). Parse it so we score that round even after the
@@ -79,6 +83,7 @@ type ContestPreset = {
   fee: string;
   format: ScoringFormat;
   round: string;
+  standingsName?: string; // file name of the saved CSV, if any
 };
 
 function loadPresets(): ContestPreset[] {
@@ -205,15 +210,37 @@ export default function CutSweatPage() {
   function saveCurrentPreset() {
     const name = presetName.trim();
     if (!name || !ladderText.trim()) return;
+    // Reuse the existing id when overwriting a same-named preset so its saved
+    // CSV key stays consistent (and gets overwritten, not orphaned).
+    const existing = presets.find((p) => p.name === name);
+    const id = existing?.id ?? `${Date.now()}`;
+
+    // Persist the standings CSV under its own key. Fields can be a few hundred
+    // KB; if localStorage is full, keep the rest of the preset and tell the
+    // user to use Share link (server-side) for very large fields.
+    let savedCsv = false;
+    if (standingsCsv) {
+      try {
+        localStorage.setItem(csvKey(id), standingsCsv);
+        savedCsv = true;
+      } catch {
+        setShareError("Field too large to save on this device — use Share link instead.");
+      }
+    } else {
+      try {
+        localStorage.removeItem(csvKey(id));
+      } catch {}
+    }
+
     const preset: ContestPreset = {
-      id: `${Date.now()}`,
+      id,
       name,
       ladder: ladderText,
       fee,
       format,
       round: roundParam,
+      standingsName: savedCsv ? standingsName ?? "saved field" : undefined,
     };
-    // Replace an existing preset with the same name, otherwise append.
     const next = [...presets.filter((p) => p.name !== name), preset];
     persistPresets(next);
     setPresetName("");
@@ -226,9 +253,23 @@ export default function CutSweatPage() {
     setFee(p.fee);
     setFormat(p.format);
     setRoundParam(p.round);
+    // Restore the saved standings field if one was stored with this preset.
+    let csv: string | null = null;
+    try {
+      csv = localStorage.getItem(csvKey(id));
+    } catch {}
+    if (csv) {
+      setStandingsCsv(csv);
+      setStandings(parseStandingsCsv(csv));
+      setStandingsName(p.standingsName ?? "saved field");
+      setShareUrl(null);
+    }
   }
 
   function deletePreset(id: string) {
+    try {
+      localStorage.removeItem(csvKey(id));
+    } catch {}
     persistPresets(presets.filter((p) => p.id !== id));
   }
 
@@ -624,7 +665,8 @@ export default function CutSweatPage() {
           </div>
         )}
 
-        {/* Saved contests — load a stored setup (CSV is still re-uploaded fresh each round) */}
+        {/* Saved contests — load a stored setup, including the standings field
+            when one was saved with it. */}
         {presets.length > 0 && (
           <div className="mb-4">
             <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 9.5, letterSpacing: 1.2 }}>
@@ -640,8 +682,13 @@ export default function CutSweatPage() {
                   <button
                     onClick={() => applyPreset(p.id)}
                     className="text-text hover:text-[#2faa5f]"
-                    title="Load this contest's fee, payout ladder, format and round"
+                    title={
+                      p.standingsName
+                        ? "Load this contest's field, fee, payout ladder, format and round"
+                        : "Load this contest's fee, payout ladder, format and round"
+                    }
                   >
+                    {p.standingsName ? "📄 " : ""}
                     {p.name}
                   </button>
                   <button
@@ -780,8 +827,8 @@ export default function CutSweatPage() {
               {!presetName.trim() || !ladderText.trim()
                 ? "Add a name + payout structure to save or share."
                 : !standingsCsv
-                  ? "Save stores it in this browser; upload a CSV to publish a share link."
-                  : "Save = this browser. Share link = anyone can open it and type their username."}
+                  ? "Save stores it in this browser; upload a CSV to also save the field."
+                  : "Save stores the field + setup in this browser. Share link = anyone can open it and type their username."}
             </span>
           </div>
 
