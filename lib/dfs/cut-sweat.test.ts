@@ -41,8 +41,15 @@ describe("parseEntriesCsv", () => {
 describe("normalizeName", () => {
   it("ignores middle initials so CSV and ESPN names match", () => {
     expect(normalizeName("Jordan L. Smith")).toBe(normalizeName("Jordan Smith"));
-    expect(normalizeName("Si Woo Kim")).toBe("si woo kim");
-    expect(normalizeName("Scottie Scheffler")).toBe("scottie scheffler");
+    // Tokens are sorted, so output is alphabetical regardless of input order.
+    expect(normalizeName("Si Woo Kim")).toBe("kim si woo");
+    expect(normalizeName("Scottie Scheffler")).toBe("scheffler scottie");
+  });
+
+  it("matches regardless of name order so DataGolf 'Last, First' joins DK 'First Last'", () => {
+    expect(normalizeName("Scheffler, Scottie")).toBe(normalizeName("Scottie Scheffler"));
+    expect(normalizeName("Kim, Si Woo")).toBe(normalizeName("Si Woo Kim"));
+    expect(normalizeName("McIlroy, Rory")).toBe(normalizeName("Rory McIlroy"));
   });
 
   it("maps special Latin letters so ESPN ø/accents match a DK export", () => {

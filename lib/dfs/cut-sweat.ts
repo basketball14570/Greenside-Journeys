@@ -30,9 +30,12 @@ export function normalizeName(s: string): string {
     .replace(/\s+/g, " ")
     .trim();
   // Drop single-letter tokens (middle initials) so "Jordan L. Smith" and
-  // "Jordan Smith" match. Keep the whole string if that would empty it.
+  // "Jordan Smith" match, then sort the remaining tokens so name ORDER no
+  // longer matters: DataGolf's "Scheffler, Scottie" and a DK export's
+  // "Scottie Scheffler" both reduce to "scheffler scottie". Without this the
+  // live make-cut model silently fails to join to uploaded lineups.
   const tokens = base.split(" ").filter((t) => t.length > 1);
-  return tokens.length > 0 ? tokens.join(" ") : base;
+  return (tokens.length > 0 ? tokens : base.split(" ")).sort().join(" ");
 }
 
 // Minimal RFC-4180-ish line splitter: handles double-quoted fields that

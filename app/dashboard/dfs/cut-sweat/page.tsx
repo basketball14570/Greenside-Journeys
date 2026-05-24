@@ -91,6 +91,7 @@ export default function CutSweatPage() {
   const [entries, setEntries] = useState<DkEntry[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [proj, setProj] = useState<Projection | null>(null);
+  const [ownership, setOwnership] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [standings, setStandings] = useState<ContestStandings | null>(null);
   const [standingsName, setStandingsName] = useState<string | null>(null);
@@ -208,12 +209,47 @@ export default function CutSweatPage() {
     persistPresets(presets.filter((p) => p.id !== id));
   }
 
+  // Live make-cut model. Re-polls every 3 minutes so the bubble watch tracks
+  // the cut line through the day without a manual refresh.
   useEffect(() => {
-    fetch("/api/dfs/cut-projection", { cache: "no-store" })
+    let cancelled = false;
+    const pull = () =>
+      fetch("/api/dfs/cut-projection", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((j: Projection) => {
+          if (!cancelled) setProj(j);
+        })
+        .catch(() => {
+          if (!cancelled) setProj({ source: "error", cutLine: null, players: [] });
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    pull();
+    const id = setInterval(pull, 3 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  // This week's projected ownership — the bubble watch sorts by it so you see
+  // which chalk is sweating the cut. Static through the day, so fetch once.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/dfs/projected-ownership", { cache: "no-store" })
       .then((r) => r.json())
-      .then((j: Projection) => setProj(j))
-      .catch(() => setProj({ source: "error", cutLine: null, players: [] }))
-      .finally(() => setLoading(false));
+      .then((j: { projections?: { player_name: string; projected_own: number }[] }) => {
+        if (cancelled) return;
+        const m = new Map<string, number>();
+        for (const p of j.projections ?? [])
+          m.set(normalizeName(p.player_name), p.projected_own);
+        setOwnership(m);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Prefill the matcher from the user's saved DraftKings username.
@@ -377,6 +413,37 @@ export default function CutSweatPage() {
   }, [proj]);
 
   const cutLine = proj?.cutLine ?? null;
+  // Auto-detect where we are relative to the cut. The 36-hole cut settles
+  // after round 2, so from round 3 on there's nothing left to sweat — the
+  // line is final, not projected.
+  const round = proj?.round ?? null;
+  const cutIsFinal = round != null && round >= 3;
+
+  // Field-wide bubble watch: every player within 2 strokes of the cut line
+  // (either side), sorted by projected ownership so the chalkiest names on
+  // the bubble surface first. Players 3+ shots clear in either direction drop
+  // off. Independent of any uploaded lineup — this is the live cut sweat.
+  const fieldBubble = useMemo(() => {
+    if (cutLine === null || cutIsFinal) return [];
+    const rows = (proj?.players ?? [])
+      .filter((p) => p.scoreToPar !== null)
+      .map((p) => ({
+        name: p.name,
+        scoreToPar: p.scoreToPar as number,
+        makeCut: p.makeCut,
+        thru: p.thru,
+        margin: cutLine - (p.scoreToPar as number),
+        own: ownership.get(normalizeName(p.name)) ?? null,
+      }))
+      .filter((p) => Math.abs(p.margin) <= 2);
+    // Highest ownership first; ties broken by who's closest to the line.
+    rows.sort(
+      (a, b) => (b.own ?? -1) - (a.own ?? -1) || Math.abs(a.margin) - Math.abs(b.margin),
+    );
+    return rows;
+  }, [proj, ownership, cutLine, cutIsFinal]);
+
+  const haveOwnership = ownership.size > 0;
 
   const summaries = useMemo(
     () => summarizeByContest(entries, lookup, cutLine),
@@ -417,9 +484,10 @@ export default function CutSweatPage() {
             <em>Cut sweat.</em>
           </h1>
           <p className="text-text-dim mt-1" style={{ fontSize: 13.5 }}>
-            Projected cut line{" "}
+            {cutIsFinal ? "Cut line (final)" : "Projected cut line"}{" "}
             <strong className="num text-text">{loading ? "…" : fmtToPar(cutLine)}</strong>
-            {proj?.round ? ` · round ${proj.round}` : ""}
+            {round ? ` · round ${round}` : ""}
+            {cutIsFinal ? " · cut settled" : ""}
             {proj?.source === "unavailable" ? " · DataGolf not configured" : ""}
             {proj?.source === "error" ? " · live feed unavailable" : ""}
           </p>
@@ -428,6 +496,83 @@ export default function CutSweatPage() {
           ← Lineup builder
         </Link>
       </header>
+
+      {/* Field-wide bubble watch — the live cut sweat. Independent of any
+          uploaded lineup: every golfer within 2 of the line, chalk first. */}
+      {!loading && !cutIsFinal && proj?.players?.length ? (
+        <section className="rounded-[14px] bg-surface-1 border border-line p-5">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.4 }}>
+              ● Bubble watch · within 2 of the cut{haveOwnership ? " · chalk first" : ""}
+            </span>
+            <span className="num text-text-muted" style={{ fontSize: 11 }}>
+              cut {fmtToPar(cutLine)} · auto-refreshing
+            </span>
+          </div>
+          {fieldBubble.length === 0 ? (
+            <p className="text-text-dim" style={{ fontSize: 12.5 }}>
+              No one is within 2 shots of the line right now — the bubble is
+              quiet. This updates automatically as scores move.
+            </p>
+          ) : (
+            <>
+              <div
+                className="grid gap-2 px-3 py-1.5 num font-semibold uppercase text-text-muted"
+                style={{ gridTemplateColumns: "2fr 70px 70px 80px 90px", fontSize: 9.5, letterSpacing: 1 }}
+              >
+                <span>Player</span>
+                <span className="text-right">Score</span>
+                <span className="text-right">Thru</span>
+                <span className="text-right">Own</span>
+                <span className="text-right">Cut</span>
+              </div>
+              <div className="space-y-1">
+                {fieldBubble.map((b) => {
+                  const safe = b.margin >= 0;
+                  return (
+                    <div
+                      key={b.name}
+                      className="grid gap-2 items-center rounded-[8px] border border-line px-3 py-2 bg-bg"
+                      style={{ gridTemplateColumns: "2fr 70px 70px 80px 90px", fontSize: 12.5 }}
+                    >
+                      <span className="text-text truncate">
+                        {b.name}{" "}
+                        <span className="num" style={{ fontSize: 10.5, color: safe ? GREEN : RED }}>
+                          {fmtMargin(b.margin)}
+                        </span>
+                      </span>
+                      <span className="num text-right text-text-dim">{fmtToPar(b.scoreToPar)}</span>
+                      <span className="num text-right text-text-muted">
+                        {b.thru == null ? "—" : b.thru >= 18 ? "F" : b.thru}
+                      </span>
+                      <span className="num text-right text-text">
+                        {b.own == null ? "—" : `${b.own.toFixed(1)}%`}
+                      </span>
+                      <span className="num text-right" style={{ color: safe ? GREEN : RED, fontWeight: 600 }}>
+                        {(b.makeCut * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-text-muted mt-3" style={{ fontSize: 10.5 }}>
+                {haveOwnership
+                  ? "Ownership is this week's projection; players 3+ shots clear (either way) drop off."
+                  : "Projected ownership unavailable — sorted by distance to the cut. Players 3+ shots clear drop off."}
+              </p>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {!loading && cutIsFinal && (
+        <section className="rounded-[14px] bg-surface-1 border border-line p-4">
+          <p className="text-text-dim" style={{ fontSize: 12.5 }}>
+            The cut is final{cutLine != null ? ` at ${fmtToPar(cutLine)}` : ""} (round {round}). Nothing left to
+            sweat — the bubble watch returns next event during rounds 1–2.
+          </p>
+        </section>
+      )}
 
       <div className="rounded-[14px] bg-surface-1 border border-line p-5">
         <div className="serif-italic mb-1 text-text" style={{ fontSize: 18, fontStyle: "normal" }}>
