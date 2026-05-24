@@ -8,9 +8,8 @@ import {
   type LeaderboardSnapshot,
 } from "@/lib/espn-leaderboard";
 import { useBetSlip } from "@/lib/bet-slip-store";
-import { legToOpenBet, describeLeg, type SlipLeg } from "@/lib/bet-slip";
-import { gradeBet, type Decision } from "@/lib/grading";
 import { SkeletonRow } from "@/components/edge/Skeleton";
+import { StarButton } from "@/components/edge/StarButton";
 
 const REFRESH_MS = 30_000;
 
@@ -58,65 +57,6 @@ export default function LeaderboardPage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [auto, load]);
-
-  // Flash a ▲/▼ caret on rows the user has bets on whenever ESPN
-  // reports a new position. Scoped to bet-owned rows to keep the
-  // leaderboard from flickering across all 150 entrants.
-  const prevPos = useRef<Record<string, string>>({});
-  const [flashes, setFlashes] = useState<Record<string, "up" | "down" | null>>({});
-  useEffect(() => {
-    if (!snapshot || !slip.legs.length) return;
-    const watched = new Set<string>();
-    for (const leg of slip.legs) {
-      watched.add(leg.player.toLowerCase());
-      if (leg.kind === "matchup") watched.add(leg.opponent.toLowerCase());
-    }
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    for (const p of snapshot.players) {
-      const key = p.name.toLowerCase();
-      if (!watched.has(key)) continue;
-      const cur = p.posDisplay || "";
-      const prev = prevPos.current[key];
-      if (prev !== undefined && cur && prev !== cur) {
-        const a = parseInt(prev.replace(/^T/, ""), 10);
-        const b = parseInt(cur.replace(/^T/, ""), 10);
-        if (!Number.isNaN(a) && !Number.isNaN(b) && a !== b) {
-          const dir: "up" | "down" = b < a ? "up" : "down";
-          setFlashes((f) => ({ ...f, [key]: dir }));
-          timers.push(
-            setTimeout(
-              () => setFlashes((f) => ({ ...f, [key]: null })),
-              3500,
-            ),
-          );
-        }
-      }
-      prevPos.current[key] = cur;
-    }
-    return () => timers.forEach(clearTimeout);
-  }, [snapshot, slip.legs]);
-
-  // Pre-compute bet decisions per player so we can decorate rows.
-  const decisionsByPlayer = useMemo(() => {
-    const map = new Map<string, { leg: SlipLeg; decision: Decision }[]>();
-    if (!snapshot) return map;
-    for (const leg of slip.legs) {
-      const bet = legToOpenBet(leg);
-      const decision = gradeBet(bet, snapshot);
-      const key = leg.player.toLowerCase();
-      const arr = map.get(key) ?? [];
-      arr.push({ leg, decision });
-      map.set(key, arr);
-      // Decorate opponent rows in matchups too
-      if (leg.kind === "matchup") {
-        const okey = leg.opponent.toLowerCase();
-        const arr2 = map.get(okey) ?? [];
-        arr2.push({ leg, decision });
-        map.set(okey, arr2);
-      }
-    }
-    return map;
-  }, [snapshot, slip.legs]);
 
   const filtered = useMemo(() => {
     if (!snapshot) return [];
@@ -213,16 +153,13 @@ export default function LeaderboardPage() {
       />
 
       <div className="rounded-[14px] border border-line overflow-hidden bg-surface-1">
-        <div
-          className="grid gap-2 px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line"
-          style={{ gridTemplateColumns: "44px 1.7fr 70px 80px 70px 1fr" }}
-        >
+        <div className="grid gap-2 px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line grid-cols-[28px_30px_1fr_48px_52px_40px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]">
+          <div />
           <div>Pos</div>
           <div>Player</div>
           <div className="text-right">Total</div>
           <div className="text-right">Today</div>
           <div className="text-right">Thru</div>
-          <div>Bets</div>
         </div>
         <div className="max-h-[640px] overflow-y-auto">
           {!snapshot && loading ? (
@@ -234,14 +171,7 @@ export default function LeaderboardPage() {
                 : "No leaderboard data yet."}
             </div>
           ) : (
-            filtered.map((p) => (
-              <Row
-                key={p.id}
-                player={p}
-                decisions={decisionsByPlayer.get(p.name.toLowerCase()) ?? []}
-                flash={flashes[p.name.toLowerCase()] ?? null}
-              />
-            ))
+            filtered.map((p) => <Row key={p.id} player={p} />)
           )}
         </div>
       </div>
@@ -383,42 +313,18 @@ function EventStrap({
   );
 }
 
-function Row({
-  player,
-  decisions,
-  flash,
-}: {
-  player: LeaderboardPlayer;
-  decisions: { leg: SlipLeg; decision: Decision }[];
-  flash: "up" | "down" | null;
-}) {
+function Row({ player }: { player: LeaderboardPlayer }) {
   const today = player.todayLine;
   return (
-    <div
-      className={`grid gap-2 px-4 py-2 border-b border-line/50 last:border-b-0 hover:bg-surface-2 ${
-        decisions.length ? "bg-surface-1/70" : ""
-      }`}
-      style={{ gridTemplateColumns: "44px 1.7fr 70px 80px 70px 1fr" }}
-    >
+    <div className="grid gap-2 px-4 py-2 border-b border-line/50 last:border-b-0 hover:bg-surface-2 grid-cols-[28px_30px_1fr_48px_52px_40px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]">
+      <div className="self-center -ml-1">
+        <StarButton player={player.name} size={14} />
+      </div>
       <div
-        className="num self-center flex items-baseline gap-1"
+        className="num self-center"
         style={{ fontSize: 13, color: player.isCut ? "#a8b3ac" : undefined }}
       >
-        <span>{player.posDisplay || "—"}</span>
-        {flash && (
-          <span
-            aria-hidden
-            style={{
-              fontSize: 9,
-              lineHeight: 1,
-              color: flash === "up" ? "#7fd49a" : "#e87c7c",
-              animation: "greensidePulse 1.4s ease-in-out infinite",
-            }}
-            title={flash === "up" ? "Moved up" : "Moved down"}
-          >
-            {flash === "up" ? "▲" : "▼"}
-          </span>
-        )}
+        {player.posDisplay || "—"}
       </div>
       <div className="self-center min-w-0">
         <div className="font-medium truncate" style={{ fontSize: 13 }}>
@@ -446,44 +352,7 @@ function Row({
               ? <span style={{ color: "#a8b3ac" }}>{formatTeeTime(player.teeTime)}</span>
               : "—"}
       </div>
-      <div className="self-center flex flex-wrap gap-1">
-        {decisions.map(({ leg, decision }) => (
-          <BetPill key={leg.id} leg={leg} decision={decision} />
-        ))}
-      </div>
     </div>
-  );
-}
-
-function BetPill({ leg, decision }: { leg: SlipLeg; decision: Decision }) {
-  const color =
-    decision.status === "won"
-      ? "#7fd49a"
-      : decision.status === "lost"
-        ? "#e87c7c"
-        : decision.status === "push"
-          ? "#a8b3ac"
-          : decision.status === "live"
-            ? "#f5c558"
-            : "#a8b3ac";
-  const isLive = decision.status === "live";
-  return (
-    <span
-      title={`${describeLeg(leg)} — ${decision.reason}`}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border"
-      style={{
-        fontSize: 10,
-        borderColor: color,
-        color,
-        background: `${color}1a`,
-      }}
-    >
-      <span
-        className={isLive ? "gs-status-pulse" : ""}
-        style={{ width: 5, height: 5, borderRadius: 99, background: color }}
-      />
-      {describeLeg(leg)}
-    </span>
   );
 }
 
