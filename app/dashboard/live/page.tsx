@@ -112,6 +112,30 @@ function holeStyle(diff: number | null): { bg: string; fg: string } {
 
 function HoleStrip({ cells }: { cells: HoleCell[] }) {
   const thru = cells.length;
+  const front = cells.filter((c) => c.hole <= 9);
+  const back = cells.filter((c) => c.hole >= 10);
+  const row = (cs: HoleCell[]) => (
+    <div className="flex gap-[3px]">
+      {cs.map((c) => {
+        const s = holeStyle(c.diff);
+        return (
+          <div
+            key={c.hole}
+            title={c.par != null ? `Hole ${c.hole} · par ${c.par} · ${c.strokes}` : `Hole ${c.hole} · ${c.strokes}`}
+            className="flex flex-col items-center justify-center"
+            style={{ width: 22, height: 26, borderRadius: 4, background: s.bg, color: s.fg }}
+          >
+            <span className="num" style={{ fontSize: 7, opacity: 0.7, lineHeight: 1 }}>
+              {c.hole}
+            </span>
+            <span className="num font-semibold" style={{ fontSize: 12, lineHeight: 1.1 }}>
+              {c.strokes}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
   return (
     <div className="mt-2.5 pt-2.5 border-t border-line/60">
       <div className="flex items-center justify-between mb-1.5">
@@ -122,31 +146,9 @@ function HoleStrip({ cells }: { cells: HoleCell[] }) {
           thru {thru}
         </span>
       </div>
-      <div className="flex flex-wrap gap-[3px]">
-        {cells.map((c) => {
-          const s = holeStyle(c.diff);
-          return (
-            <div
-              key={c.hole}
-              title={c.par != null ? `Hole ${c.hole} · par ${c.par} · ${c.strokes}` : `Hole ${c.hole} · ${c.strokes}`}
-              className="flex flex-col items-center justify-center"
-              style={{
-                width: 22,
-                height: 26,
-                borderRadius: 4,
-                background: s.bg,
-                color: s.fg,
-              }}
-            >
-              <span className="num" style={{ fontSize: 7, opacity: 0.7, lineHeight: 1 }}>
-                {c.hole}
-              </span>
-              <span className="num font-semibold" style={{ fontSize: 12, lineHeight: 1.1 }}>
-                {c.strokes}
-              </span>
-            </div>
-          );
-        })}
+      <div className="space-y-[3px]">
+        {front.length > 0 && row(front)}
+        {back.length > 0 && row(back)}
       </div>
     </div>
   );
@@ -1064,114 +1066,223 @@ function StarredGolfersSection({
 }: {
   snapshot: LeaderboardSnapshot | null;
 }) {
-  const { stars, toggle } = useStarredGolfers();
+  const { stars } = useStarredGolfers();
+  const [adding, setAdding] = useState(false);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  const courseName = resolveCourseName(
+    snapshot?.event?.course ?? null,
+    snapshot?.event?.name ?? null,
+  );
+  const holePars = snapshot?.event?.holePars;
 
   const matched = useMemo(() => {
     if (!snapshot || stars.size === 0) return [];
-    const out: { key: string; player: LeaderboardPlayer | null; display: string }[] = [];
-    // Index leaderboard once.
+    const out: {
+      key: string;
+      player: LeaderboardPlayer | null;
+      display: string;
+      scorecard: HoleCell[] | null;
+    }[] = [];
     const byKey = new Map<string, LeaderboardPlayer>();
-    for (const p of snapshot.players) {
-      byKey.set(normalizePlayerKey(p.name), p);
-    }
+    for (const p of snapshot.players) byKey.set(normalizePlayerKey(p.name), p);
     for (const key of stars) {
+      const player = byKey.get(key) ?? null;
       out.push({
         key,
-        player: byKey.get(key) ?? null,
-        // Title-case the key for display when we can't find the
-        // leaderboard row (player is WD / not in field).
+        player,
         display: key
           .split(" ")
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(" "),
+        scorecard: buildScorecard(player?.todayLine ?? null, courseName, holePars),
       });
     }
-    // Sort: in-field players first, ordered by leaderboard position;
-    // missing players (likely not in the field this week) at the bottom.
-    return out.sort((a, b) => {
-      const aPos = a.player?.posNum ?? 999;
-      const bPos = b.player?.posNum ?? 999;
-      return aPos - bPos;
-    });
-  }, [snapshot, stars]);
+    return out.sort((a, b) => (a.player?.posNum ?? 999) - (b.player?.posNum ?? 999));
+  }, [snapshot, stars, courseName, holePars]);
 
-  if (stars.size === 0) return null;
+  // Leaderboard players matching the search box, excluding already-starred.
+  const results = useMemo(() => {
+    if (!snapshot) return [];
+    const needle = q.trim().toLowerCase();
+    if (!needle) return [];
+    return snapshot.players
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(needle) &&
+          !stars.has(normalizePlayerKey(p.name)),
+      )
+      .slice(0, 12);
+  }, [snapshot, q, stars]);
+
+  const hasPlayers = (snapshot?.players?.length ?? 0) > 0;
+  if (stars.size === 0 && !hasPlayers) return null;
+
+  function toggleOpen(key: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   return (
     <section>
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-center justify-between mb-2">
         <span
           className="num font-semibold uppercase"
           style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
         >
           ★ Starred golfers
         </span>
-        <span
-          className="num text-text-muted"
-          style={{ fontSize: 10.5, letterSpacing: 0.4 }}
+        <button
+          onClick={() => setAdding((v) => !v)}
+          className="num font-semibold uppercase transition"
+          style={{
+            fontSize: 9.5,
+            letterSpacing: 0.8,
+            color: adding ? "#1a1408" : "#f5c558",
+            background: adding ? "#f5c558" : "transparent",
+            border: "1px solid #f5c55855",
+            borderRadius: 5,
+            padding: "3px 9px",
+          }}
         >
-          {stars.size} {stars.size === 1 ? "player" : "players"}
-        </span>
+          {adding ? "Done" : "+ Add golfers"}
+        </button>
       </div>
-      <ul className="space-y-1.5">
-        {matched.map(({ key, player, display }) => (
-          <li
-            key={key}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] border border-line bg-surface-1"
-          >
-            <StarButton player={display} size={14} className="-ml-1" />
-            <span
-              className="num font-semibold text-text-dim"
-              style={{ fontSize: 11, minWidth: 26 }}
-            >
-              {player?.posDisplay ?? "—"}
-            </span>
-            {player?.id ? (
-              <Link
-                href={`/players/${slugifyName(player.name)}`}
-                className="flex-1 truncate"
-                style={{
-                  fontSize: 13.5,
-                  color: "#f0ebe0",
-                  fontWeight: 600,
-                }}
+
+      {adding && (
+        <div className="mb-2.5 rounded-[12px] border border-line bg-surface-1 p-2.5">
+          <input
+            autoFocus
+            placeholder={hasPlayers ? "Search the field…" : "Leaderboard not loaded yet"}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            disabled={!hasPlayers}
+            className="w-full rounded-[8px] border border-line bg-surface-2 px-3 py-2 text-text"
+            style={{ fontSize: 13 }}
+          />
+          {q.trim() && (
+            <ul className="mt-2 space-y-1">
+              {results.length === 0 && (
+                <li className="num text-text-muted px-1 py-1" style={{ fontSize: 12 }}>
+                  No matches in the field.
+                </li>
+              )}
+              {results.map((p) => (
+                <li
+                  key={p.id || p.name}
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-[8px] hover:bg-surface-2"
+                >
+                  <StarButton player={p.name} size={14} className="-ml-1" />
+                  <span
+                    className="num font-semibold text-text-dim"
+                    style={{ fontSize: 11, minWidth: 26 }}
+                  >
+                    {p.posDisplay || "—"}
+                  </span>
+                  <span className="flex-1 truncate" style={{ fontSize: 13, color: "#f0ebe0" }}>
+                    {p.name}
+                  </span>
+                  <span
+                    className="num"
+                    style={{ fontSize: 12, fontWeight: 600, color: scoreColor(p.totalToPar) }}
+                  >
+                    {p.totalToPar ?? "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {stars.size > 0 && (
+        <ul className="space-y-1.5">
+          {matched.map(({ key, player, display, scorecard }) => {
+            const isOpen = open.has(key);
+            const canExpand = !!scorecard && scorecard.length > 0;
+            return (
+              <li
+                key={key}
+                className="rounded-[10px] border border-line bg-surface-1 overflow-hidden"
               >
-                {player.name}
-              </Link>
-            ) : (
-              <span
-                className="flex-1 truncate"
-                style={{ fontSize: 13.5, color: "#a8b3ac" }}
-              >
-                {display}
-              </span>
-            )}
-            <span
-              className="num"
-              style={{
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: scoreColor(player?.totalToPar ?? null),
-                minWidth: 36,
-                textAlign: "right",
-              }}
-            >
-              {player?.totalToPar ?? (player ? "—" : "Not in field")}
-            </span>
-            <span
-              className="num text-text-muted"
-              style={{ fontSize: 11, minWidth: 30, textAlign: "right" }}
-            >
-              {thruLabel(player)}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p
-        className="text-text-muted mt-2"
-        style={{ fontSize: 11, lineHeight: 1.4 }}
-      >
-        Tap the star on any leaderboard or player to add or remove them.
+                <div
+                  className="flex items-center gap-2.5 px-3 py-2"
+                  onClick={() => canExpand && toggleOpen(key)}
+                  style={{ cursor: canExpand ? "pointer" : "default" }}
+                >
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <StarButton player={display} size={14} className="-ml-1" />
+                  </span>
+                  <span
+                    className="num font-semibold text-text-dim"
+                    style={{ fontSize: 11, minWidth: 26 }}
+                  >
+                    {player?.posDisplay ?? "—"}
+                  </span>
+                  {player?.id ? (
+                    <Link
+                      href={`/players/${slugifyName(player.name)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 truncate"
+                      style={{ fontSize: 13.5, color: "#f0ebe0", fontWeight: 600 }}
+                    >
+                      {player.name}
+                    </Link>
+                  ) : (
+                    <span className="flex-1 truncate" style={{ fontSize: 13.5, color: "#a8b3ac" }}>
+                      {display}
+                    </span>
+                  )}
+                  <span
+                    className="num"
+                    style={{
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: scoreColor(player?.totalToPar ?? null),
+                      minWidth: 36,
+                      textAlign: "right",
+                    }}
+                  >
+                    {player?.totalToPar ?? (player ? "—" : "Not in field")}
+                  </span>
+                  <span
+                    className="num text-text-muted"
+                    style={{ fontSize: 11, minWidth: 30, textAlign: "right" }}
+                  >
+                    {thruLabel(player)}
+                  </span>
+                  <span
+                    className="num"
+                    style={{
+                      fontSize: 10,
+                      color: canExpand ? "#7e8a83" : "transparent",
+                      width: 10,
+                      textAlign: "center",
+                    }}
+                  >
+                    {isOpen ? "▲" : "▼"}
+                  </span>
+                </div>
+                {isOpen && canExpand && (
+                  <div className="px-3 pb-2.5">
+                    <HoleStrip cells={scorecard!} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="text-text-muted mt-2" style={{ fontSize: 11, lineHeight: 1.4 }}>
+        {stars.size > 0
+          ? "Tap a golfer to see their hole-by-hole. Tap the star anywhere to remove."
+          : "Search to add golfers and track their hole-by-hole here — no bet required."}
       </p>
     </section>
   );
