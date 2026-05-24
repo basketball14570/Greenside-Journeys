@@ -84,11 +84,21 @@ export async function GET(req: NextRequest) {
       const cov = parCoverage(rounds);
       withStrokes += cov.holesWithStrokes;
       scoreable += cov.holesScoreable;
+      // For single-round (Showdown) scoring, "thru" is holes actually played in
+      // the scored round — 0 for a golfer who hasn't teed off yet. Using the
+      // event-round todayLine here wrongly showed pre-tee golfers as "thru 18"
+      // (their completed prior round), which read like stale/yesterday data and
+      // zeroed out their holes-remaining. Classic stays on the current line.
+      const playedHoles = rounds.reduce(
+        (n, r) => n + r.holes.filter((h) => h.strokes != null && h.strokes > 0).length,
+        0,
+      );
+      const thru = isShowdown ? playedHoles : p.todayLine?.thru ?? null;
       return {
         name: p.name,
         posNum: p.posNum,
         isCut: p.isCut,
-        thru: p.todayLine?.thru ?? null,
+        thru,
         points: playerLivePoints(
           rounds,
           config,
