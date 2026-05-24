@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   fetchLeaderboard,
@@ -10,6 +10,9 @@ import {
 import { useBetSlip } from "@/lib/bet-slip-store";
 import { SkeletonRow } from "@/components/edge/Skeleton";
 import { StarButton } from "@/components/edge/StarButton";
+import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
+import { resolveCourseName } from "@/lib/data/course-pars";
+import { buildScorecard, HoleStrip } from "@/components/edge/HoleScorecard";
 
 const REFRESH_MS = 30_000;
 
@@ -27,6 +30,7 @@ export default function LeaderboardPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { slip } = useBetSlip();
+  const { stars } = useStarredGolfers();
 
   const load = useCallback(async () => {
     abortRef.current?.abort();
@@ -106,6 +110,24 @@ export default function LeaderboardPage() {
     return rows;
   }, [snapshot, query, filter, sort, slip.legs]);
 
+  // Starred golfers float to a "Favorites" group on top; everyone else falls
+  // into "All players" below (no duplication).
+  const { favorites, others } = useMemo(() => {
+    const fav: LeaderboardPlayer[] = [];
+    const rest: LeaderboardPlayer[] = [];
+    for (const p of filtered) {
+      if (stars.has(normalizePlayerKey(p.name))) fav.push(p);
+      else rest.push(p);
+    }
+    return { favorites: fav, others: rest };
+  }, [filtered, stars]);
+
+  const courseName = resolveCourseName(
+    snapshot?.event?.course ?? null,
+    snapshot?.event?.name ?? null,
+  );
+  const holePars = snapshot?.event?.holePars;
+
   return (
     <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
       <header>
@@ -171,7 +193,20 @@ export default function LeaderboardPage() {
                 : "No leaderboard data yet."}
             </div>
           ) : (
-            filtered.map((p) => <Row key={p.id} player={p} />)
+            <>
+              {favorites.length > 0 && (
+                <>
+                  <SectionLabel>★ Favorites</SectionLabel>
+                  {favorites.map((p) => (
+                    <Row key={p.id} player={p} courseName={courseName} holePars={holePars} />
+                  ))}
+                  {others.length > 0 && <SectionLabel>All players</SectionLabel>}
+                </>
+              )}
+              {others.map((p) => (
+                <Row key={p.id} player={p} courseName={courseName} holePars={holePars} />
+              ))}
+            </>
           )}
         </div>
       </div>
@@ -313,45 +348,84 @@ function EventStrap({
   );
 }
 
-function Row({ player }: { player: LeaderboardPlayer }) {
-  const today = player.todayLine;
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="grid gap-2 px-4 py-2 border-b border-line/50 last:border-b-0 hover:bg-surface-2 grid-cols-[28px_30px_1fr_48px_52px_40px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]">
-      <div className="self-center -ml-1">
-        <StarButton player={player.name} size={14} />
-      </div>
+    <div
+      className="num font-semibold uppercase px-4 py-1.5 border-b border-line bg-surface-2/60 sticky top-0 z-10"
+      style={{ fontSize: 9.5, letterSpacing: 1.1, color: "#f5c558" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Row({
+  player,
+  courseName,
+  holePars,
+}: {
+  player: LeaderboardPlayer;
+  courseName: string | null;
+  holePars: number[] | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const today = player.todayLine;
+  const scorecard = open ? buildScorecard(today, courseName, holePars) : null;
+  const canExpand =
+    !!today && today.holes.some((h) => h.strokes !== null && h.strokes > 0);
+  return (
+    <div className="border-b border-line/50 last:border-b-0">
       <div
-        className="num self-center"
-        style={{ fontSize: 13, color: player.isCut ? "#a8b3ac" : undefined }}
+        className="grid gap-2 px-4 py-2 hover:bg-surface-2 grid-cols-[28px_30px_1fr_48px_52px_40px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]"
+        onClick={() => canExpand && setOpen((v) => !v)}
+        style={{ cursor: canExpand ? "pointer" : "default" }}
       >
-        {player.posDisplay || "—"}
-      </div>
-      <div className="self-center min-w-0">
-        <div className="font-medium truncate" style={{ fontSize: 13 }}>
-          {player.name}
+        <div className="self-center -ml-1" onClick={(e) => e.stopPropagation()}>
+          <StarButton player={player.name} size={14} />
+        </div>
+        <div
+          className="num self-center"
+          style={{ fontSize: 13, color: player.isCut ? "#a8b3ac" : undefined }}
+        >
+          {player.posDisplay || "—"}
+        </div>
+        <div className="self-center min-w-0 flex items-center gap-1.5">
+          <span className="font-medium truncate" style={{ fontSize: 13 }}>
+            {player.name}
+          </span>
+          {canExpand && (
+            <span className="num" style={{ fontSize: 8, color: "#7e8a83" }}>
+              {open ? "▲" : "▼"}
+            </span>
+          )}
+        </div>
+        <div
+          className="text-right num self-center"
+          style={{ fontSize: 14, color: colorForToPar(player.totalScoreNum) }}
+        >
+          {player.totalToPar ?? "—"}
+        </div>
+        <div
+          className="text-right num self-center"
+          style={{ fontSize: 14, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) }}
+        >
+          {today?.toPar ?? "—"}
+        </div>
+        <div className="text-right num self-center" style={{ fontSize: 13 }}>
+          {today?.complete
+            ? "F"
+            : today?.thru != null
+              ? today.thru
+              : player.teeTime
+                ? <span style={{ color: "#a8b3ac" }}>{formatTeeTime(player.teeTime)}</span>
+                : "—"}
         </div>
       </div>
-      <div
-        className="text-right num self-center"
-        style={{ fontSize: 14, color: colorForToPar(player.totalScoreNum) }}
-      >
-        {player.totalToPar ?? "—"}
-      </div>
-      <div
-        className="text-right num self-center"
-        style={{ fontSize: 14, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) }}
-      >
-        {today?.toPar ?? "—"}
-      </div>
-      <div className="text-right num self-center" style={{ fontSize: 13 }}>
-        {today?.complete
-          ? "F"
-          : today?.thru != null
-            ? today.thru
-            : player.teeTime
-              ? <span style={{ color: "#a8b3ac" }}>{formatTeeTime(player.teeTime)}</span>
-              : "—"}
-      </div>
+      {open && scorecard && (
+        <div className="px-4 pb-3">
+          <HoleStrip cells={scorecard} />
+        </div>
+      )}
     </div>
   );
 }
