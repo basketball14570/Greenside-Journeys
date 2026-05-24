@@ -18,6 +18,7 @@ import {
 } from "@/lib/data/ownership-archive";
 import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
 import { OwnershipAccuracy } from "@/components/dfs/OwnershipAccuracy";
+import { LeverageView } from "@/components/dfs/LeverageView";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
 
 // DFS ownership browser. Three views: tournaments grid, player leaderboard,
@@ -27,6 +28,7 @@ import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
 type View =
   | { kind: "projections" }
   | { kind: "accuracy" }
+  | { kind: "leverage" }
   | { kind: "tournaments" }
   | { kind: "players" }
   | { kind: "courses" }
@@ -115,6 +117,12 @@ export default function OwnershipPage() {
           vs Actual
         </Tab>
         <Tab
+          active={view.kind === "leverage"}
+          onClick={() => setView({ kind: "leverage" })}
+        >
+          Leverage
+        </Tab>
+        <Tab
           active={view.kind === "tournaments" || view.kind === "tournament"}
           onClick={() => setView({ kind: "tournaments" })}
         >
@@ -167,6 +175,7 @@ export default function OwnershipPage() {
 
       {view.kind === "projections" && <ProjectedOwnership />}
       {view.kind === "accuracy" && <OwnershipAccuracy />}
+      {view.kind === "leverage" && <LeverageView />}
       {view.kind === "tournaments" && (
         <TournamentsTable
           rows={tournaments}
