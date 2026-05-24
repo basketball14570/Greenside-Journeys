@@ -58,6 +58,7 @@ export function deriveShotCounts(
   rates: ShotRates | null,
   round: RoundLine | null | undefined,
   courseName: string | null | undefined,
+  holePars?: number[],
 ): ShotCounts | null {
   if (!rates || !round) return null;
   const playedHoles = round.holes.filter(
@@ -66,13 +67,15 @@ export function deriveShotCounts(
   const played = playedHoles.length || round.thru || 0;
   if (!played) return null;
 
-  // Fairways are only contested on par-4/5 (driving) holes. Prefer the
-  // known scorecard over ESPN's per-hole par (which is often a blank
-  // default of 4) so par-3s are correctly excluded from the denominator.
+  // Fairways are only contested on par-4/5 (driving) holes. Resolve par from
+  // the known scorecard first, then the event's hole-par array from ESPN's
+  // course record, then ESPN's per-hole par — so par-3s are correctly
+  // excluded from the denominator even for courses we don't have mapped.
   const drivingPlayed =
     playedHoles.length > 0
       ? playedHoles.filter(
-          (h) => (holeParStrict(courseName, h.hole) ?? h.par ?? 4) >= 4,
+          (h) =>
+            (holeParStrict(courseName, h.hole) ?? holePars?.[h.hole - 1] ?? h.par ?? 4) >= 4,
         ).length
       : 0;
 

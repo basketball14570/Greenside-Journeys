@@ -295,6 +295,7 @@ export type RoundStats = {
 export function roundStats(
   round: RoundLine | null | undefined,
   courseName: string | null | undefined,
+  holePars?: number[],
 ): RoundStats | null {
   if (!round || round.holes.length === 0) return null;
 
@@ -310,7 +311,11 @@ export function roundStats(
     if (h.strokes === null || h.strokes <= 0) continue;
     played++;
     strokes += h.strokes;
-    const par = h.par ?? holeParFor(courseName, h.hole);
+    // Par precedence: ESPN's per-hole par (rare) → the event's hole-par
+    // array pulled from ESPN's course record → the static scorecard map.
+    // Without the holePars fallback, unmapped courses default every hole to
+    // par 4, which silently miscounts par-3/par-5 bogeys and birdies.
+    const par = h.par ?? holePars?.[h.hole - 1] ?? holeParFor(courseName, h.hole);
     const diff = h.strokes - par;
     if (diff <= -2) eagles++;
     else if (diff === -1) birdies++;

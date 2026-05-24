@@ -15,7 +15,7 @@ import {
   normShotName as normName,
   type ShotCounts,
 } from "@/lib/bets/shot-props";
-import { resolveCourseName } from "@/lib/data/course-pars";
+import { resolveCourseName, holeParStrict } from "@/lib/data/course-pars";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
 import { shareParlayImage, type ShareLeg } from "@/lib/parlay-share";
@@ -71,7 +71,86 @@ type GradedLeg = {
   teeTime?: string | null;
   shots?: ShotCounts | null;
   player?: LeaderboardPlayer | null;
+  scorecard?: HoleCell[] | null;
 };
+
+// One played hole, resolved against the best par we have. `par` is null when
+// the course isn't mapped and ESPN omits per-hole par — then we show the raw
+// strokes without a birdie/bogey color rather than guessing.
+type HoleCell = { hole: number; strokes: number; par: number | null; diff: number | null };
+
+function buildScorecard(
+  round: LeaderboardPlayer["todayLine"],
+  courseName: string | null,
+  holePars: number[] | undefined,
+): HoleCell[] | null {
+  if (!round) return null;
+  const cells: HoleCell[] = [];
+  for (const h of round.holes) {
+    if (h.strokes === null || h.strokes <= 0) continue;
+    const par = h.par ?? holePars?.[h.hole - 1] ?? holeParStrict(courseName, h.hole);
+    cells.push({
+      hole: h.hole,
+      strokes: h.strokes,
+      par: par ?? null,
+      diff: par != null ? h.strokes - par : null,
+    });
+  }
+  return cells.length ? cells : null;
+}
+
+// Per-hole result color: eagle+ gold, birdie green, par neutral, bogey amber,
+// double+ red. Unknown par stays neutral.
+function holeStyle(diff: number | null): { bg: string; fg: string } {
+  if (diff == null) return { bg: "rgba(255,255,255,0.04)", fg: "#9aa6a0" };
+  if (diff <= -2) return { bg: "#caa24a", fg: "#1a1408" };
+  if (diff === -1) return { bg: "#2f6f49", fg: "#eafff0" };
+  if (diff === 0) return { bg: "rgba(255,255,255,0.05)", fg: "#c7cfc9" };
+  if (diff === 1) return { bg: "#7a4a1e", fg: "#ffe6cf" };
+  return { bg: "#7a2424", fg: "#ffd9d9" };
+}
+
+function HoleStrip({ cells }: { cells: HoleCell[] }) {
+  const thru = cells.length;
+  return (
+    <div className="mt-2.5 pt-2.5 border-t border-line/60">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="num uppercase" style={{ fontSize: 9, letterSpacing: 1, color: "#7e8a83" }}>
+          Hole by hole
+        </span>
+        <span className="num" style={{ fontSize: 9, letterSpacing: 0.5, color: "#7e8a83" }}>
+          thru {thru}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-[3px]">
+        {cells.map((c) => {
+          const s = holeStyle(c.diff);
+          return (
+            <div
+              key={c.hole}
+              title={c.par != null ? `Hole ${c.hole} · par ${c.par} · ${c.strokes}` : `Hole ${c.hole} · ${c.strokes}`}
+              className="flex flex-col items-center justify-center"
+              style={{
+                width: 22,
+                height: 26,
+                borderRadius: 4,
+                background: s.bg,
+                color: s.fg,
+              }}
+            >
+              <span className="num" style={{ fontSize: 7, opacity: 0.7, lineHeight: 1 }}>
+                {c.hole}
+              </span>
+              <span className="num font-semibold" style={{ fontSize: 12, lineHeight: 1.1 }}>
+                {c.strokes}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // One-line shot summary for the shared image, mirroring the on-card
 // strip: "SG +0.9 · FH 13/18 · GIR 14/14 · Scr 1/2 · 297y".
@@ -271,7 +350,7 @@ export default function MobileLivePage() {
   const graded: GradedLeg[] = (bets ?? []).map((b) => {
     const dg = statByName.get(normName(b.player)) ?? null;
     const lp = playerByName.get(normName(b.player)) ?? null;
-    const shots = deriveShotCounts(dg, lp?.todayLine, courseName);
+    const shots = deriveShotCounts(dg, lp?.todayLine, courseName, snapshot?.event?.holePars);
     const ob = dbBetToOpenBet(b);
     let decision = snapshot ? gradeBet(ob, snapshot) : null;
     // Fairways / GIR props aren't in ESPN's feed, so the base grader punts
@@ -287,6 +366,7 @@ export default function MobileLivePage() {
       teeTime: lp?.teeTime ?? null,
       shots,
       player: lp,
+      scorecard: buildScorecard(lp?.todayLine ?? null, courseName, snapshot?.event?.holePars),
     };
   });
 
@@ -564,6 +644,7 @@ function ParlayGroup({
             decision={g.decision}
             dg={g.dg}
             shots={g.shots ?? null}
+            scorecard={g.scorecard ?? null}
             eventName={eventName}
             hideMoney={multi}
             onRemove={!multi ? onRemoveAll : undefined}
@@ -642,6 +723,7 @@ function LiveBetCard({
   decision,
   dg,
   shots,
+  scorecard,
   eventName,
   onRemove,
   hideMoney,
@@ -650,6 +732,7 @@ function LiveBetCard({
   decision: Decision | null;
   dg: DGStat | null;
   shots?: ShotCounts | null;
+  scorecard?: HoleCell[] | null;
   eventName?: string | null;
   onRemove?: () => void;
   hideMoney?: boolean;
@@ -791,6 +874,7 @@ function LiveBetCard({
         </p>
       )}
       {dg && <DGStatStrip dg={dg} shots={shots} />}
+      {scorecard && scorecard.length > 0 && <HoleStrip cells={scorecard} />}
     </li>
   );
 }

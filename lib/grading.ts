@@ -584,7 +584,7 @@ function gradeRoundStatProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decisi
   if (!rl) {
     return { bet, status: "live", reason: `R${round} not started` };
   }
-  const stats = roundStats(rl, snapshot.event?.course ?? null);
+  const stats = roundStats(rl, snapshot.event?.course ?? null, snapshot.event?.holePars);
   if (!stats || stats.played === 0) {
     return { bet, status: "live", reason: `R${round} not started` };
   }

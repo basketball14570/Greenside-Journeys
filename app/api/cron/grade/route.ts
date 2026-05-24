@@ -172,6 +172,7 @@ async function gradeAndPushUserBets(snapshot: LeaderboardSnapshot): Promise<{
         dgRates.get(normShotName(d.bet.player)) ?? null,
         lp?.todayLine,
         courseName,
+        snapshot.event?.holePars,
       );
       if (!shots) continue;
       const sp = gradeShotProp(d.bet, shots);
