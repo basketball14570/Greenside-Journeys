@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 // with the chosen scoring format. `parCoverage` reports how many played
 // holes were actually scoreable (had a par) — if that ratio is low, ESPN
 // isn't giving us hole pars for this event and the points can't be trusted.
-// ?format=classic|showdown  &round=N (showdown: score only that round)
+// ?format=classic|showdown|showdown_r4  &round=N (showdown: score only that round)
 export async function GET(req: NextRequest) {
   const fmt = (req.nextUrl.searchParams.get("format") ?? "classic") as ScoringFormat;
   const config = SCORING_FORMATS[fmt] ?? SCORING_FORMATS.classic;
@@ -27,15 +27,25 @@ export async function GET(req: NextRequest) {
   try {
     const snap = await fetchLeaderboard();
     const isFinal = snap.event?.state === "post";
+    // Both Showdown variants are single-round. R4 Showdown also carries
+    // finishing-position points — and since R4 *is* the tournament finish, we
+    // apply them from the current standing (the "if it ended now" view), not
+    // only once the event is officially final.
+    const isShowdown = fmt === "showdown" || fmt === "showdown_r4";
 
     // Showdown is a single-round contest. If the caller didn't pin a round,
-    // default to the latest round any golfer has started — otherwise we'd sum
-    // every round's points, which massively inflates Showdown scores and breaks
-    // the field ranking. Classic stays cumulative (all rounds) by design.
+    // default R4 Showdown to round 4, and plain Showdown to the latest round
+    // any golfer has started — otherwise we'd sum every round's points, which
+    // massively inflates Showdown scores and breaks the field ranking. Classic
+    // stays cumulative (all rounds) by design.
     let effectiveRound = onlyRound;
-    if (effectiveRound === null && fmt === "showdown") {
-      const periods = snap.players.flatMap((p) => p.rounds.map((r) => r.period));
-      effectiveRound = periods.length ? Math.max(...periods) : null;
+    if (effectiveRound === null && isShowdown) {
+      if (fmt === "showdown_r4") {
+        effectiveRound = 4;
+      } else {
+        const periods = snap.players.flatMap((p) => p.rounds.map((r) => r.period));
+        effectiveRound = periods.length ? Math.max(...periods) : null;
+      }
     }
     const pickRounds = (p: (typeof snap.players)[number]) =>
       effectiveRound ? p.rounds.filter((r) => r.period === effectiveRound) : p.rounds;
@@ -79,7 +89,11 @@ export async function GET(req: NextRequest) {
         posNum: p.posNum,
         isCut: p.isCut,
         thru: p.todayLine?.thru ?? null,
-        points: playerLivePoints(rounds, config, isFinal ? p.posNum : null),
+        points: playerLivePoints(
+          rounds,
+          config,
+          isFinal || fmt === "showdown_r4" ? p.posNum : null,
+        ),
       };
     });
 

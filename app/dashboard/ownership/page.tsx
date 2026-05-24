@@ -18,6 +18,7 @@ import {
 } from "@/lib/data/ownership-archive";
 import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
 import { OwnershipAccuracy } from "@/components/dfs/OwnershipAccuracy";
+import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
 
 // DFS ownership browser. Three views: tournaments grid, player leaderboard,
 // drill-down on either. Mirrors the standalone HTML viewer but uses the
@@ -77,6 +78,7 @@ export default function OwnershipPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
+      <DfsMobileNav />
       <header>
         <span
           className="num font-semibold uppercase"

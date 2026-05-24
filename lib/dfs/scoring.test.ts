@@ -6,6 +6,7 @@ import {
   scorePlayer,
   CLASSIC_SCORING,
   SHOWDOWN_SCORING,
+  SHOWDOWN_R4_SCORING,
   type HoleResult,
 } from "./scoring";
 
@@ -13,6 +14,25 @@ import {
 function round(toPars: number[], par = 4): HoleResult[] {
   return toPars.map((tp) => ({ strokes: par + tp, par }));
 }
+
+describe("Showdown R4 = Showdown per-hole scoring + finishing-position points", () => {
+  const allPars = round(new Array(18).fill(0)); // bogey-free: 18*1.5 + 5 = 32
+
+  it("scores per-hole identically to regular Showdown when no finish is set", () => {
+    expect(scorePlayer([allPars], null, SHOWDOWN_R4_SCORING)).toBeCloseTo(
+      scorePlayer([allPars], null, SHOWDOWN_SCORING),
+      2,
+    );
+  });
+
+  it("adds the right finishing-position bonus", () => {
+    const base = scorePlayer([allPars], null, SHOWDOWN_SCORING); // 32
+    expect(scorePlayer([allPars], 1, SHOWDOWN_R4_SCORING)).toBeCloseTo(base + 13, 2);
+    expect(scorePlayer([allPars], 4, SHOWDOWN_R4_SCORING)).toBeCloseTo(base + 8.5, 2);
+    expect(scorePlayer([allPars], 18, SHOWDOWN_R4_SCORING)).toBeCloseTo(base + 4, 2);
+    expect(scorePlayer([allPars], 60, SHOWDOWN_R4_SCORING)).toBeCloseTo(base, 2); // outside top 50
+  });
+});
 
 // Reconstructs real DK Showdown scorecards (THE CJ CUP Byron Nelson R3,
 // contest 190706927) from DK's own hole-count breakdown, proving the scoring

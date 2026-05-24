@@ -27,6 +27,17 @@ import {
 import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
 import { DK_SALARIES } from "@/lib/data/dfs-salaries";
 import { projectOwnership } from "@/lib/dfs/project-ownership";
+import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
+import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
+
+const FORMAT_LABELS: Record<ScoringFormat, string> = {
+  classic: "Classic",
+  showdown: "Showdown",
+  showdown_r4: "Showdown R4",
+};
+function asFormat(v: unknown): ScoringFormat {
+  return typeof v === "string" && v in SCORING_FORMATS ? (v as ScoringFormat) : "classic";
+}
 
 type LivePoints = {
   source: string;
@@ -65,7 +76,7 @@ type ContestPreset = {
   name: string;
   ladder: string;
   fee: string;
-  format: "classic" | "showdown";
+  format: ScoringFormat;
   round: string;
 };
 
@@ -110,7 +121,7 @@ export default function CutSweatPage() {
   const [ladderText, setLadderText] = useState("");
   const [fee, setFee] = useState("");
   const [username, setUsername] = useState("");
-  const [format, setFormat] = useState<"classic" | "showdown">("classic");
+  const [format, setFormat] = useState<ScoringFormat>("classic");
   const [roundParam, setRoundParam] = useState("");
   const [live, setLive] = useState<LivePoints | null>(null);
   const [livePending, setLivePending] = useState(false);
@@ -136,7 +147,7 @@ export default function CutSweatPage() {
         setPresetName(c.name ?? "");
         setLadderText(c.payoutLadder ?? "");
         setFee(c.fee != null ? String(c.fee) : "");
-        setFormat(c.format === "showdown" ? "showdown" : "classic");
+        setFormat(asFormat(c.format));
         setRoundParam(c.round != null ? String(c.round) : "");
         if (c.standingsCsv) {
           setStandingsCsv(c.standingsCsv);
@@ -289,7 +300,12 @@ export default function CutSweatPage() {
   // The round actually scored: an explicit entry wins, else parse it from the
   // contest name. Empty only when neither is available (then the server falls
   // back to the live tournament round — fine for a current-round contest).
-  const effectiveRound = roundParam || (parseRoundFromName(presetName) ?? "");
+  const effectiveRound =
+    format === "showdown_r4"
+      ? "4"
+      : roundParam || (parseRoundFromName(presetName) ?? "");
+  // Both Showdown variants score a single round; Classic is cumulative.
+  const isShowdown = format === "showdown" || format === "showdown_r4";
 
   async function pullLive() {
     setLivePending(true);
@@ -372,7 +388,7 @@ export default function CutSweatPage() {
   // Showdown win probability: Monte-Carlo the rest of the round from each
   // golfer's pace. Only meaningful single-round.
   const winProb = useMemo(() => {
-    if (format !== "showdown" || !standings || !golferStates || !live || live.players.length === 0)
+    if (!isShowdown || !standings || !golferStates || !live || live.players.length === 0)
       return null;
     const entryIds = new Set(entries.map((e) => e.entryId).filter(Boolean));
     const wantUser = username ? normalizeName(username.replace(/\s*\(.*$/, "")) : null;
@@ -467,6 +483,7 @@ export default function CutSweatPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-6xl mx-auto">
+      <DfsMobileNav />
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <span className="num font-semibold uppercase" style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}>
@@ -650,20 +667,22 @@ export default function CutSweatPage() {
                 {standingsName ? `📄 ${standingsName}` : "Choose standings CSV…"}
               </label>
               {/* Format drives the live-scoring engine: Showdown = single round
-                  (DK Showdown points), Classic = cumulative across rounds. */}
+                  (DK Showdown points), Showdown R4 = same per-hole scoring plus
+                  finishing-position points (it's the final round), Classic =
+                  cumulative across rounds. */}
               <div className="inline-flex rounded-[8px] border border-line-strong overflow-hidden" style={{ fontSize: 12 }}>
-                {(["classic", "showdown"] as const).map((f) => (
+                {(["classic", "showdown", "showdown_r4"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setFormat(f)}
-                    className="num px-3 py-2 capitalize"
+                    className="num px-3 py-2 whitespace-nowrap"
                     style={{
                       background: format === f ? GREEN : "transparent",
                       color: format === f ? "#0a1f12" : "#8a8f98",
                       fontWeight: format === f ? 600 : 400,
                     }}
                   >
-                    {f}
+                    {FORMAT_LABELS[f]}
                   </button>
                 ))}
               </div>
@@ -682,7 +701,11 @@ export default function CutSweatPage() {
             {standings && (
               <span className="num text-text-dim" style={{ fontSize: 12 }}>
                 {standings.entries.length.toLocaleString()} entries in field
-                {format === "showdown" ? " · scored as a single Showdown round" : " · scored cumulative (Classic)"}
+                {format === "showdown_r4"
+                  ? " · scored as Round 4 Showdown (incl. finish points)"
+                  : format === "showdown"
+                    ? " · scored as a single Showdown round"
+                    : " · scored cumulative (Classic)"}
               </span>
             )}
           </div>
@@ -813,7 +836,7 @@ export default function CutSweatPage() {
               </span>
               <div className="flex items-center gap-2">
                 <span className="num capitalize text-text-dim" style={{ fontSize: 11 }}>
-                  {format}{format === "showdown" && effectiveRound ? ` · R${effectiveRound}` : ""} scoring
+                  {FORMAT_LABELS[format]}{isShowdown && effectiveRound ? ` · R${effectiveRound}` : ""} scoring
                 </span>
                 <button
                   onClick={pullLive}

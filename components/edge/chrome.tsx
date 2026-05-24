@@ -124,7 +124,7 @@ export function EventStrap() {
 const TABS = [
   { id: "home", href: "/dashboard", label: "Today" },
   { id: "live", href: "/dashboard/live", label: "Live" },
-  { id: "dfs", href: "/dashboard/dfs", label: "DFS" },
+  { id: "dfs", href: "/dashboard/dfs/cut-sweat", label: "DFS" },
   { id: "weather", href: "/dashboard/weather", label: "Weather" },
   { id: "leaderboard", href: "/dashboard/leaderboard", label: "Leaders" },
   { id: "guide", href: "/dashboard/guide", label: "Course" },

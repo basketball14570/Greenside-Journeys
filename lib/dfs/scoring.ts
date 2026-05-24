@@ -70,9 +70,36 @@ export const CLASSIC_SCORING: ScoringConfig = {
   ],
 };
 
+// Round-4 Showdown: identical per-hole + bonus scoring to regular Showdown,
+// but because R4 is the tournament's final round, DraftKings adds
+// finishing-position points on top. Tiers per DK's published R4 Showdown rules.
+export const SHOWDOWN_R4_SCORING: ScoringConfig = {
+  perHole: { ...SHOWDOWN_SCORING.perHole },
+  bonuses: { threeBirdieStreak: 5, bogeyFreeRound: 5, holeInOne: 5 },
+  finishBonus: [
+    { minRank: 1, maxRank: 1, points: 13 },
+    { minRank: 2, maxRank: 2, points: 10 },
+    { minRank: 3, maxRank: 3, points: 9 },
+    { minRank: 4, maxRank: 4, points: 8.5 },
+    { minRank: 5, maxRank: 5, points: 8 },
+    { minRank: 6, maxRank: 6, points: 7.5 },
+    { minRank: 7, maxRank: 7, points: 7 },
+    { minRank: 8, maxRank: 8, points: 6.5 },
+    { minRank: 9, maxRank: 9, points: 6 },
+    { minRank: 10, maxRank: 10, points: 5.5 },
+    { minRank: 11, maxRank: 15, points: 5 },
+    { minRank: 16, maxRank: 20, points: 4 },
+    { minRank: 21, maxRank: 25, points: 3 },
+    { minRank: 26, maxRank: 30, points: 2 },
+    { minRank: 31, maxRank: 40, points: 1 },
+    { minRank: 41, maxRank: 50, points: 0.5 },
+  ],
+};
+
 export const SCORING_FORMATS = {
   classic: CLASSIC_SCORING,
   showdown: SHOWDOWN_SCORING,
+  showdown_r4: SHOWDOWN_R4_SCORING,
 } as const;
 export type ScoringFormat = keyof typeof SCORING_FORMATS;
 

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const PayloadSchema = z.object({
   name: z.string().min(1).max(200),
   fee: z.number().nonnegative().nullable().optional(),
-  format: z.enum(["classic", "showdown"]),
+  format: z.enum(["classic", "showdown", "showdown_r4"]),
   round: z.number().int().min(1).max(8).nullable().optional(),
   payoutLadder: z.string().min(1).max(20_000),
   eventName: z.string().max(200).nullable().optional(),
