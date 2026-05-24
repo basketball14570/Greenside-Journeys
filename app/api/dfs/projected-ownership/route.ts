@@ -7,6 +7,7 @@ import {
   type HistoryRow,
   type FieldEntry,
 } from "@/lib/dfs/ownership-model";
+import { normalizeName } from "@/lib/dfs/cut-sweat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -172,6 +173,146 @@ export async function GET(req: NextRequest) {
       players_with_history: byPlayer.size,
       field_size: field.length,
     },
+    projections,
+  });
+}
+
+// POST: project ownership from a caller-supplied field (e.g. a parsed DK
+// salaries CSV) instead of DataGolf's DFS feed. This is what makes the
+// projection work mid-event — DataGolf's historical-dfs feed doesn't carry an
+// in-progress event, but the DK salary file does, and the model is
+// deterministic given salaries + our unchanged ownership history.
+//
+// Body: { field: [{ player_name, salary }], site? }
+export async function POST(req: NextRequest) {
+  const admin = supabaseAdmin();
+  if (!admin) {
+    return NextResponse.json(
+      { ok: false, error: "supabase admin not configured" },
+      { status: 503 },
+    );
+  }
+
+  let body: { field?: unknown; site?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 });
+  }
+
+  const site =
+    (body.site as "draftkings" | "fanduel" | "yahoo") ?? "draftkings";
+  const rawField = Array.isArray(body.field) ? body.field : [];
+  const field: FieldEntry[] = rawField
+    .map((e) => e as { player_name?: unknown; salary?: unknown })
+    .filter(
+      (e) => typeof e.player_name === "string" && Number(e.salary) > 0,
+    )
+    .map((e) => ({ player_name: String(e.player_name), salary: Number(e.salary) }));
+
+  if (field.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: "no usable rows in uploaded field" },
+      { status: 400 },
+    );
+  }
+
+  const active = getActiveEvent();
+  if (!active) {
+    return NextResponse.json({ ok: false, error: "no active event" }, { status: 404 });
+  }
+  const year = SEASON_YEAR;
+
+  // Bound the history pull to recent seasons (the recency half-life is 2y, so
+  // 4y back is plenty) and resolve event metadata up front.
+  const { data: eventsRows, error: eErr } = await admin
+    .from("dfs_events")
+    .select("id, year, course, event_name")
+    .gte("year", year - 4);
+  if (eErr) {
+    return NextResponse.json({ ok: false, error: eErr.message }, { status: 500 });
+  }
+  const eventLookup = new Map((eventsRows ?? []).map((e) => [e.id, e]));
+  const recentEventIds = (eventsRows ?? []).map((e) => e.id);
+
+  // Page through the points rows for these events so we're never truncated by
+  // the default 1000-row ceiling.
+  type PointRow = {
+    event_id: number | string;
+    player_name: string;
+    salary: number | null;
+    ownership_pct: number | string | null;
+  };
+  const pointsRows: PointRow[] = [];
+  if (recentEventIds.length > 0) {
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await admin
+        .from("dfs_player_points")
+        .select("event_id, player_name, salary, ownership_pct")
+        .eq("site", site)
+        .in("event_id", recentEventIds)
+        .range(from, from + PAGE - 1);
+      if (error) {
+        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      }
+      pointsRows.push(...((data ?? []) as PointRow[]));
+      if (!data || data.length < PAGE) break;
+    }
+  }
+
+  const activeNorm = normalizeName(active.name);
+  const allHistory: HistoryRow[] = [];
+  for (const r of pointsRows) {
+    const ev = eventLookup.get(r.event_id as number);
+    if (!ev) continue;
+    if (normalizeName(ev.event_name) === activeNorm) continue; // don't peek at the target event
+    const sched = findEventByName(ev.event_name);
+    allHistory.push({
+      event_id: String(r.event_id),
+      year: ev.year,
+      course: ev.course,
+      event_name: ev.event_name,
+      event_type: sched?.type ?? null,
+      player_name: r.player_name,
+      salary: r.salary,
+      ownership_pct: r.ownership_pct == null ? null : Number(r.ownership_pct),
+    });
+  }
+
+  // Group history by normalized name so DK "First Last" joins DataGolf-format
+  // "Last, First" rows, then key it by each field entry's display name.
+  const byNorm = new Map<string, HistoryRow[]>();
+  for (const row of allHistory) {
+    const k = normalizeName(row.player_name);
+    const arr = byNorm.get(k) ?? [];
+    arr.push(row);
+    byNorm.set(k, arr);
+  }
+  const historyByPlayer = new Map<string, HistoryRow[]>();
+  let withHistory = 0;
+  for (const f of field) {
+    const hist = byNorm.get(normalizeName(f.player_name)) ?? [];
+    historyByPlayer.set(f.player_name, hist);
+    if (hist.length > 0) withHistory++;
+  }
+
+  const projections = projectOwnership(
+    { course: active.course, eventType: active.type, year },
+    field,
+    historyByPlayer,
+    allHistory,
+  );
+
+  return NextResponse.json({
+    ok: true,
+    event: { name: active.name, course: active.course, year, event_id: 0, site },
+    history_stats: {
+      total_rows: allHistory.length,
+      players_with_history: withHistory,
+      field_size: field.length,
+    },
+    source: "uploaded_salaries",
     projections,
   });
 }

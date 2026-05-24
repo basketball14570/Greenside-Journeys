@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { parseSalariesCsv } from "@/lib/dfs/dk-salaries";
 
 type Projection = {
   player_name: string;
@@ -17,6 +18,7 @@ type ApiResponse = {
   ok: boolean;
   event?: { name: string; course: string; event_id: number; site: string };
   projections?: Projection[];
+  source?: string;
   error?: string;
 };
 
@@ -89,6 +91,31 @@ export function OwnershipAccuracy() {
       const res = await fetch(`/api/dfs/projected-ownership${qs}`);
       const json = (await res.json()) as ApiResponse;
       setData(json);
+    } catch {
+      setData({ ok: false, error: "request failed" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Seed projections from an uploaded DK salaries CSV. Works mid-event when
+  // DataGolf's DFS feed hasn't published the in-progress slate.
+  async function onSalaryFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const field = parseSalariesCsv(await f.text());
+    if (field.length === 0) {
+      setData({ ok: false, error: "couldn't read names/salaries from that CSV" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/dfs/projected-ownership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field }),
+      });
+      setData((await res.json()) as ApiResponse);
     } catch {
       setData({ ok: false, error: "request failed" });
     } finally {
@@ -195,6 +222,20 @@ export function OwnershipAccuracy() {
           week&apos;s projection and score the model. Nothing is uploaded; it&apos;s
           all computed in your browser.
         </p>
+        <div className="flex items-center gap-2 flex-wrap pt-1">
+          <label
+            className="inline-flex items-center gap-2 rounded-[8px] border border-line px-3 py-2 cursor-pointer hover:border-line-strong"
+            style={{ fontSize: 12.5 }}
+          >
+            <input type="file" accept=".csv,text/csv" onChange={onSalaryFile} className="hidden" />
+            Upload DK salaries CSV…
+          </label>
+          <span className="text-text-muted" style={{ fontSize: 11 }}>
+            {data?.source === "uploaded_salaries"
+              ? "Projections built from your uploaded salary file."
+              : "Use this if projections didn't auto-load — it regenerates them from this week's DK slate."}
+          </span>
+        </div>
       </div>
 
       {!loading && data?.error && (
