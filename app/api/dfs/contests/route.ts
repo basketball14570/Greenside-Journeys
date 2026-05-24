@@ -26,6 +26,35 @@ function shareId(): string {
   return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4);
 }
 
+// Lists recently published contests (metadata only — never the big CSV) so
+// the Cut Sweat page can show a picker. Public read, same as GET /[id].
+export async function GET() {
+  const admin = supabaseAdmin();
+  if (!admin) return NextResponse.json({ contests: [] });
+  const { data, error } = await admin
+    .from("dfs_shared_contests")
+    .select("id, name, event_name, field_size, format, round, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) {
+    return NextResponse.json({ contests: [], error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(
+    {
+      contests: (data ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        eventName: c.event_name,
+        fieldSize: c.field_size,
+        format: c.format,
+        round: c.round,
+        createdAt: c.created_at,
+      })),
+    },
+    { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120" } },
+  );
+}
+
 export async function POST(req: NextRequest) {
   const admin = supabaseAdmin();
   if (!admin) {

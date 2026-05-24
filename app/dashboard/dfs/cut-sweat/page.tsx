@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   parseEntriesCsv,
@@ -86,6 +86,18 @@ type ContestPreset = {
   standingsName?: string; // file name of the saved CSV, if any
 };
 
+// A contest published server-side (via Share) that any visitor can load
+// without uploading a CSV. Listing omits the (large) standings_csv.
+type SharedContestItem = {
+  id: string;
+  name: string;
+  eventName: string | null;
+  fieldSize: number | null;
+  format: ScoringFormat;
+  round: number | null;
+  createdAt: string;
+};
+
 function loadPresets(): ContestPreset[] {
   try {
     const raw = localStorage.getItem(PRESETS_KEY);
@@ -137,16 +149,24 @@ export default function CutSweatPage() {
   const [sharePending, setSharePending] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
+  const [sharedList, setSharedList] = useState<SharedContestItem[]>([]);
 
   useEffect(() => {
     setPresets(loadPresets());
   }, []);
 
-  // Open a shared contest from ?contest=<id> — populates everything except the
-  // visitor's username, so they just type their DK name to see their ROI.
+  // Published contests anyone can load without uploading a CSV. The list is
+  // public (read-only); selecting one pulls the full field server-side.
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("contest");
-    if (!id) return;
+    fetch("/api/dfs/contests", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j: { contests?: SharedContestItem[] }) => setSharedList(j.contests ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Pull a published contest by share id and populate everything except the
+  // visitor's username, so they just type their DK name to see their ROI.
+  const loadSharedContest = useCallback((id: string) => {
     fetch(`/api/dfs/contests/${id}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
       .then((c) => {
@@ -161,9 +181,16 @@ export default function CutSweatPage() {
           setStandingsName(`${c.name} (shared)`);
         }
         setLoadedFrom(c.name ?? id);
+        setShareError(null);
       })
-      .catch(() => setShareError("That shared contest link wasn't found."));
+      .catch(() => setShareError("That shared contest wasn't found."));
   }, []);
+
+  // Auto-open a shared contest from ?contest=<id> (the share-link path).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("contest");
+    if (id) loadSharedContest(id);
+  }, [loadSharedContest]);
 
   async function shareContest() {
     if (!standingsCsv || !presetName.trim() || !ladderText.trim()) return;
@@ -661,6 +688,35 @@ export default function CutSweatPage() {
             </div>
             <p className="text-text-dim mt-0.5" style={{ fontSize: 11.5 }}>
               Field and payouts are pre-filled. Just enter your DK username below to see your ROI.
+            </p>
+          </div>
+        )}
+
+        {/* Published contests — server-side fields anyone can load and just
+            type their username. No CSV upload needed. */}
+        {sharedList.length > 0 && (
+          <div className="mb-4">
+            <span className="num font-semibold uppercase text-text-muted" style={{ fontSize: 9.5, letterSpacing: 1.2 }}>
+              ● Published contests · tap to load your lineups
+            </span>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {sharedList.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => loadSharedContest(c.id)}
+                  className="num inline-flex items-center gap-1.5 rounded-[6px] border border-line-strong bg-bg px-2.5 py-1.5 text-text hover:border-[#2faa5f]"
+                  style={{ fontSize: 11.5 }}
+                  title={`${c.fieldSize ?? "?"} entries · ${FORMAT_LABELS[c.format] ?? c.format}`}
+                >
+                  {c.name}
+                  <span className="text-text-muted" style={{ fontSize: 10 }}>
+                    {c.fieldSize ? `· ${c.fieldSize.toLocaleString()}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="text-text-muted mt-1.5" style={{ fontSize: 10.5 }}>
+              Pick a contest, then enter your DK username below — no upload needed.
             </p>
           </div>
         )}
