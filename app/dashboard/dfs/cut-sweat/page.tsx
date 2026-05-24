@@ -7,6 +7,7 @@ import {
   analyzeEntry,
   summarizeByContest,
   normalizeName,
+  buildNameResolver,
   type DkEntry,
   type CutLookup,
 } from "@/lib/dfs/cut-sweat";
@@ -329,13 +330,13 @@ export default function CutSweatPage() {
   // snapshot. The CSV's FPTS is only a fallback for golfers ESPN hasn't listed.
   const golferStates = useMemo(() => {
     if (!standings) return null;
-    const liveByName = new Map<string, { points: number; thru: number }>();
-    for (const p of live?.players ?? [])
-      liveByName.set(normalizeName(p.name), { points: p.points, thru: p.thru ?? 18 });
+    const resolve = buildNameResolver(
+      (live?.players ?? []).map((p) => ({ name: p.name, points: p.points, thru: p.thru ?? 18 })),
+    );
     const states = new Map<string, GolferState>();
     for (const pl of standings.players) {
       const key = normalizeName(pl.name);
-      const l = liveByName.get(key);
+      const l = resolve(pl.name);
       const points = l ? l.points : pl.fpts;
       const thru = l ? l.thru : 18; // no live hole data → treat round as done
       states.set(key, { points, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
@@ -345,11 +346,11 @@ export default function CutSweatPage() {
 
   const matchedGolfers = useMemo(() => {
     if (!golferStates || !live) return 0;
-    const thru = new Set((live.players ?? []).map((p) => normalizeName(p.name)));
+    const resolve = buildNameResolver(live.players ?? []);
     let n = 0;
-    for (const k of golferStates.keys()) if (thru.has(k)) n++;
+    for (const pl of standings?.players ?? []) if (resolve(pl.name)) n++;
     return n;
-  }, [golferStates, live]);
+  }, [golferStates, live, standings]);
 
   // How many DISTINCT golfers actually used across the field's lineups got a
   // live score. Any unmatched golfer falls back to the (possibly stale) CSV
@@ -357,11 +358,11 @@ export default function CutSweatPage() {
   // re-ranked standings — this surfaces exactly which names to fix.
   const fieldMatch = useMemo(() => {
     if (!standings || !live) return null;
-    const liveSet = new Set((live.players ?? []).map((p) => normalizeName(p.name)));
+    const resolve = buildNameResolver(live.players ?? []);
     const distinct = new Map<string, string>();
     for (const e of standings.entries) for (const g of e.golfers) distinct.set(normalizeName(g), g);
     const unmatched: string[] = [];
-    for (const [norm, disp] of distinct) if (!liveSet.has(norm)) unmatched.push(disp);
+    for (const disp of distinct.values()) if (!resolve(disp)) unmatched.push(disp);
     return { matched: distinct.size - unmatched.length, total: distinct.size, unmatched };
   }, [standings, live]);
 
@@ -917,24 +918,41 @@ export default function CutSweatPage() {
                               {d.prize > 0 ? `$${d.prize.toLocaleString()}` : "—"}
                             </span>
                           </div>
-                          {ent && golferStates && (
-                            <div className="px-3 pb-2 pt-0.5 border-t border-line/60">
-                              {ent.golfers.map((g) => {
-                                const st = golferStates.get(normalizeName(g));
-                                if (!st) return null;
-                                const proj = projectGolferFinal(st, { priorPace: prior });
-                                return (
-                                  <div key={g} className="flex items-center justify-between num text-text-dim" style={{ fontSize: 10.5, padding: "1px 0" }}>
-                                    <span className="truncate" style={{ maxWidth: "55%" }}>{g}</span>
-                                    <span>
-                                      {st.points.toFixed(1)} pt · thru {st.holesPlayed} ({st.holesRemaining} left) →{" "}
-                                      <span className="text-text" style={{ fontWeight: 600 }}>{proj.toFixed(1)}</span>
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {ent && golferStates && (() => {
+                            const sts = ent.golfers
+                              .map((g) => golferStates.get(normalizeName(g)))
+                              .filter((s): s is GolferState => !!s);
+                            const totalPts = sts.reduce((s, st) => s + st.points, 0);
+                            const phr = sts.reduce((s, st) => s + st.holesRemaining, 0);
+                            const totalProj = sts.reduce((s, st) => s + projectGolferFinal(st, { priorPace: prior }), 0);
+                            return (
+                              <div className="px-3 pb-2 pt-0.5 border-t border-line/60">
+                                {ent.golfers.map((g) => {
+                                  const st = golferStates.get(normalizeName(g));
+                                  if (!st) return null;
+                                  const proj = projectGolferFinal(st, { priorPace: prior });
+                                  return (
+                                    <div key={g} className="flex items-center justify-between num text-text-dim" style={{ fontSize: 10.5, padding: "1px 0" }}>
+                                      <span className="truncate" style={{ maxWidth: "55%" }}>{g}</span>
+                                      <span>
+                                        {st.points.toFixed(1)} pt · thru {st.holesPlayed} ({st.holesRemaining} left) →{" "}
+                                        <span className="text-text" style={{ fontWeight: 600 }}>{proj.toFixed(1)}</span>
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                <div className="flex items-center justify-between num mt-1 pt-1 border-t border-line/40" style={{ fontSize: 11.5 }}>
+                                  <span className="text-text" style={{ fontWeight: 700 }}>
+                                    {totalPts.toFixed(1)} pt
+                                  </span>
+                                  <span className="text-text-dim">
+                                    <span className="text-text" style={{ fontWeight: 600 }}>{phr}</span> PHR left ·
+                                    proj <span className="text-text" style={{ fontWeight: 600 }}>{totalProj.toFixed(1)}</span>
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}

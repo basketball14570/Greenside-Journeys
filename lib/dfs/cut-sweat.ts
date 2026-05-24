@@ -38,6 +38,55 @@ export function normalizeName(s: string): string {
   return (tokens.length > 0 ? tokens : base.split(" ")).sort().join(" ");
 }
 
+// "lastname|firstinitial" key, ORDER PRESERVED (normalizeName sorts tokens and
+// loses first/last). Used as a fuzzy fallback so a nickname or spelling variant
+// still matches: "Zach Bauchou"↔"Zachary Bauchou", "John Keefer"↔"Johnny
+// Keefer", "Seung-Yul Noh"↔"Seung Yul Noh".
+export function lastInitialKey(raw: string): string {
+  const tokens = raw
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ø/gi, "o")
+    .replace(/å/gi, "a")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+  if (tokens.length < 2) return "";
+  const last = tokens[tokens.length - 1];
+  const firstInitial = tokens[0][0];
+  return `${last}|${firstInitial}`;
+}
+
+// Build a resolver over a set of named records (e.g. live-scoring rows). Tries
+// exact token-set match first, then falls back to last-name+first-initial —
+// but only when that key is UNIQUE on the source side, so we never match the
+// wrong "S. Kim". Lets uploaded lineups join nickname/spelling variants from
+// the live feed that normalizeName alone misses.
+export function buildNameResolver<T extends { name: string }>(
+  records: T[],
+): (name: string) => T | null {
+  const exact = new Map<string, T>();
+  const byLastInitial = new Map<string, T[]>();
+  for (const r of records) {
+    exact.set(normalizeName(r.name), r);
+    const k = lastInitialKey(r.name);
+    if (k) {
+      const arr = byLastInitial.get(k) ?? [];
+      arr.push(r);
+      byLastInitial.set(k, arr);
+    }
+  }
+  return (name: string): T | null => {
+    const hit = exact.get(normalizeName(name));
+    if (hit) return hit;
+    const arr = byLastInitial.get(lastInitialKey(name));
+    return arr && arr.length === 1 ? arr[0] : null;
+  };
+}
+
 // Minimal RFC-4180-ish line splitter: handles double-quoted fields that
 // contain commas (DK contest names like "...[$30K to 1st, Single Entry]").
 export function splitCsvLine(line: string): string[] {

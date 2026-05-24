@@ -6,6 +6,7 @@ import {
   analyzeEntry,
   summarizeByContest,
   normalizeName,
+  buildNameResolver,
   type CutLookup,
 } from "./cut-sweat";
 
@@ -50,6 +51,35 @@ describe("normalizeName", () => {
     expect(normalizeName("Scheffler, Scottie")).toBe(normalizeName("Scottie Scheffler"));
     expect(normalizeName("Kim, Si Woo")).toBe(normalizeName("Si Woo Kim"));
     expect(normalizeName("McIlroy, Rory")).toBe(normalizeName("Rory McIlroy"));
+  });
+});
+
+describe("buildNameResolver", () => {
+  const live = [
+    { name: "Zach Bauchou", points: 40 },
+    { name: "Johnny Keefer", points: 35 },
+    { name: "Seung Yul Noh", points: 30 },
+    { name: "Scottie Scheffler", points: 50 },
+  ];
+  const resolve = buildNameResolver(live);
+
+  it("matches nickname / spelling variants via last name + first initial", () => {
+    expect(resolve("Zachary Bauchou")?.points).toBe(40); // Zach ↔ Zachary
+    expect(resolve("John Keefer")?.points).toBe(35); // John ↔ Johnny
+    expect(resolve("Seung-Yul Noh")?.points).toBe(30); // hyphen ↔ space
+  });
+
+  it("still matches exact names", () => {
+    expect(resolve("Scottie Scheffler")?.points).toBe(50);
+  });
+
+  it("refuses an ambiguous last-name+initial fallback", () => {
+    const ambiguous = buildNameResolver([
+      { name: "Chan Kim", points: 1 },
+      { name: "Charlie Kim", points: 2 },
+    ]);
+    // "C. Kim" could be either, so no fuzzy match is returned.
+    expect(ambiguous("C Kim")).toBeNull();
   });
 
   it("maps special Latin letters so ESPN ø/accents match a DK export", () => {
