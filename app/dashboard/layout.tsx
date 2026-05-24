@@ -50,24 +50,24 @@ export default function DashboardLayout({
   );
 }
 
-// Map a pathname to the mobile tab id. Mobile shows 5 tabs (home/bets/
-// ask/dfs/course), so everything outside those routes falls back to the
-// closest match (e.g. /dashboard/parlay → tickets).
+// Map a pathname to the mobile tab id. Mobile shows 6 tabs (home/live/dfs/
+// weather/leaderboard/guide), so everything outside those routes falls back
+// to the closest match (e.g. /dashboard/parlay → live).
 function activeMobileTabFor(pathname: string | null): string {
   if (!pathname) return "home";
   if (pathname === "/dashboard") return "home";
   if (pathname.startsWith("/dashboard/live")) return "live";
   if (pathname.startsWith("/dashboard/parlay")) return "live";
-  if (pathname.startsWith("/dashboard/bets")) return "bets";
-  if (pathname.startsWith("/dashboard/slip")) return "bets";
-  if (pathname.startsWith("/dashboard/upload")) return "bets";
-  if (pathname.startsWith("/dashboard/ask")) return "ask";
+  if (pathname.startsWith("/dashboard/bets")) return "live";
+  if (pathname.startsWith("/dashboard/slip")) return "live";
+  if (pathname.startsWith("/dashboard/upload")) return "live";
   if (pathname.startsWith("/dashboard/dfs")) return "dfs";
   if (pathname.startsWith("/dashboard/ownership")) return "dfs";
   if (pathname.startsWith("/dashboard/weather")) return "weather";
   if (pathname.startsWith("/dashboard/conditions")) return "weather";
-  if (pathname.startsWith("/dashboard/guide")) return "weather";
-  if (pathname.startsWith("/courses/")) return "weather";
+  if (pathname.startsWith("/dashboard/leaderboard")) return "leaderboard";
+  if (pathname.startsWith("/dashboard/guide")) return "guide";
+  if (pathname.startsWith("/courses/")) return "guide";
   return "home";
 }
 

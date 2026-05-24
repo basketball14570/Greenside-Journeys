@@ -123,11 +123,11 @@ export function EventStrap() {
 // ─── Mobile bottom nav ──────────────────────────────────────
 const TABS = [
   { id: "home", href: "/dashboard", label: "Today" },
-  { id: "bets", href: "/dashboard/bets", label: "Tickets" },
   { id: "live", href: "/dashboard/live", label: "Live" },
-  { id: "ask", href: "/dashboard/ask", label: "Ask" },
   { id: "dfs", href: "/dashboard/dfs", label: "DFS" },
   { id: "weather", href: "/dashboard/weather", label: "Weather" },
+  { id: "leaderboard", href: "/dashboard/leaderboard", label: "Leaders" },
+  { id: "guide", href: "/dashboard/guide", label: "Course" },
 ] as const;
 
 const ICONS: Record<string, (c: string) => React.ReactNode> = {
@@ -172,7 +172,7 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
       <path d="M4 18V8m6 10V4m6 14v-7m4 7H4" stroke={c} strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   ),
-  course: (c) => (
+  guide: (c) => (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <path
         d="M5 21V5l8-2v18M5 9l8 2M19 11v10M19 11l-3-3v6l3-3z"
@@ -180,6 +180,13 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
+    </svg>
+  ),
+  leaderboard: (c) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <rect x="3.5" y="13" width="4.5" height="7" stroke={c} strokeWidth="1.7" strokeLinejoin="round" />
+      <rect x="9.75" y="8" width="4.5" height="12" stroke={c} strokeWidth="1.7" strokeLinejoin="round" />
+      <rect x="16" y="11" width="4.5" height="9" stroke={c} strokeWidth="1.7" strokeLinejoin="round" />
     </svg>
   ),
   weather: (c) => (

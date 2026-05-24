@@ -35,7 +35,7 @@ export default function CoursePage({ params }: { params: { slug: string } }) {
         <div className="pt-3">
           <MobileTopBar />
         </div>
-        <MobileBottomNav active="course" />
+        <MobileBottomNav active="guide" />
       </div>
 
       <main className="flex-1 px-5 lg:px-8 py-6 max-w-7xl mx-auto w-full space-y-6">

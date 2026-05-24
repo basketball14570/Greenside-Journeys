@@ -18,7 +18,7 @@ export default function PlayersIndex() {
         <div className="pt-3">
           <MobileTopBar />
         </div>
-        <MobileBottomNav active="bets" />
+        <MobileBottomNav active="home" />
       </div>
 
       <main className="flex-1 px-5 lg:px-8 py-6 max-w-5xl mx-auto w-full">
