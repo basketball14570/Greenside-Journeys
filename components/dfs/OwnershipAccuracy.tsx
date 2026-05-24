@@ -1,30 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { parseSalariesCsv } from "@/lib/dfs/dk-salaries";
+import { useMemo, useState } from "react";
+import { DK_EVENT, DK_SALARIES } from "@/lib/data/dfs-salaries";
+import { projectOwnership } from "@/lib/dfs/project-ownership";
 
-type Projection = {
-  player_name: string;
-  salary: number;
-  projected_own: number;
-  basis: "history" | "salary_bucket" | "default";
-  history_n: number;
-  course_n: number;
-  effective_weight: number;
-  historical_avg_own: number | null;
-};
-
-type ApiResponse = {
-  ok: boolean;
-  event?: { name: string; course: string; event_id: number; site: string };
-  projections?: Projection[];
-  source?: string;
-  error?: string;
-};
-
-// Token-set name key: lowercase, strip punctuation, sort the words. This
-// matches "Scottie Scheffler" against DataGolf's "Scheffler, Scottie" and
-// ignores stray punctuation in "A.J. Ewart" / "Neergaard-Petersen".
+// Token-set name key: lowercase, strip punctuation, sort the words. Robust to
+// "Last, First" vs "First Last" and stray punctuation in "A.J. Ewart".
 function nameKey(s: string): string {
   return s
     .toLowerCase()
@@ -46,7 +27,6 @@ function parseActuals(text: string): { name: string; own: number }[] {
   while ((m = re.exec(text)) !== null) {
     const name = m[1].trim();
     const own = Number(m[2]);
-    // Skip header-ish captures ("Player", "Drafted") and absurd values.
     if (!name || own > 100) continue;
     if (/^(player|drafted|name|own|ownership)$/i.test(name)) continue;
     out.push({ name, own });
@@ -76,95 +56,30 @@ type Joined = {
 };
 
 export function OwnershipAccuracy() {
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [eventIdInput, setEventIdInput] = useState("");
   const [actualText, setActualText] = useState("");
-  const [sort, setSort] = useState<"actual" | "miss" | "over" | "under">(
-    "actual",
-  );
+  const [sort, setSort] = useState<"actual" | "miss" | "over" | "under">("actual");
 
-  async function load(eventId?: string) {
-    setLoading(true);
-    const qs = eventId ? `?event_id=${eventId}` : "";
-    try {
-      const res = await fetch(`/api/dfs/projected-ownership${qs}`);
-      const json = (await res.json()) as ApiResponse;
-      setData(json);
-    } catch {
-      setData({ ok: false, error: "request failed" });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Seed projections from an uploaded DK salaries CSV. Works mid-event when
-  // DataGolf's DFS feed hasn't published the in-progress slate.
-  async function onSalaryFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const field = parseSalariesCsv(await f.text());
-    if (field.length === 0) {
-      setData({ ok: false, error: "couldn't read names/salaries from that CSV" });
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/dfs/projected-ownership", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field }),
-      });
-      setData((await res.json()) as ApiResponse);
-    } catch {
-      setData({ ok: false, error: "request failed" });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
+  // Same projection shown on the "This week's projection" page: static DK
+  // salaries run through the salary+form heuristic. Pure + synchronous, so it
+  // always works — no DataGolf call, nothing to wait on.
+  const projection = useMemo(() => projectOwnership(DK_SALARIES), []);
   const actuals = useMemo(() => parseActuals(actualText), [actualText]);
 
-  const { joined, unmatchedActual, unmatchedProj, metrics } = useMemo(() => {
-    const projs = data?.projections ?? [];
-    const projByKey = new Map<string, Projection>();
-    for (const p of projs) projByKey.set(nameKey(p.player_name), p);
-
-    const actualByKey = new Map<string, { name: string; own: number }>();
-    for (const a of actuals) actualByKey.set(nameKey(a.name), a);
+  const { joined, unmatchedActual, metrics } = useMemo(() => {
+    const projByKey = new Map<string, number>();
+    for (const p of projection) projByKey.set(nameKey(p.name), p.projOwn);
 
     const joined: Joined[] = [];
     for (const a of actuals) {
-      const p = projByKey.get(nameKey(a.name));
-      if (p) {
-        joined.push({
-          name: p.player_name,
-          projected: p.projected_own,
-          actual: a.own,
-          delta: p.projected_own - a.own,
-        });
+      const proj = projByKey.get(nameKey(a.name));
+      if (proj !== undefined) {
+        joined.push({ name: a.name, projected: proj, actual: a.own, delta: proj - a.own });
       }
     }
 
-    const matchedActualKeys = new Set(joined.map((j) => nameKey(j.name)));
-    const unmatchedActual = actuals.filter(
-      (a) => !projByKey.has(nameKey(a.name)),
-    );
-    const unmatchedProj = projs.filter(
-      (p) => !actualByKey.has(nameKey(p.player_name)) && p.projected_own >= 3,
-    );
+    const unmatchedActual = actuals.filter((a) => !projByKey.has(nameKey(a.name)));
 
-    let metrics: {
-      n: number;
-      mae: number;
-      bias: number;
-      rmse: number;
-      corr: number;
-    } | null = null;
+    let metrics: { n: number; mae: number; bias: number; rmse: number; corr: number } | null = null;
     if (joined.length >= 2) {
       const n = joined.length;
       const absErr = joined.reduce((s, j) => s + Math.abs(j.delta), 0);
@@ -172,33 +87,23 @@ export function OwnershipAccuracy() {
       const sqErr = joined.reduce((s, j) => s + j.delta * j.delta, 0);
       const mp = joined.reduce((s, j) => s + j.projected, 0) / n;
       const ma = joined.reduce((s, j) => s + j.actual, 0) / n;
-      let cov = 0,
-        vp = 0,
-        va = 0;
+      let cov = 0, vp = 0, va = 0;
       for (const j of joined) {
         cov += (j.projected - mp) * (j.actual - ma);
         vp += (j.projected - mp) ** 2;
         va += (j.actual - ma) ** 2;
       }
       const corr = vp > 0 && va > 0 ? cov / Math.sqrt(vp * va) : 0;
-      metrics = {
-        n,
-        mae: absErr / n,
-        bias: signErr / n,
-        rmse: Math.sqrt(sqErr / n),
-        corr,
-      };
+      metrics = { n, mae: absErr / n, bias: signErr / n, rmse: Math.sqrt(sqErr / n), corr };
     }
 
-    void matchedActualKeys;
-    return { joined, unmatchedActual, unmatchedProj, metrics };
-  }, [data, actuals]);
+    return { joined, unmatchedActual, metrics };
+  }, [projection, actuals]);
 
   const sortedRows = useMemo(() => {
     const r = joined.slice();
     if (sort === "actual") r.sort((a, b) => b.actual - a.actual);
-    else if (sort === "miss")
-      r.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    else if (sort === "miss") r.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     else if (sort === "over") r.sort((a, b) => b.delta - a.delta);
     else r.sort((a, b) => a.delta - b.delta);
     return r;
@@ -210,77 +115,18 @@ export function OwnershipAccuracy() {
         <div className="serif-italic" style={{ fontSize: 24, fontStyle: "normal" }}>
           <em>Projected vs actual.</em>
         </div>
-        {data?.event && (
-          <div className="text-text-dim" style={{ fontSize: 13 }}>
-            <span className="text-text">{data.event.name}</span> ·{" "}
-            {data.event.course} · {data.event.site.toUpperCase()}
-          </div>
-        )}
-        <p className="text-text-dim" style={{ fontSize: 12 }}>
-          Paste the actual ownership (the %Drafted column from the contest —
-          copy straight out of the spreadsheet). We match each name to this
-          week&apos;s projection and score the model. Nothing is uploaded; it&apos;s
-          all computed in your browser.
-        </p>
-        <div className="flex items-center gap-2 flex-wrap pt-1">
-          <label
-            className="inline-flex items-center gap-2 rounded-[8px] border border-line px-3 py-2 cursor-pointer hover:border-line-strong"
-            style={{ fontSize: 12.5 }}
-          >
-            <input type="file" accept=".csv,text/csv" onChange={onSalaryFile} className="hidden" />
-            Upload DK salaries CSV…
-          </label>
-          <span className="text-text-muted" style={{ fontSize: 11 }}>
-            {data?.source === "uploaded_salaries"
-              ? "Projections built from your uploaded salary file."
-              : "Use this if projections didn't auto-load — it regenerates them from this week's DK slate."}
-          </span>
+        <div className="text-text-dim" style={{ fontSize: 13 }}>
+          <span className="text-text">{DK_EVENT}</span> · {projection.length} golfers projected
         </div>
+        <p className="text-text-dim" style={{ fontSize: 12 }}>
+          Paste the actual ownership (the %Drafted column — copy straight out of
+          the spreadsheet). We match each name to this week&apos;s projection and
+          score the model. Everything runs in your browser.
+        </p>
       </div>
 
-      {!loading && data?.error && (
-        <div className="rounded-[14px] border border-line p-5 bg-surface-1 space-y-3">
-          <div className="text-text" style={{ fontSize: 14 }}>
-            Couldn&apos;t load this week&apos;s projections: <em>{data.error}</em>
-          </div>
-          <div className="flex gap-2">
-            <input
-              placeholder="event_id (e.g. 33)"
-              value={eventIdInput}
-              onChange={(e) => setEventIdInput(e.target.value)}
-              className="flex-1 rounded-[8px] border border-line bg-surface-1 px-3 py-2 text-text"
-              style={{ fontSize: 13 }}
-            />
-            <button
-              onClick={() => load(eventIdInput)}
-              className="num font-semibold uppercase"
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                fontSize: 11,
-                letterSpacing: 0.8,
-                color: "#f0ebe0",
-                background: "#1e4030",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              Load
-            </button>
-          </div>
-        </div>
-      )}
-
-      {loading && (
-        <div className="text-text-dim" style={{ fontSize: 13 }}>
-          Loading projections…
-        </div>
-      )}
-
       <div className="rounded-[14px] border border-line p-4 bg-surface-1 space-y-2">
-        <div
-          className="num font-semibold uppercase text-text-muted"
-          style={{ fontSize: 10, letterSpacing: 1.1 }}
-        >
+        <div className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.1 }}>
           Paste actual %Drafted
         </div>
         <textarea
@@ -293,11 +139,8 @@ export function OwnershipAccuracy() {
         />
         {actuals.length > 0 && (
           <div className="text-text-muted num uppercase" style={{ fontSize: 10, letterSpacing: 1 }}>
-            Parsed {actuals.length} players · {joined.length} matched to
-            projection
-            {unmatchedActual.length > 0
-              ? ` · ${unmatchedActual.length} unmatched`
-              : ""}
+            Parsed {actuals.length} players · {joined.length} matched to projection
+            {unmatchedActual.length > 0 ? ` · ${unmatchedActual.length} unmatched` : ""}
           </div>
         )}
       </div>
@@ -336,28 +179,15 @@ export function OwnershipAccuracy() {
       {joined.length > 0 && (
         <>
           <div className="flex flex-wrap gap-2 items-center">
-            <SortChip current={sort} value="actual" onPick={setSort}>
-              Sort: Actual
-            </SortChip>
-            <SortChip current={sort} value="miss" onPick={setSort}>
-              Biggest miss
-            </SortChip>
-            <SortChip current={sort} value="over" onPick={setSort}>
-              Over-projected
-            </SortChip>
-            <SortChip current={sort} value="under" onPick={setSort}>
-              Under-projected
-            </SortChip>
+            <SortChip current={sort} value="actual" onPick={setSort}>Sort: Actual</SortChip>
+            <SortChip current={sort} value="miss" onPick={setSort}>Biggest miss</SortChip>
+            <SortChip current={sort} value="over" onPick={setSort}>Over-projected</SortChip>
+            <SortChip current={sort} value="under" onPick={setSort}>Under-projected</SortChip>
           </div>
           <div className="rounded-[14px] border border-line overflow-hidden">
             <div
               className="grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
-              style={{
-                gridTemplateColumns: "2fr 90px 90px 90px",
-                fontSize: 10,
-                letterSpacing: 1.1,
-                background: "rgba(0,0,0,0.18)",
-              }}
+              style={{ gridTemplateColumns: "2fr 90px 90px 90px", fontSize: 10, letterSpacing: 1.1, background: "rgba(0,0,0,0.18)" }}
             >
               <span>Player</span>
               <span className="text-right">Projected</span>
@@ -371,18 +201,10 @@ export function OwnershipAccuracy() {
                 style={{ gridTemplateColumns: "2fr 90px 90px 90px", fontSize: 13 }}
               >
                 <span className="text-text">{r.name}</span>
-                <span className="num text-right" style={{ color: ownColor(r.projected) }}>
-                  {r.projected.toFixed(1)}%
-                </span>
-                <span className="num text-right" style={{ color: ownColor(r.actual) }}>
-                  {r.actual.toFixed(1)}%
-                </span>
-                <span
-                  className="num text-right font-semibold"
-                  style={{ color: deltaColor(r.delta) }}
-                >
-                  {r.delta >= 0 ? "+" : ""}
-                  {r.delta.toFixed(1)}
+                <span className="num text-right" style={{ color: ownColor(r.projected) }}>{r.projected.toFixed(1)}%</span>
+                <span className="num text-right" style={{ color: ownColor(r.actual) }}>{r.actual.toFixed(1)}%</span>
+                <span className="num text-right font-semibold" style={{ color: deltaColor(r.delta) }}>
+                  {r.delta >= 0 ? "+" : ""}{r.delta.toFixed(1)}
                 </span>
               </div>
             ))}
@@ -392,18 +214,14 @@ export function OwnershipAccuracy() {
 
       {unmatchedActual.length > 0 && (
         <div className="rounded-[14px] border border-line p-4 bg-surface-1">
-          <div
-            className="num font-semibold uppercase text-text-muted mb-1"
-            style={{ fontSize: 10, letterSpacing: 1.1 }}
-          >
+          <div className="num font-semibold uppercase text-text-muted mb-1" style={{ fontSize: 10, letterSpacing: 1.1 }}>
             In your paste, no projection found ({unmatchedActual.length})
           </div>
           <div className="text-text-dim" style={{ fontSize: 12 }}>
             {unmatchedActual.map((a) => `${a.name} (${a.own}%)`).join(" · ")}
           </div>
           <div className="text-text-muted mt-2" style={{ fontSize: 11 }}>
-            These are usually players not in this week&apos;s DataGolf field, or
-            a name-spelling mismatch.
+            Usually players not in this week&apos;s DK salary file, or a name-spelling mismatch.
           </div>
         </div>
       )}
@@ -411,27 +229,14 @@ export function OwnershipAccuracy() {
   );
 }
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "good" | "bad";
-}) {
+function Metric({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
   const color = tone === "good" ? "#7fd49a" : tone === "bad" ? "#e87c7c" : "#f0ebe0";
   return (
     <div>
-      <div
-        className="num font-semibold uppercase text-text-muted"
-        style={{ fontSize: 10, letterSpacing: 1.2 }}
-      >
+      <div className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.2 }}>
         {label}
       </div>
-      <div className="num mt-1" style={{ fontSize: 18, color }}>
-        {value}
-      </div>
+      <div className="num mt-1" style={{ fontSize: 18, color }}>{value}</div>
     </div>
   );
 }

@@ -25,6 +25,8 @@ import {
   type GolferState,
 } from "@/lib/dfs/projection";
 import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
+import { DK_SALARIES } from "@/lib/data/dfs-salaries";
+import { projectOwnership } from "@/lib/dfs/project-ownership";
 
 type LivePoints = {
   source: string;
@@ -91,8 +93,17 @@ export default function CutSweatPage() {
   const [entries, setEntries] = useState<DkEntry[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [proj, setProj] = useState<Projection | null>(null);
-  const [ownership, setOwnership] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+
+  // Projected ownership for the bubble watch: same static DK-salary heuristic
+  // the projection page uses, so it's always available (no DataGolf call).
+  // Keyed by normalized name to join DataGolf's live "Last, First" rows.
+  const ownership = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of projectOwnership(DK_SALARIES))
+      m.set(normalizeName(p.name), p.projOwn);
+    return m;
+  }, []);
   const [standings, setStandings] = useState<ContestStandings | null>(null);
   const [standingsName, setStandingsName] = useState<string | null>(null);
   const [standingsCsv, setStandingsCsv] = useState("");
@@ -230,25 +241,6 @@ export default function CutSweatPage() {
     return () => {
       cancelled = true;
       clearInterval(id);
-    };
-  }, []);
-
-  // This week's projected ownership — the bubble watch sorts by it so you see
-  // which chalk is sweating the cut. Static through the day, so fetch once.
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/dfs/projected-ownership", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j: { projections?: { player_name: string; projected_own: number }[] }) => {
-        if (cancelled) return;
-        const m = new Map<string, number>();
-        for (const p of j.projections ?? [])
-          m.set(normalizeName(p.player_name), p.projected_own);
-        setOwnership(m);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
     };
   }, []);
 
