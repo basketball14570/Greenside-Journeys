@@ -19,6 +19,7 @@ export type OwnershipProjection = {
   ppg: number;
   value: number; // points per $1k
   projOwn: number; // projected % owned
+  marketProb: number | null; // DataGolf top-20 prob used as form signal, if any
 };
 
 export type OwnershipDelta = OwnershipProjection & {
@@ -26,7 +27,7 @@ export type OwnershipDelta = OwnershipProjection & {
   delta: number; // actual − projected (positive = we under-projected the chalk)
 };
 
-function normName(s: string): string {
+export function normName(s: string): string {
   return s
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -61,22 +62,33 @@ export function joinActual(
   return rows.sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
 }
 
-// Blend weights. Salary is the market's own projection of a player and
-// is the single best predictor of ownership, so it dominates. Value
-// (points per $1k) gets a smaller, dampened bump — it nudges genuine
-// value plays up without letting a cheap small-sample ppg outlier
-// out-own the field's stud.
-const W_SALARY = 0.7;
-const W_VALUE = 0.3;
+// Blend weights. Salary and value (points per $1k) both drive ownership.
+// Salary anchors the studs the field rosters on name alone (Scheffler is
+// chalk at any value), but GPP fields chase value hard — they pile onto the
+// cheap, high-projection plays. Backtesting the CJ Cup Byron Nelson showed
+// the old 0.7/0.3 split badly under-owned the value tier (Blades Brown,
+// Tom Kim, Jaeger, Eckroat were 12-19% actual but projected 4-8%) while
+// over-owning ordinary-value studs, so we lean meaningfully more on value.
+const W_SALARY = 0.55;
+const W_VALUE = 0.45;
 // Softmax temperature — higher = flatter ownership, lower = more
 // top-heavy. Tuned so the chalkiest play lands in the 30s/40s and the
 // field tail sits near the 1-3% punt range seen in historical data.
 const TEMP = 0.7;
 const MAX_OWN = 45; // hard cap; nobody is owned more than this in practice
 const MIN_OWN = 0.3;
-// Clamp z-scores so a single noisy season average can't dominate.
+// Clamp z-scores so a single noisy season average can't dominate. Value gets
+// the same headroom as salary now — capping it at 2.0 was throttling the
+// genuine top-value plays the field actually chalks.
 const Z_CLAMP_SALARY = 2.5;
-const Z_CLAMP_VALUE = 2.0;
+const Z_CLAMP_VALUE = 2.5;
+// v2: when a live finish signal (DataGolf top-20 probability) is supplied, it
+// captures recent form / course fit that salary + season ppg can't — the part
+// that drove misses like Keith Mitchell (great season ppg, cold form → faded).
+// It takes a slice of the blend; salary and value keep their 0.55/0.45 ratio
+// over what's left. Players without a signal fall back to the pure v1.1 blend.
+const W_MARKET = 0.3;
+const Z_CLAMP_MARKET = 2.5;
 
 function mean(xs: number[]): number {
   return xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -89,10 +101,17 @@ function clamp(x: number, lim: number): number {
   return Math.max(-lim, Math.min(lim, x));
 }
 
-export function projectOwnership(rows: DkSalaryRow[]): OwnershipProjection[] {
+// `marketByName` (optional) maps normalized player name → a live finish
+// signal (DataGolf top-20 probability, 0..1). When present for a player it's
+// blended in as the v2 form signal; absent, that player uses the v1.1 blend.
+export function projectOwnership(
+  rows: DkSalaryRow[],
+  marketByName?: Map<string, number>,
+): OwnershipProjection[] {
   const withValue = rows.map((r) => ({
     ...r,
     value: r.ppg / (r.salary / 1000),
+    market: marketByName?.get(normName(r.name)) ?? null,
   }));
 
   const sals = withValue.map((r) => r.salary);
@@ -102,10 +121,26 @@ export function projectOwnership(rows: DkSalaryRow[]): OwnershipProjection[] {
   const valM = mean(vals);
   const valS = stdev(vals, valM);
 
+  // Market stats only over players that actually have a signal. Need at least
+  // a couple, else the z-score is meaningless and we ignore it entirely.
+  const mkts = withValue.map((r) => r.market).filter((m): m is number => m != null);
+  const useMarket = mkts.length >= 2;
+  const mktM = useMarket ? mean(mkts) : 0;
+  const mktS = useMarket ? stdev(mkts, mktM) : 1;
+  // Salary/value keep their 0.55/0.45 ratio over the share the market leaves.
+  const mSalW = (1 - W_MARKET) * W_SALARY;
+  const mValW = (1 - W_MARKET) * W_VALUE;
+
   const scored = withValue.map((r) => {
     const zS = clamp((r.salary - salM) / salS, Z_CLAMP_SALARY);
     const zV = clamp((r.value - valM) / valS, Z_CLAMP_VALUE);
-    const d = W_SALARY * zS + W_VALUE * zV;
+    let d: number;
+    if (useMarket && r.market != null) {
+      const zM = clamp((r.market - mktM) / mktS, Z_CLAMP_MARKET);
+      d = mSalW * zS + mValW * zV + W_MARKET * zM;
+    } else {
+      d = W_SALARY * zS + W_VALUE * zV;
+    }
     return { ...r, weight: Math.exp(d / TEMP) };
   });
 
@@ -122,6 +157,7 @@ export function projectOwnership(rows: DkSalaryRow[]): OwnershipProjection[] {
         ppg: r.ppg,
         value: Number(r.value.toFixed(2)),
         projOwn: Number(projOwn.toFixed(1)),
+        marketProb: r.market,
       };
     })
     .sort((a, b) => b.projOwn - a.projOwn);

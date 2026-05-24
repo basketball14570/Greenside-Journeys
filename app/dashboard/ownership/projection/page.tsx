@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { DK_EVENT, DK_SALARIES } from "@/lib/data/dfs-salaries";
-import { projectOwnership, joinActual } from "@/lib/dfs/project-ownership";
+import { DK_EVENT } from "@/lib/data/dfs-salaries";
+import { joinActual } from "@/lib/dfs/project-ownership";
+import { computeHeuristicProjection } from "@/lib/dfs/heuristic-projection";
 import { OWNERSHIP_DATA } from "@/lib/data/ownership";
+
+export const dynamic = "force-dynamic";
 
 // Find uploaded actual ownership for this event, if it exists yet.
 // Matches any OWNERSHIP_DATA key mentioning "byron nelson" so the delta
@@ -16,8 +19,8 @@ function findActual() {
 // Projected DFS ownership for the upcoming slate, computed from this
 // week's DK salaries + season scoring. Compare against the actual
 // ownership you upload after the contest locks.
-export default function OwnershipProjectionPage() {
-  const projection = projectOwnership(DK_SALARIES);
+export default async function OwnershipProjectionPage() {
+  const { projections: projection, source } = await computeHeuristicProjection();
   const actual = findActual();
   const deltas = actual ? joinActual(projection, actual) : null;
   const top = projection.slice(0, 60);
@@ -165,8 +168,11 @@ export default function OwnershipProjectionPage() {
       </div>
 
       <p className="text-text-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-        {projection.length} golfers in the field · model v1 (salary + form
-        heuristic). Projection is directional, not a guarantee.
+        {projection.length} golfers in the field ·{" "}
+        {source === "v2-datagolf"
+          ? "model v2 (salary + value + DataGolf top-20 form signal)"
+          : "model v1.1 (salary + value — DataGolf signal unavailable this load)"}
+        . Projection is directional, not a guarantee.
       </p>
     </div>
   );

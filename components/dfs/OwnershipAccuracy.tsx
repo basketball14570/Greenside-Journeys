@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DK_EVENT, DK_SALARIES } from "@/lib/data/dfs-salaries";
 import { projectOwnership } from "@/lib/dfs/project-ownership";
+
+type ProjRow = { name: string; projOwn: number };
 
 // Token-set name key: lowercase, strip punctuation, sort the words. Robust to
 // "Last, First" vs "First Last" and stray punctuation in "A.J. Ewart".
@@ -59,10 +61,22 @@ export function OwnershipAccuracy() {
   const [actualText, setActualText] = useState("");
   const [sort, setSort] = useState<"actual" | "miss" | "over" | "under">("actual");
 
-  // Same projection shown on the "This week's projection" page: static DK
-  // salaries run through the salary+form heuristic. Pure + synchronous, so it
-  // always works — no DataGolf call, nothing to wait on.
-  const projection = useMemo(() => projectOwnership(DK_SALARIES), []);
+  // Same projection the "This week's projection" page shows. Render instantly
+  // with the synchronous v1.1 model, then upgrade to the shared v2 numbers
+  // (salary + value + DataGolf form signal) once the endpoint resolves.
+  const [projection, setProjection] = useState<ProjRow[]>(() =>
+    projectOwnership(DK_SALARIES).map((p) => ({ name: p.name, projOwn: p.projOwn })),
+  );
+  useEffect(() => {
+    fetch("/api/dfs/heuristic-ownership")
+      .then((r) => r.json())
+      .then((j: { projections?: ProjRow[] }) => {
+        if (Array.isArray(j.projections) && j.projections.length) {
+          setProjection(j.projections.map((p) => ({ name: p.name, projOwn: p.projOwn })));
+        }
+      })
+      .catch(() => {});
+  }, []);
   const actuals = useMemo(() => parseActuals(actualText), [actualText]);
 
   const { joined, unmatchedActual, metrics } = useMemo(() => {
