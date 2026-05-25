@@ -59,6 +59,7 @@ function median(xs: number[]): number {
 
 export function buildDemoOddsMatrix(
   market: "winner" | "top_5" | "top_10" | "top_20" | "top_40" = "winner",
+  eventName = "PGA Tour",
 ): OddsMatrix {
   // Field + base prices for the 2026 CJ Cup Byron Nelson — top 20 of
   // the implied market. Variance fields force a couple of meaningful
@@ -121,7 +122,7 @@ export function buildDemoOddsMatrix(
   });
 
   return {
-    event: "CJ Cup Byron Nelson",
+    event: eventName,
     market,
     lastUpdate: new Date().toISOString(),
     source: "demo",

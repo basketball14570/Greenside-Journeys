@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getOddsMatrix } from "@/lib/data/odds";
+import { getOddsMatrix, getMajorsOddsMatrix } from "@/lib/data/odds";
 import {
   getEdgeMatrix,
   EDGE_MARKETS,
@@ -45,14 +45,49 @@ export default async function OddsPage({ searchParams }: Props) {
     );
   }
 
+  if (searchParams?.view === "majors") {
+    const matrix = await getMajorsOddsMatrix();
+    return (
+      <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
+        <MajorsHeader matrix={matrix} />
+        <ViewToggle view="majors" market="winner" />
+        {matrix.rows.length > 0 ? (
+          <OddsBoard matrix={matrix} />
+        ) : (
+          <div
+            className="rounded-[14px] border border-line p-6 text-center text-text-dim bg-surface-1"
+            style={{ fontSize: 13 }}
+          >
+            No live major futures right now
+            {matrix.source === "demo" && (
+              <> — set <code className="text-text">THE_ODDS_API_KEY</code> to pull them.</>
+            )}
+          </div>
+        )}
+        <Footnote matrix={matrix} />
+      </div>
+    );
+  }
+
   const market = (MARKETS.includes(searchParams?.market as OddsMarket)
     ? searchParams!.market
     : "winner") as OddsMarket;
   const matrix = await getOddsMatrix(market);
 
-  // Collect the book columns actually present so we don't render empty
-  // ones. Order is fixed (DK/FD/MGM first) so the table layout is
-  // stable when prices arrive or drop from a particular book.
+  return (
+    <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
+      <Header matrix={matrix} />
+      <ViewToggle view="shop" market={market} />
+      <MarketTabs active={market} />
+      <OddsBoard matrix={matrix} />
+      <Footnote matrix={matrix} />
+    </div>
+  );
+}
+
+// Shared player-by-book board (desktop matrix + mobile cards), used by both
+// the current-event view and the upcoming-majors view.
+function OddsBoard({ matrix }: { matrix: OddsMatrix }) {
   const PREFERRED_ORDER: BookCode[] = [
     "DK", "FD", "MGM", "CZR", "ESPN", "HR", "BetRivers", "PB",
   ];
@@ -63,13 +98,8 @@ export default async function OddsPage({ searchParams }: Props) {
   const cols = PREFERRED_ORDER.filter((b) => seen.has(b));
 
   return (
-    <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
-      <Header matrix={matrix} />
-      <ViewToggle view="shop" market={market} />
-      <MarketTabs active={market} />
+    <>
       <Legend cols={cols} />
-
-      {/* Desktop matrix */}
       <section className="hidden md:block rounded-[14px] border border-line overflow-hidden bg-surface-1">
         <div className="overflow-x-auto">
           <table className="w-full" style={{ fontSize: 13 }}>
@@ -94,19 +124,60 @@ export default async function OddsPage({ searchParams }: Props) {
         </div>
       </section>
 
-      {/* Mobile cards */}
       <section className="md:hidden space-y-2">
         {matrix.rows.map((r) => (
           <MobileCard key={r.player} row={r} cols={cols} />
         ))}
       </section>
-
-      <Footnote matrix={matrix} />
-    </div>
+    </>
   );
 }
 
 // ─── Header + tabs ─────────────────────────────────────────────────
+
+function MajorsHeader({ matrix }: { matrix: OddsMatrix }) {
+  const isLive = matrix.source === "the-odds-api" && matrix.rows.length > 0;
+  return (
+    <header className="space-y-2">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+        >
+          ● Upcoming majors
+        </span>
+        <span
+          className="num uppercase"
+          style={{
+            fontSize: 9,
+            letterSpacing: 1,
+            padding: "2px 7px",
+            borderRadius: 4,
+            color: isLive ? "#7fd49a" : "#a8b3ac",
+            background: isLive ? "rgba(127,212,154,0.13)" : "rgba(168,179,172,0.1)",
+            border: isLive
+              ? "1px solid rgba(127,212,154,0.3)"
+              : "1px solid rgba(168,179,172,0.25)",
+          }}
+        >
+          {isLive ? "Live futures" : "No live futures"}
+        </span>
+      </div>
+      <h1
+        className="serif-italic"
+        style={{ fontSize: "clamp(26px, 5vw, 36px)", letterSpacing: -0.4 }}
+      >
+        <em>{matrix.event}</em>
+      </h1>
+      <p className="text-text-dim max-w-2xl" style={{ fontSize: 14, lineHeight: 1.5 }}>
+        Outright winner futures for the next major championship, priced across
+        the books. These run year-round — the weekly board on{" "}
+        <strong className="text-text">Line shop</strong> tracks whatever tour
+        event is current.
+      </p>
+    </header>
+  );
+}
 
 function Header({ matrix }: { matrix: OddsMatrix }) {
   const isLive = matrix.source === "the-odds-api";
@@ -321,17 +392,18 @@ function fmtOdds(n: number): string {
 
 // ─── View toggle (Line shop ↔ Model edge) ──────────────────────────
 
-function ViewToggle({ view, market }: { view: "shop" | "edge"; market: string }) {
+function ViewToggle({ view, market }: { view: "shop" | "edge" | "majors"; market: string }) {
   const edgeMarket = (EDGE_MARKETS as readonly string[]).includes(market)
     ? market
     : "winner";
-  const tabs: { key: "shop" | "edge"; label: string; href: string }[] = [
+  const tabs: { key: "shop" | "edge" | "majors"; label: string; href: string }[] = [
     { key: "shop", label: "Line shop", href: `/dashboard/odds?market=${market}` },
     {
       key: "edge",
       label: "Model edge",
       href: `/dashboard/odds?view=edge&market=${edgeMarket}`,
     },
+    { key: "majors", label: "Upcoming majors", href: `/dashboard/odds?view=majors` },
   ];
   return (
     <div className="flex gap-1.5">

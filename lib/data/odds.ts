@@ -155,44 +155,92 @@ import type {
   OddsRow,
 } from "./odds-types";
 import { buildDemoOddsMatrix } from "./demo-odds";
+import { getActiveEvent } from "./pga-schedule";
 
-const MARKET_TO_SPORTKEY: Record<OddsMarket, string[]> = {
-  // The Odds API exposes outright winners per championship. We walk the
-  // candidates in order — only one will be active mid-season.
-  winner: [
-    "golf_pga_championship_winner",
-    "golf_masters_tournament_winner",
-    "golf_us_open_winner",
-    "golf_the_open_championship_winner",
-  ],
-  top_5: [],
-  top_10: [],
-  top_20: [],
-  top_40: [],
+// The Odds API exposes golf only as per-championship outright-winner
+// futures — there's no generic weekly PGA Tour outright key. So live
+// winner odds exist only for the four majors; every other week's board
+// is demo. Map the schedule's major names to their sport_key.
+const MAJOR_SPORTKEY: Record<string, string> = {
+  "Masters Tournament": "golf_masters_tournament_winner",
+  "PGA Championship": "golf_pga_championship_winner",
+  "U.S. Open": "golf_us_open_winner",
+  "The Open Championship": "golf_the_open_championship_winner",
 };
 
-export async function getOddsMatrix(market: OddsMarket = "winner"): Promise<OddsMatrix> {
-  if (!oddsApiEnabled()) return buildDemoOddsMatrix(market);
+// Calendar order, for the "Upcoming majors" board.
+const MAJORS_IN_ORDER: { name: string; key: string }[] = [
+  { name: "Masters Tournament", key: "golf_masters_tournament_winner" },
+  { name: "PGA Championship", key: "golf_pga_championship_winner" },
+  { name: "U.S. Open", key: "golf_us_open_winner" },
+  { name: "The Open Championship", key: "golf_the_open_championship_winner" },
+];
 
-  const sportKeys = MARKET_TO_SPORTKEY[market] ?? [];
-  for (const sportKey of sportKeys) {
-    const url = `${BASE}/sports/${sportKey}/odds?regions=us&markets=outrights&oddsFormat=american&apiKey=${process.env.THE_ODDS_API_KEY}`;
-    const events = await safeOddsFetch<any[]>(url);
-    if (!events?.length) continue;
-    const rows = collapseToRows(events, market);
-    if (rows.length) {
-      return {
-        event: events[0].sport_title ?? "PGA Tour",
-        market,
-        lastUpdate: rows[0]?.bestBook ? new Date().toISOString() : null,
-        source: "the-odds-api",
-        rows,
-      };
+function outrightsUrl(sportKey: string): string {
+  return `${BASE}/sports/${sportKey}/odds?regions=us&markets=outrights&oddsFormat=american&apiKey=${process.env.THE_ODDS_API_KEY}`;
+}
+
+// The default board tracks the CURRENT tour event. Live odds only when that
+// event is a major (the only thing The Odds API prices); otherwise demo,
+// labeled with the current event so the page never silently shows a
+// different tournament's futures (e.g. US Open futures during a non-major).
+export async function getOddsMatrix(market: OddsMarket = "winner"): Promise<OddsMatrix> {
+  const active = getActiveEvent();
+  const eventName = active?.name ?? "PGA Tour";
+
+  if (market === "winner" && active && oddsApiEnabled()) {
+    const sportKey = MAJOR_SPORTKEY[active.name];
+    if (sportKey) {
+      const events = await safeOddsFetch<any[]>(outrightsUrl(sportKey));
+      if (events?.length) {
+        const rows = collapseToRows(events, market);
+        if (rows.length) {
+          return {
+            event: events[0].sport_title ?? eventName,
+            market,
+            lastUpdate: new Date().toISOString(),
+            source: "the-odds-api",
+            rows,
+          };
+        }
+      }
     }
   }
-  // Live key set but no active event matched — surface demo with a
-  // source label so the UI can show the right pre-tournament message.
-  return buildDemoOddsMatrix(market);
+
+  // Non-major week, non-winner market, or no live data — demo for the
+  // current event.
+  return buildDemoOddsMatrix(market, eventName);
+}
+
+// "Upcoming majors" board: the soonest major whose winner futures are live
+// and haven't started yet. Winner-only (that's all the API prices).
+export async function getMajorsOddsMatrix(now: Date = new Date()): Promise<OddsMatrix> {
+  if (!oddsApiEnabled()) {
+    return { event: "Upcoming majors", market: "winner", lastUpdate: null, source: "demo", rows: [] };
+  }
+  let best: { title: string; events: any[]; commence: number } | null = null;
+  for (const mj of MAJORS_IN_ORDER) {
+    const events = await safeOddsFetch<any[]>(outrightsUrl(mj.key));
+    if (!events?.length) continue;
+    const commences = events
+      .map((e) => new Date(e.commence_time).getTime())
+      .filter((n) => Number.isFinite(n));
+    const commence = commences.length ? Math.min(...commences) : Number.POSITIVE_INFINITY;
+    if (commence < now.getTime()) continue; // already underway / past
+    if (!best || commence < best.commence) {
+      best = { title: events[0].sport_title ?? mj.name, events, commence };
+    }
+  }
+  if (!best) {
+    return { event: "Upcoming majors", market: "winner", lastUpdate: null, source: "the-odds-api", rows: [] };
+  }
+  return {
+    event: best.title,
+    market: "winner",
+    lastUpdate: new Date().toISOString(),
+    source: "the-odds-api",
+    rows: collapseToRows(best.events, "winner"),
+  };
 }
 
 function collapseToRows(events: any[], market: OddsMarket): OddsRow[] {
