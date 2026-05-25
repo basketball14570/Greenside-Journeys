@@ -156,19 +156,10 @@ import type {
 } from "./odds-types";
 import { buildDemoOddsMatrix } from "./demo-odds";
 import { getActiveEvent } from "./pga-schedule";
+import { getOutrightOdds, type DGOutrightMarket, type DGOutrightRow } from "./datagolf";
 
-// The Odds API exposes golf only as per-championship outright-winner
-// futures — there's no generic weekly PGA Tour outright key. So live
-// winner odds exist only for the four majors; every other week's board
-// is demo. Map the schedule's major names to their sport_key.
-const MAJOR_SPORTKEY: Record<string, string> = {
-  "Masters Tournament": "golf_masters_tournament_winner",
-  "PGA Championship": "golf_pga_championship_winner",
-  "U.S. Open": "golf_us_open_winner",
-  "The Open Championship": "golf_the_open_championship_winner",
-};
-
-// Calendar order, for the "Upcoming majors" board.
+// Calendar order, for the "Upcoming majors" board (still The Odds API —
+// those futures markets exist year-round, one per championship).
 const MAJORS_IN_ORDER: { name: string; key: string }[] = [
   { name: "Masters Tournament", key: "golf_masters_tournament_winner" },
   { name: "PGA Championship", key: "golf_pga_championship_winner" },
@@ -180,35 +171,84 @@ function outrightsUrl(sportKey: string): string {
   return `${BASE}/sports/${sportKey}/odds?regions=us&markets=outrights&oddsFormat=american&apiKey=${process.env.THE_ODDS_API_KEY}`;
 }
 
-// The default board tracks the CURRENT tour event. Live odds only when that
-// event is a major (the only thing The Odds API prices); otherwise demo,
-// labeled with the current event so the page never silently shows a
-// different tournament's futures (e.g. US Open futures during a non-major).
+// DataGolf serves outright odds for every event (not just majors), so the
+// default board uses it. Map our market keys to DataGolf's.
+const ODDS_MARKET_TO_DG: Partial<Record<OddsMarket, DGOutrightMarket>> = {
+  winner: "win",
+  top_5: "top_5",
+  top_10: "top_10",
+  top_20: "top_20",
+};
+
+// DataGolf book keys → our BookCode (US books we surface; others ignored).
+const DG_BOOK_TO_CODE: Record<string, MatrixBookCode> = {
+  draftkings: "DK",
+  fanduel: "FD",
+  betmgm: "MGM",
+  caesars: "CZR",
+  espnbet: "ESPN",
+  hardrock: "HR",
+  hardrockbet: "HR",
+  betrivers: "BetRivers",
+  pointsbet: "PB",
+  pinnacle: "Pinnacle",
+  fanatics: "Fanatics",
+};
+
+function dgRowsToOddsRows(rows: DGOutrightRow[], market: OddsMarket): OddsRow[] {
+  const out: OddsRow[] = [];
+  for (const r of rows) {
+    const books: Partial<Record<MatrixBookCode, number>> = {};
+    for (const [k, v] of Object.entries(r.books)) {
+      const code = DG_BOOK_TO_CODE[k];
+      if (code && (books[code] === undefined || v > (books[code] as number))) {
+        books[code] = v;
+      }
+    }
+    const entries = Object.entries(books) as Array<[MatrixBookCode, number]>;
+    if (entries.length === 0) continue; // no surfaceable US price
+    const best = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const consensus = medianOdds(entries.map((e) => e[1]));
+    const edgeCents = best[1] > 0 ? best[1] - consensus : consensus - best[1];
+    out.push({
+      player: r.player_name,
+      market,
+      books,
+      bestBook: best[0],
+      bestOdds: best[1],
+      consensusOdds: consensus,
+      edgeCents,
+      fairOdds: r.fairOdds,
+    });
+  }
+  out.sort((a, b) => oddsToImpliedProb(b.bestOdds) - oddsToImpliedProb(a.bestOdds));
+  return out;
+}
+
+// The default board tracks the CURRENT tour event via DataGolf outrights
+// (covers every event). Falls back to demo, labeled with the current event,
+// when DataGolf is unavailable (no key / no betting-tools add-on).
 export async function getOddsMatrix(market: OddsMarket = "winner"): Promise<OddsMatrix> {
   const active = getActiveEvent();
   const eventName = active?.name ?? "PGA Tour";
 
-  if (market === "winner" && active && oddsApiEnabled()) {
-    const sportKey = MAJOR_SPORTKEY[active.name];
-    if (sportKey) {
-      const events = await safeOddsFetch<any[]>(outrightsUrl(sportKey));
-      if (events?.length) {
-        const rows = collapseToRows(events, market);
-        if (rows.length) {
-          return {
-            event: events[0].sport_title ?? eventName,
-            market,
-            lastUpdate: new Date().toISOString(),
-            source: "the-odds-api",
-            rows,
-          };
-        }
+  const dgMarket = ODDS_MARKET_TO_DG[market];
+  if (dgMarket) {
+    const dg = await getOutrightOdds(dgMarket);
+    if (dg && dg.rows.length) {
+      const rows = dgRowsToOddsRows(dg.rows, market);
+      if (rows.length) {
+        return {
+          event: dg.event_name ?? eventName,
+          market,
+          lastUpdate: dg.last_updated,
+          source: "datagolf",
+          rows,
+        };
       }
     }
   }
 
-  // Non-major week, non-winner market, or no live data — demo for the
-  // current event.
   return buildDemoOddsMatrix(market, eventName);
 }
 

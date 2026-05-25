@@ -264,6 +264,60 @@ async function safeFetch<T>(path: string, params: Record<string, string> = {}): 
   }
 }
 
+// Sportsbook outright odds for the CURRENT event (any tour event, not just
+// majors) plus DataGolf's own model "fair" price, in one call. Powers the
+// odds board so coverage isn't limited to the four majors.
+export type DGOutrightMarket = "win" | "top_5" | "top_10" | "top_20";
+
+export type DGOutrightRow = {
+  player_name: string; // flipped to "First Last"
+  fairOdds: number | null; // DataGolf model fair price (American)
+  books: Record<string, number>; // book key -> American odds
+};
+
+export type DGOutrights = {
+  event_name: string | null;
+  last_updated: string | null;
+  market: DGOutrightMarket;
+  rows: DGOutrightRow[];
+};
+
+export async function getOutrightOdds(
+  market: DGOutrightMarket,
+  tour = "pga",
+): Promise<DGOutrights | null> {
+  const json = await safeFetch<{
+    event_name?: string;
+    last_updated?: string;
+    odds?: Record<string, unknown>[];
+  }>("/betting-tools/outrights", { tour, market, odds_format: "american" });
+  if (!json || !Array.isArray(json.odds)) return null;
+
+  const rows: DGOutrightRow[] = [];
+  for (const r of json.odds) {
+    if (typeof r.player_name !== "string") continue;
+    const dg = (r.datagolf ?? {}) as Record<string, unknown>;
+    const fair = toNum(dg.baseline_history_fit) ?? toNum(dg.baseline);
+    const books: Record<string, number> = {};
+    for (const [k, v] of Object.entries(r)) {
+      if (k === "player_name" || k === "dg_id" || k === "datagolf") continue;
+      const n = toNum(v);
+      if (n !== null) books[k.toLowerCase()] = n;
+    }
+    rows.push({
+      player_name: flipName(r.player_name as string),
+      fairOdds: fair,
+      books,
+    });
+  }
+  return {
+    event_name: json.event_name ?? null,
+    last_updated: json.last_updated ?? null,
+    market,
+    rows,
+  };
+}
+
 type DgRankRow = {
   dg_id: number;
   player_name: string;

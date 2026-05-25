@@ -9,13 +9,12 @@ import {
   type EdgeRow,
 } from "@/lib/data/edge";
 import {
-  BOOK_LABEL,
   MARKET_LABEL,
-  type BookCode,
   type OddsMarket,
   type OddsMatrix,
   type OddsRow,
 } from "@/lib/data/odds-types";
+import { americanToDecimal, impliedProbability } from "@/lib/hedge";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,7 +25,7 @@ export const metadata = {
 
 type Props = { searchParams?: { market?: string; view?: string } };
 
-const MARKETS: OddsMarket[] = ["winner", "top_10", "top_5", "top_20", "top_40"];
+const MARKETS: OddsMarket[] = ["winner", "top_10", "top_5", "top_20"];
 
 export default async function OddsPage({ searchParams }: Props) {
   if (searchParams?.view === "edge") {
@@ -85,51 +84,145 @@ export default async function OddsPage({ searchParams }: Props) {
   );
 }
 
-// Shared player-by-book board (desktop matrix + mobile cards), used by both
-// the current-event view and the upcoming-majors view.
+// Slim board: best available price + which book, DataGolf's fair line, and
+// the edge — no per-sportsbook column spread. Used by the current-event view
+// (DataGolf, with fair/EV) and the upcoming-majors view (futures, edge in ¢).
 function OddsBoard({ matrix }: { matrix: OddsMatrix }) {
-  const PREFERRED_ORDER: BookCode[] = [
-    "DK", "FD", "MGM", "CZR", "ESPN", "HR", "BetRivers", "PB",
-  ];
-  const seen = new Set<BookCode>();
-  matrix.rows.forEach((r) =>
-    (Object.keys(r.books) as BookCode[]).forEach((b) => seen.add(b)),
-  );
-  const cols = PREFERRED_ORDER.filter((b) => seen.has(b));
-
+  const hasFair = matrix.rows.some((r) => r.fairOdds != null);
   return (
     <>
-      <Legend cols={cols} />
       <section className="hidden md:block rounded-[14px] border border-line overflow-hidden bg-surface-1">
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "rgba(0,0,0,0.18)" }}>
-                <Th>Player</Th>
-                {cols.map((c) => (
-                  <Th key={c} center>
-                    {c}
-                  </Th>
-                ))}
-                <Th center>Best</Th>
-                <Th center>Edge</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.rows.map((r, i) => (
-                <DesktopRow key={r.player} row={r} cols={cols} isLast={i === matrix.rows.length - 1} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <table className="w-full" style={{ fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "rgba(0,0,0,0.18)" }}>
+              <Th>Player</Th>
+              <Th center>Best price</Th>
+              <Th center>Book</Th>
+              {hasFair && <Th center>DG fair</Th>}
+              <Th center>{hasFair ? "EV" : "Edge"}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.rows.map((r, i) => (
+              <SlimRow key={r.player} row={r} hasFair={hasFair} isLast={i === matrix.rows.length - 1} />
+            ))}
+          </tbody>
+        </table>
       </section>
 
       <section className="md:hidden space-y-2">
         {matrix.rows.map((r) => (
-          <MobileCard key={r.player} row={r} cols={cols} />
+          <SlimCard key={r.player} row={r} />
         ))}
       </section>
     </>
+  );
+}
+
+// EV per $1 staked at the best price, using DataGolf's fair odds as the true
+// probability. null when the row has no fair line (e.g. majors futures).
+function evPercent(row: OddsRow): number | null {
+  if (row.fairOdds == null) return null;
+  return (impliedProbability(row.fairOdds) * americanToDecimal(row.bestOdds) - 1) * 100;
+}
+
+function SlimRow({ row, hasFair, isLast }: { row: OddsRow; hasFair: boolean; isLast: boolean }) {
+  const ev = evPercent(row);
+  return (
+    <tr
+      style={{
+        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
+        background: ev != null && ev > 0 ? "rgba(127,212,154,0.05)" : "rgba(0,0,0,0.05)",
+      }}
+    >
+      <td className="px-3 py-2.5 text-text font-medium">{row.player}</td>
+      <td className="px-3 py-2.5 text-center num font-semibold" style={{ color: "#7fd49a" }}>
+        {fmtOdds(row.bestOdds)}
+      </td>
+      <td className="px-3 py-2.5 text-center num text-text-dim" style={{ fontSize: 12 }}>
+        {row.bestBook}
+      </td>
+      {hasFair && (
+        <td className="px-3 py-2.5 text-center num text-text-dim">
+          {row.fairOdds != null ? fmtOdds(row.fairOdds) : "—"}
+        </td>
+      )}
+      <td className="px-3 py-2.5 text-center">
+        {ev != null ? (
+          <span
+            className="num font-semibold"
+            style={{
+              fontSize: 12.5,
+              color: evColor(ev),
+              background: `${evColor(ev)}1a`,
+              border: `1px solid ${evColor(ev)}33`,
+              padding: "2px 8px",
+              borderRadius: 4,
+            }}
+          >
+            {ev >= 0 ? "+" : ""}{ev.toFixed(1)}%
+          </span>
+        ) : (
+          <EdgePill cents={row.edgeCents} />
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function SlimCard({ row }: { row: OddsRow }) {
+  const ev = evPercent(row);
+  return (
+    <article
+      className="rounded-[12px] border-2 p-3 flex items-center justify-between gap-2"
+      style={{
+        borderColor: ev != null && ev > 0 ? "rgba(127,212,154,0.35)" : "rgba(255,255,255,0.08)",
+        background: "rgba(0,0,0,0.18)",
+      }}
+    >
+      <div className="min-w-0">
+        <div className="text-text font-semibold truncate" style={{ fontSize: 14.5 }}>
+          {row.player}
+        </div>
+        {row.fairOdds != null && (
+          <div className="num text-text-muted" style={{ fontSize: 11 }}>
+            DG fair {fmtOdds(row.fairOdds)}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span
+          className="num font-semibold"
+          style={{
+            fontSize: 13,
+            color: "#7fd49a",
+            padding: "2px 8px",
+            borderRadius: 4,
+            background: "rgba(127,212,154,0.12)",
+            border: "1px solid rgba(127,212,154,0.3)",
+          }}
+        >
+          {fmtOdds(row.bestOdds)} {row.bestBook}
+        </span>
+        {ev != null ? (
+          <span
+            className="num font-semibold"
+            style={{
+              fontSize: 12.5,
+              color: evColor(ev),
+              background: `${evColor(ev)}1a`,
+              border: `1px solid ${evColor(ev)}33`,
+              padding: "2px 8px",
+              borderRadius: 4,
+            }}
+          >
+            {ev >= 0 ? "+" : ""}{ev.toFixed(1)}%
+          </span>
+        ) : (
+          <EdgePill cents={row.edgeCents} />
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -180,7 +273,7 @@ function MajorsHeader({ matrix }: { matrix: OddsMatrix }) {
 }
 
 function Header({ matrix }: { matrix: OddsMatrix }) {
-  const isLive = matrix.source === "the-odds-api";
+  const isLive = matrix.source !== "demo";
   return (
     <header className="space-y-2">
       <div className="flex items-baseline gap-2 flex-wrap">
@@ -214,10 +307,11 @@ function Header({ matrix }: { matrix: OddsMatrix }) {
         <em>{matrix.event}</em>
       </h1>
       <p className="text-text-dim max-w-2xl" style={{ fontSize: 14, lineHeight: 1.5 }}>
-        Every book&apos;s price on the same bet, side by side. Green cells flag
-        the best available price on each row. The Edge column shows how far the
-        best book is off the consensus — that&apos;s your line-shop profit per
-        bet placed at the top.
+        The best available price on each player and the book offering it,
+        next to DataGolf&apos;s model fair line. <strong className="text-text">EV</strong>{" "}
+        is your expected return per $1 at that price —{" "}
+        <span style={{ color: "#7fd49a" }}>green is +EV</span>. Covers whatever
+        tour event is current.
       </p>
     </header>
   );
@@ -250,100 +344,6 @@ function MarketTabs({ active }: { active: OddsMarket }) {
         );
       })}
     </div>
-  );
-}
-
-function Legend({ cols }: { cols: BookCode[] }) {
-  return (
-    <div
-      className="num text-text-muted flex items-center gap-3 flex-wrap"
-      style={{ fontSize: 10.5, letterSpacing: 0.4 }}
-    >
-      <span>{cols.length} books tracked:</span>
-      {cols.map((c) => (
-        <span key={c}>
-          <span className="text-text font-semibold">{c}</span>{" "}
-          <span className="text-text-muted">{BOOK_LABEL[c]}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ─── Desktop row ───────────────────────────────────────────────────
-
-function DesktopRow({
-  row,
-  cols,
-  isLast,
-}: {
-  row: OddsRow;
-  cols: BookCode[];
-  isLast: boolean;
-}) {
-  return (
-    <tr
-      style={{
-        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(0,0,0,0.05)",
-      }}
-    >
-      <td className="px-3 py-2.5 text-text font-medium">{row.player}</td>
-      {cols.map((c) => {
-        const odds = row.books[c];
-        const isBest = c === row.bestBook && odds !== undefined;
-        return (
-          <td key={c} className="px-3 py-2.5 text-center">
-            {odds === undefined ? (
-              <span className="num text-text-muted" style={{ fontSize: 12 }}>
-                —
-              </span>
-            ) : (
-              <OddsCell odds={odds} isBest={isBest} />
-            )}
-          </td>
-        );
-      })}
-      <td className="px-3 py-2.5 text-center">
-        <span
-          className="num font-semibold"
-          style={{
-            fontSize: 12,
-            color: "#7fd49a",
-            padding: "2px 8px",
-            borderRadius: 4,
-            background: "rgba(127,212,154,0.12)",
-            border: "1px solid rgba(127,212,154,0.3)",
-          }}
-        >
-          {row.bestBook}
-        </span>
-      </td>
-      <td className="px-3 py-2.5 text-center">
-        <EdgePill cents={row.edgeCents} />
-      </td>
-    </tr>
-  );
-}
-
-function OddsCell({ odds, isBest }: { odds: number; isBest: boolean }) {
-  return (
-    <span
-      className="num"
-      style={{
-        fontSize: 13,
-        fontWeight: isBest ? 700 : 500,
-        color: isBest ? "#7fd49a" : "#f0ebe0",
-        background: isBest ? "rgba(127,212,154,0.13)" : "transparent",
-        padding: isBest ? "3px 9px" : "0",
-        borderRadius: isBest ? 4 : 0,
-        border: isBest ? "1px solid rgba(127,212,154,0.3)" : "none",
-        letterSpacing: -0.1,
-      }}
-    >
-      {isBest && "★ "}
-      {fmtOdds(odds)}
-    </span>
   );
 }
 
@@ -445,7 +445,7 @@ function fmtSignedPct(pts: number): string {
 }
 
 function EdgeHeader({ edge }: { edge: EdgeMatrix }) {
-  const liveOdds = edge.oddsSource === "the-odds-api";
+  const liveOdds = edge.oddsSource !== "demo";
   const liveModel = edge.modelSource === "datagolf";
   return (
     <header className="space-y-2">
@@ -721,106 +721,6 @@ function EdgeFootnote({ edge }: { edge: EdgeMatrix }) {
   );
 }
 
-// ─── Mobile card ──────────────────────────────────────────────────
-
-function MobileCard({ row, cols }: { row: OddsRow; cols: BookCode[] }) {
-  return (
-    <article
-      className="rounded-[12px] border-2 p-3 space-y-2"
-      style={{
-        borderColor: row.edgeCents >= 50 ? "rgba(127,212,154,0.35)" : "rgba(255,255,255,0.08)",
-        background: "rgba(0,0,0,0.18)",
-      }}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-text font-semibold" style={{ fontSize: 14.5 }}>
-          {row.player}
-        </span>
-        <div className="flex items-baseline gap-2 shrink-0">
-          <span
-            className="num font-semibold"
-            style={{
-              fontSize: 13,
-              color: "#7fd49a",
-              padding: "2px 8px",
-              borderRadius: 4,
-              background: "rgba(127,212,154,0.12)",
-              border: "1px solid rgba(127,212,154,0.3)",
-            }}
-          >
-            ★ {fmtOdds(row.bestOdds)} {row.bestBook}
-          </span>
-          <EdgePill cents={row.edgeCents} />
-        </div>
-      </div>
-      <div className="grid grid-cols-4 gap-1.5">
-        {cols.map((c) => {
-          const odds = row.books[c];
-          if (odds === undefined) {
-            return (
-              <div
-                key={c}
-                className="rounded-[6px] px-2 py-1.5 text-center"
-                style={{
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                }}
-              >
-                <div
-                  className="num uppercase text-text-muted"
-                  style={{ fontSize: 9, letterSpacing: 0.5 }}
-                >
-                  {c}
-                </div>
-                <div
-                  className="num text-text-muted"
-                  style={{ fontSize: 11 }}
-                >
-                  —
-                </div>
-              </div>
-            );
-          }
-          const isBest = c === row.bestBook;
-          return (
-            <div
-              key={c}
-              className="rounded-[6px] px-2 py-1.5 text-center"
-              style={{
-                background: isBest ? "rgba(127,212,154,0.13)" : "rgba(255,255,255,0.04)",
-                border: isBest
-                  ? "1px solid rgba(127,212,154,0.3)"
-                  : "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              <div
-                className="num uppercase"
-                style={{
-                  fontSize: 9,
-                  letterSpacing: 0.5,
-                  color: isBest ? "#7fd49a" : "#a8b3ac",
-                }}
-              >
-                {c}
-              </div>
-              <div
-                className="num"
-                style={{
-                  fontSize: 12,
-                  fontWeight: isBest ? 700 : 500,
-                  color: isBest ? "#7fd49a" : "#f0ebe0",
-                }}
-              >
-                {fmtOdds(odds)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </article>
-  );
-}
-
 // ─── Footnote ──────────────────────────────────────────────────────
 
 function Footnote({ matrix }: { matrix: OddsMatrix }) {
@@ -837,14 +737,14 @@ function Footnote({ matrix }: { matrix: OddsMatrix }) {
           How to read this
         </div>
         <p className="text-text-dim">
-          <strong className="text-text">Best</strong>: the book with the highest
-          payout on this player.{" "}
-          <strong className="text-text">Edge</strong>: how many cents the best
-          price beats the consensus (median across all listed books).{" "}
-          <span className="text-text-muted">
-            Anything ≥ 30¢ is meaningful — the book is leaving real EV on the
-            table.
-          </span>
+          <strong className="text-text">Best price</strong>: the book with the
+          highest payout on this player, and which book.{" "}
+          <strong className="text-text">DG fair</strong>: DataGolf&apos;s model
+          line. <strong className="text-text">EV</strong>: expected return per
+          $1 at the best price —{" "}
+          <span style={{ color: "#7fd49a" }}>positive is +EV</span>. The
+          Upcoming-majors tab has no model line, so it shows the line-shop edge
+          in cents instead.
         </p>
       </div>
       {matrix.source === "demo" && (
@@ -864,10 +764,10 @@ function Footnote({ matrix }: { matrix: OddsMatrix }) {
             ● Demo data
           </div>
           <p className="text-text-dim">
-            Live odds light up the moment{" "}
-            <code className="text-text">THE_ODDS_API_KEY</code> is set on
-            Vercel. Pricing is plausible — refreshed against the field for
-            illustration — but treat it as a sandbox until the key drops in.
+            Live odds light up the moment DataGolf&apos;s betting-tools feed is
+            available (<code className="text-text">DATAGOLF_API_KEY</code> with
+            the odds add-on). Pricing here is plausible but illustrative until
+            then.
           </p>
         </div>
       )}

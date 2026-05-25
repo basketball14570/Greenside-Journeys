@@ -47,12 +47,14 @@ export type OddsRow = {
   // Cents of edge — best price minus consensus. 30 means the best book is
   // 30¢ off the field.
   edgeCents: number;
+  // DataGolf's model "fair" price (American), when the source provides it.
+  fairOdds?: number | null;
 };
 
 export type OddsMatrix = {
   event: string;
   market: OddsMarket;
   lastUpdate: string | null;
-  source: "the-odds-api" | "demo";
+  source: "the-odds-api" | "datagolf" | "demo";
   rows: OddsRow[];
 };

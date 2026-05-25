@@ -29,7 +29,7 @@ export type EdgeRow = {
 export type EdgeMatrix = {
   event: string;
   market: EdgeMarket;
-  oddsSource: "the-odds-api" | "demo";
+  oddsSource: "the-odds-api" | "datagolf" | "demo";
   modelSource: "datagolf" | "demo";
   lastUpdate: string | null;
   rows: EdgeRow[]; // sorted by EV desc
