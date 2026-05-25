@@ -25,6 +25,20 @@ type ApiResponse = {
   error?: string;
 };
 
+type HeuristicResponse = {
+  event?: string;
+  source?: "v2-datagolf" | "v1.1";
+  projections?: {
+    name: string;
+    salary: number;
+    projOwn: number;
+    value: number;
+    marketProb: number | null;
+  }[];
+};
+
+type Mode = "similarity" | "heuristic" | null;
+
 // Color ramp matched to the rest of the ownership page.
 function ownColor(own: number): string {
   if (own >= 20) return "#e87c7c";
@@ -34,33 +48,74 @@ function ownColor(own: number): string {
 }
 
 export function ProjectedOwnership() {
-  const [data, setData] = useState<ApiResponse | null>(null);
+  const [rows, setRows] = useState<Projection[]>([]);
+  const [mode, setMode] = useState<Mode>(null);
+  const [eventName, setEventName] = useState<string | null>(null);
+  const [histStats, setHistStats] = useState<ApiResponse["history_stats"] | null>(null);
+  const [heuristicSource, setHeuristicSource] = useState<"v2-datagolf" | "v1.1" | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [eventIdInput, setEventIdInput] = useState("");
 
   async function load(eventId?: string) {
     setLoading(true);
-    const qs = eventId ? `?event_id=${eventId}` : "";
+    // 1. Preferred: the similarity-weighted model (needs DataGolf's field).
     try {
+      const qs = eventId ? `?event_id=${eventId}` : "";
       const res = await fetch(`/api/dfs/projected-ownership${qs}`);
       const json = (await res.json()) as ApiResponse;
-      setData(json);
+      if (json.ok && json.projections?.length) {
+        setRows(json.projections);
+        setMode("similarity");
+        setEventName(json.event?.name ?? null);
+        setHistStats(json.history_stats ?? null);
+        setLoading(false);
+        return;
+      }
     } catch {
-      setData({ ok: false, error: "request failed" });
-    } finally {
-      setLoading(false);
+      // fall through to the heuristic model
     }
+
+    // 2. Fallback: heuristic projection off this week's uploaded DK salaries.
+    try {
+      const res = await fetch(`/api/dfs/heuristic-ownership`);
+      const json = (await res.json()) as HeuristicResponse;
+      if (json.projections?.length) {
+        setRows(
+          json.projections.map((p) => ({
+            player_name: p.name,
+            salary: p.salary,
+            projected_own: p.projOwn,
+            basis: "default" as const,
+            history_n: 0,
+            course_n: 0,
+            effective_weight: 0,
+            historical_avg_own: null,
+          })),
+        );
+        setMode("heuristic");
+        setEventName(json.event ?? null);
+        setHeuristicSource(json.source ?? null);
+        setHistStats(null);
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // fall through to empty state
+    }
+
+    setRows([]);
+    setMode(null);
+    setLoading(false);
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  const rows =
-    data?.projections?.filter((r) =>
-      r.player_name.toLowerCase().includes(q.toLowerCase()),
-    ) ?? [];
+  const filtered = rows.filter((r) =>
+    r.player_name.toLowerCase().includes(q.toLowerCase()),
+  );
 
   return (
     <div className="space-y-3">
@@ -68,34 +123,51 @@ export function ProjectedOwnership() {
         <div className="serif-italic" style={{ fontSize: 24, fontStyle: "normal" }}>
           <em>Projected ownership — this week.</em>
         </div>
-        {data?.event && (
+        {eventName && (
           <div className="text-text-dim" style={{ fontSize: 13 }}>
-            <span className="text-text">{data.event.name}</span> ·{" "}
-            {data.event.course} · {data.event.site.toUpperCase()}
+            <span className="text-text">{eventName}</span>
           </div>
         )}
-        {data?.history_stats && (
+        {mode === "similarity" && histStats && (
           <div className="text-text-muted num uppercase" style={{ fontSize: 10, letterSpacing: 1 }}>
-            {data.history_stats.field_size} in field ·{" "}
-            {data.history_stats.players_with_history} with history ·{" "}
-            {data.history_stats.total_rows.toLocaleString()} historical rows
+            {histStats.field_size} in field · {histStats.players_with_history} with history ·{" "}
+            {histStats.total_rows.toLocaleString()} historical rows
           </div>
         )}
         <p className="text-text-dim" style={{ fontSize: 12 }}>
-          Similarity-weighted prediction. Each player's projection blends
-          their own past ownership (favoring the same course, similar
-          salary, recent years) with a salary-bucket prior for thin samples.
+          {mode === "heuristic" ? (
+            <>
+              From this week&apos;s DraftKings slate —{" "}
+              {heuristicSource === "v2-datagolf"
+                ? "salary + value, form-weighted by DataGolf's pre-tournament model."
+                : "salary + value model."}{" "}
+              The full similarity-weighted model takes over once DataGolf
+              publishes the field.
+            </>
+          ) : (
+            <>
+              Similarity-weighted prediction. Each player&apos;s projection blends
+              their own past ownership (favoring the same course, similar salary,
+              recent years) with a salary-bucket prior for thin samples.
+            </>
+          )}
         </p>
       </div>
 
-      {!loading && data?.error && (
+      {loading && (
+        <div className="text-text-dim" style={{ fontSize: 13 }}>
+          Loading projections…
+        </div>
+      )}
+
+      {!loading && mode === null && (
         <div className="rounded-[14px] border border-line p-5 bg-surface-1 space-y-3">
           <div className="text-text" style={{ fontSize: 14 }}>
-            Couldn't compute projections: <em>{data.error}</em>
+            No projection available yet for this event.
           </div>
           <div className="text-text-dim" style={{ fontSize: 12 }}>
-            DataGolf usually publishes the current-week field on Monday
-            evening. If you know the event_id, pass it manually:
+            Upload this week&apos;s DraftKings salaries, or pass the DataGolf
+            event_id to force the similarity model:
           </div>
           <div className="flex gap-2">
             <input
@@ -124,12 +196,6 @@ export function ProjectedOwnership() {
         </div>
       )}
 
-      {loading && (
-        <div className="text-text-dim" style={{ fontSize: 13 }}>
-          Loading projections…
-        </div>
-      )}
-
       {!loading && rows.length > 0 && (
         <>
           <input
@@ -155,7 +221,7 @@ export function ProjectedOwnership() {
               <span className="text-right">Hist avg</span>
               <span className="text-right">Sample</span>
             </div>
-            {rows.map((r) => (
+            {filtered.map((r) => (
               <div
                 key={r.player_name}
                 className="grid gap-2 px-4 py-3 border-b border-line/50 last:border-b-0"
@@ -180,11 +246,13 @@ export function ProjectedOwnership() {
                     : "—"}
                 </span>
                 <span className="num text-right text-text-muted" style={{ fontSize: 11 }}>
-                  {r.basis === "history"
-                    ? `${r.history_n} ev · ${r.course_n} here`
-                    : r.basis === "salary_bucket"
-                      ? "prior"
-                      : "default"}
+                  {mode === "heuristic"
+                    ? "DK model"
+                    : r.basis === "history"
+                      ? `${r.history_n} ev · ${r.course_n} here`
+                      : r.basis === "salary_bucket"
+                        ? "prior"
+                        : "default"}
                 </span>
               </div>
             ))}
