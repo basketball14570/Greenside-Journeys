@@ -4,6 +4,7 @@ import { buildSampleLineup, type DfsPlayer } from "@/lib/demo-dfs";
 import { buildRealSlate } from "@/lib/dfs/slate";
 import { getPlayerHistory } from "@/lib/data/ownership";
 import { OptimizerPanel } from "@/components/edge/OptimizerPanel";
+import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,6 +30,7 @@ export default async function DfsPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
+      <DfsMobileNav />
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <span

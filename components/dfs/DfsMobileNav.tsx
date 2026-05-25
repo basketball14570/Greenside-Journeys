@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Mobile-only DFS sub-nav. On phones the DFS tab opens Cut Sweat (the
-// optimizer is desktop-only), so this gives one-tap access between the two
-// tools mobile users actually want: Cut Sweat and Ownership. Hidden on
-// desktop, where the DFS dropdown already covers it.
+// Mobile-only DFS sub-nav: one-tap access between the three DFS tools.
+// Hidden on desktop, where the DFS dropdown already covers it.
 const ITEMS = [
-  { href: "/dashboard/dfs/cut-sweat", label: "Cut Sweat", match: "/dashboard/dfs/cut-sweat" },
-  { href: "/dashboard/ownership", label: "Ownership", match: "/dashboard/ownership" },
+  { href: "/dashboard/ownership", label: "Ownership", match: "/dashboard/ownership", exact: false },
+  { href: "/dashboard/dfs/cut-sweat", label: "Cut Sweat", match: "/dashboard/dfs/cut-sweat", exact: false },
+  { href: "/dashboard/dfs", label: "Optimizer", match: "/dashboard/dfs", exact: true },
 ];
 
 export function DfsMobileNav() {
@@ -17,7 +16,9 @@ export function DfsMobileNav() {
   return (
     <div className="lg:hidden flex gap-2">
       {ITEMS.map((it) => {
-        const active = pathname?.startsWith(it.match);
+        const active = it.exact
+          ? pathname === it.match
+          : pathname?.startsWith(it.match);
         return (
           <Link
             key={it.href}
