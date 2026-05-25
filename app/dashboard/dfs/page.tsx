@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Stat } from "@/components/edge/primitives";
-import { buildSampleLineup, type DfsPlayer } from "@/lib/demo-dfs";
+import { type DfsPlayer } from "@/lib/demo-dfs";
 import { buildRealSlate } from "@/lib/dfs/slate";
 import { getPlayerHistory } from "@/lib/data/ownership";
 import { OptimizerPanel } from "@/components/edge/OptimizerPanel";
@@ -16,17 +15,7 @@ function value(p: DfsPlayer): number {
 export default async function DfsPage() {
   const slate = await buildRealSlate();
   const players = slate.players;
-  const sample = buildSampleLineup(players);
-  const totalSalary = sample.picks.reduce((s, p) => s + p.salary, 0);
-  const totalProj = sample.picks.reduce((s, p) => s + p.projection, 0);
-  const avgOwn =
-    sample.picks.length > 0
-      ? sample.picks.reduce((s, p) => s + p.ownership, 0) / sample.picks.length
-      : 0;
   const pool = [...players].sort((a, b) => b.projection - a.projection);
-  const projLabel = slate.projectionSharpened
-    ? "Projection: AvgPPG blended with DataGolf course-fit model"
-    : "Projection: DK season AvgPPG";
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -60,143 +49,11 @@ export default async function DfsPage() {
         </Link>
       </header>
 
-      {/* Sample lineup summary */}
-      <div className="grid lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 rounded-[14px] overflow-hidden bg-surface-1 border border-line">
-          <div
-            className="flex items-baseline justify-between px-5 py-4 border-b border-line"
-            style={{ background: "rgba(0,0,0,0.18)" }}
-          >
-            <div>
-              <span
-                className="num font-semibold uppercase text-text-muted"
-                style={{ fontSize: 9.5, letterSpacing: 1.2 }}
-              >
-                Suggested lineup · best value under cap
-              </span>
-              <div
-                className="serif-italic mt-0.5 text-text"
-                style={{ fontSize: 20, letterSpacing: -0.2, fontStyle: "normal" }}
-              >
-                Today&apos;s build
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="grid gap-2.5 px-5 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
-            style={{
-              gridTemplateColumns: "2fr 80px 70px 70px 60px",
-              fontSize: 9.5,
-              letterSpacing: 1.1,
-            }}
-          >
-            <span>Player</span>
-            <span className="text-right">Salary</span>
-            <span className="text-right">Proj</span>
-            <span className="text-right">Value</span>
-            <span className="text-right">Own%</span>
-          </div>
-          {sample.picks.map((p, i) => (
-            <div
-              key={p.id}
-              className="grid gap-2.5 px-5 py-3 items-center"
-              style={{
-                gridTemplateColumns: "2fr 80px 70px 70px 60px",
-                borderBottom:
-                  i < sample.picks.length - 1
-                    ? "1px solid rgba(255,255,255,0.06)"
-                    : "none",
-              }}
-            >
-              <span className="text-text font-semibold" style={{ fontSize: 13.5 }}>
-                {p.name}
-              </span>
-              <span className="num text-text text-right" style={{ fontSize: 12.5 }}>
-                ${p.salary.toLocaleString()}
-              </span>
-              <span
-                className="num font-semibold text-text text-right"
-                style={{ fontSize: 12.5 }}
-              >
-                {p.projection.toFixed(1)}
-              </span>
-              <span className="num text-text-dim text-right" style={{ fontSize: 12 }}>
-                {value(p).toFixed(2)}
-              </span>
-              <span className="num text-text-dim text-right" style={{ fontSize: 12 }}>
-                {p.ownership.toFixed(1)}%
-              </span>
-            </div>
-          ))}
-          <div
-            className="flex justify-between px-5 py-3 border-t border-line"
-            style={{ background: "rgba(0,0,0,0.18)" }}
-          >
-            <span
-              className="num text-text-dim"
-              style={{ fontSize: 11, letterSpacing: 0.4 }}
-            >
-              {sample.picks.length} golfers ·{" "}
-              <span className="text-text font-semibold">
-                ${totalSalary.toLocaleString()}
-              </span>{" "}
-              used · ${sample.remainingSalary.toLocaleString()} left
-            </span>
-            <span
-              className="num font-semibold"
-              style={{ fontSize: 11, letterSpacing: 0.4, color: "#8ee68e" }}
-            >
-              PROJ {totalProj.toFixed(1)} · AVG OWN {avgOwn.toFixed(0)}%
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-[14px] bg-surface-1 border border-line p-5">
-          <span
-            className="num font-semibold uppercase text-text-muted"
-            style={{ fontSize: 9.5, letterSpacing: 1.2 }}
-          >
-            Slate-wide
-          </span>
-          <div className="mt-3 grid grid-cols-2 gap-4">
-            <Stat
-              value={totalProj.toFixed(0)}
-              unit="pts"
-              label="Lineup projection"
-              accent="#8ee68e"
-            />
-            <Stat value={`${avgOwn.toFixed(0)}`} unit="%" label="Avg ownership" />
-          </div>
-
-          <div className="mt-5 pt-4 border-t border-line">
-            <span
-              className="num font-semibold uppercase text-text-muted"
-              style={{ fontSize: 9.5, letterSpacing: 1.2 }}
-            >
-              Model
-            </span>
-            <p className="text-text-dim mt-2" style={{ fontSize: 13, lineHeight: 1.4 }}>
-              {players.length} golfers in the pool. {projLabel}. Ownership from
-              the live model; run the optimizer below to leverage-tilt off the
-              chalk.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile reorders these into Leverage → Ownership → Optimizer. */}
-      <div className="flex flex-col gap-6 lg:contents">
-        <div className="order-3 lg:order-none">
-          <OptimizerPanel players={players} />
-        </div>
-        <div className="order-1 lg:order-none">
-          <LeverageInsights players={players} />
-        </div>
-        <div className="order-2 lg:order-none">
-          <ProjectedOwnershipPreview players={players} />
-        </div>
-      </div>
+      {/* Mobile + desktop order: projected ownership, optimizer, then the
+          chalk/leverage cards. Player pool sits at the bottom. */}
+      <ProjectedOwnershipPreview players={players} />
+      <OptimizerPanel players={players} />
+      <LeverageInsights players={players} />
 
       {/* Full salary table */}
       <div className="rounded-[14px] overflow-hidden bg-surface-1 border border-line">
@@ -233,7 +90,6 @@ export default async function DfsPage() {
           <span className="text-right">Floor → Ceil</span>
         </div>
         {pool.slice(0, 20).map((p, i, arr) => {
-          const inLineup = sample.picks.find((x) => x.id === p.id);
           return (
             <div
               key={p.id}
@@ -242,20 +98,9 @@ export default async function DfsPage() {
                 gridTemplateColumns: "2fr 80px 70px 70px 60px 90px",
                 borderBottom:
                   i < arr.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                background: inLineup ? "rgba(142,230,142,0.05)" : "transparent",
               }}
             >
-              {inLineup && (
-                <div
-                  className="absolute"
-                  style={{ left: 0, top: 0, bottom: 0, width: 2, background: "#8ee68e" }}
-                />
-              )}
-              <span
-                className="text-text"
-                style={{ fontSize: 13.5, fontWeight: inLineup ? 600 : 400 }}
-              >
-                {inLineup && <span style={{ color: "#8ee68e", marginRight: 6 }}>★</span>}
+              <span className="text-text" style={{ fontSize: 13.5 }}>
                 {p.name}
               </span>
               <span className="num text-text text-right" style={{ fontSize: 12.5 }}>
