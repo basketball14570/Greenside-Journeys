@@ -16,6 +16,8 @@
 //
 // To refresh for a new season: replace SCHEDULE, bump SEASON_YEAR.
 
+import { goLiveAtCentral } from "@/lib/data/event-rollover";
+
 export type PgaEvent = {
   id: string;                  // kebab-case: "2026-truist-championship"
   name: string;                // display name: "Truist Championship"
@@ -97,17 +99,26 @@ export function statusOf(event: PgaEvent, now = new Date()): EventStatus {
   return "live";
 }
 
-// The "active" event is the one currently playing, or the next one if
-// nothing is playing right now (so the EventStrap on a Monday shows the
-// upcoming week's tournament). Falls back to the most recent past event
-// in mid-season gaps.
+// The "active" event rolls over at 8pm Central on the Sunday before each
+// tournament week — the same instant the course guide flips — so the header,
+// weather, conditions and guide stay in lockstep. It's the event with the
+// most recent go-live that has passed; on shared-week pairs the first-listed
+// (primary) event wins the tie. Falls back to the next upcoming event before
+// the season's first go-live, then to the last event at season's end.
 export function getActiveEvent(now = new Date()): PgaEvent | null {
-  const live = SCHEDULE.find((e) => statusOf(e, now) === "live");
-  if (live) return live;
-  const upcoming = SCHEDULE.find((e) => statusOf(e, now) === "upcoming");
-  if (upcoming) return upcoming;
-  // End of season: surface the last past event.
-  return SCHEDULE[SCHEDULE.length - 1] ?? null;
+  const t = now.getTime();
+  let current: PgaEvent | null = null;
+  let currentGo = -Infinity;
+  for (const e of SCHEDULE) {
+    const go = goLiveAtCentral(e.startDate);
+    if (go <= t && go > currentGo) {
+      current = e;
+      currentGo = go;
+    }
+  }
+  if (current) return current;
+  const upcoming = SCHEDULE.find((e) => goLiveAtCentral(e.startDate) > t);
+  return upcoming ?? SCHEDULE[SCHEDULE.length - 1] ?? null;
 }
 
 export function findEventByName(name: string): PgaEvent | null {
