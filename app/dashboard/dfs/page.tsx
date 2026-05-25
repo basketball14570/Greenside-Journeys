@@ -23,10 +23,9 @@ export default async function DfsPage() {
       ? sample.picks.reduce((s, p) => s + p.ownership, 0) / sample.picks.length
       : 0;
   const pool = [...players].sort((a, b) => b.projection - a.projection);
-  const modelLabel =
-    slate.source === "v2-datagolf"
-      ? "Ownership: live model + DataGolf form"
-      : "Ownership: live model (salary + value)";
+  const projLabel = slate.projectionSharpened
+    ? "Projection: AvgPPG blended with DataGolf course-fit model"
+    : "Projection: DK season AvgPPG";
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -176,8 +175,8 @@ export default async function DfsPage() {
               Model
             </span>
             <p className="text-text-dim mt-2" style={{ fontSize: 13, lineHeight: 1.4 }}>
-              {players.length} golfers in the pool. {modelLabel}. Projection is
-              DK season AvgPPG; run the optimizer below to leverage-tilt off the
+              {players.length} golfers in the pool. {projLabel}. Ownership from
+              the live model; run the optimizer below to leverage-tilt off the
               chalk.
             </p>
           </div>
