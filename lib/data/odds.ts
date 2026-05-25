@@ -225,9 +225,40 @@ function dgRowsToOddsRows(rows: DGOutrightRow[], market: OddsMarket): OddsRow[] 
   return out;
 }
 
-// The default board tracks the CURRENT tour event via DataGolf outrights
-// (covers every event). Falls back to demo, labeled with the current event,
-// when DataGolf is unavailable (no key / no betting-tools add-on).
+// Tokens that don't distinguish one event from another, dropped before
+// comparing a DataGolf event name to our schedule's.
+const EVENT_STOPWORDS = new Set([
+  "the", "cup", "challenge", "championship", "open", "classic", "invitational",
+  "tournament", "at", "and", "of", "pga", "tour", "presented", "by",
+]);
+
+function eventTokens(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t && !EVENT_STOPWORDS.has(t)),
+  );
+}
+
+// Does DataGolf's feed correspond to the event we think is current? DataGolf
+// can lag the rollover (still serving the just-finished event), and we never
+// want to show last week's odds under this week's banner. Empty/absent name
+// = trust the rows (can't disprove).
+function eventMatches(dgName: string | null, currentName: string): boolean {
+  if (!dgName) return true;
+  const a = eventTokens(dgName);
+  const b = eventTokens(currentName);
+  if (a.size === 0 || b.size === 0) return true;
+  for (const t of a) if (b.has(t)) return true;
+  return false;
+}
+
+// The default board tracks the CURRENT tour event (our schedule is the source
+// of truth). Uses DataGolf outrights when its feed is for that same event;
+// otherwise demo, labeled with the current event — so the board never shows a
+// stale/finished event's odds.
 export async function getOddsMatrix(market: OddsMarket = "winner"): Promise<OddsMatrix> {
   const active = getActiveEvent();
   const eventName = active?.name ?? "PGA Tour";
@@ -235,11 +266,11 @@ export async function getOddsMatrix(market: OddsMarket = "winner"): Promise<Odds
   const dgMarket = ODDS_MARKET_TO_DG[market];
   if (dgMarket) {
     const dg = await getOutrightOdds(dgMarket);
-    if (dg && dg.rows.length) {
+    if (dg && dg.rows.length && eventMatches(dg.event_name, eventName)) {
       const rows = dgRowsToOddsRows(dg.rows, market);
       if (rows.length) {
         return {
-          event: dg.event_name ?? eventName,
+          event: eventName,
           market,
           lastUpdate: dg.last_updated,
           source: "datagolf",
