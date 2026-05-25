@@ -215,8 +215,36 @@ function sampleLineup(
   const picks: DfsPlayer[] = [];
   let salary = 0;
   for (let slot = 0; slot < size; slot++) {
+    const slotsLeft = size - slot - 1;
+
+    // Cheapest-completion lower bound, precomputed once per slot (not per
+    // candidate): the cheapest `slotsLeft` players left. We need a per-
+    // candidate version only because the candidate can't also fill a later
+    // slot — so track the cheapest set's ids and the next-cheapest salary to
+    // swap the candidate out in O(1). Without this the filter was O(n² log n)
+    // per slot, which times out a phone on a full ~150-player field.
+    let cheapestSum = 0;
+    const cheapestIds = new Set<string>();
+    let nextCheapestSalary = Infinity;
+    if (slotsLeft > 0) {
+      const asc = [...remaining].sort((a, b) => a.salary - b.salary);
+      for (let i = 0; i < slotsLeft && i < asc.length; i++) {
+        cheapestSum += asc[i].salary;
+        cheapestIds.add(asc[i].id);
+      }
+      nextCheapestSalary = asc.length > slotsLeft ? asc[slotsLeft].salary : Infinity;
+    }
+    const minComplete = (p: DfsPlayer): number => {
+      if (slotsLeft <= 0) return 0;
+      if (remaining.length - 1 < slotsLeft) return Infinity; // can't finish
+      // If p is one of the cheapest, swap it for the next cheapest player.
+      return cheapestIds.has(p.id)
+        ? cheapestSum - p.salary + nextCheapestSalary
+        : cheapestSum;
+    };
+
     const eligible = remaining.filter(
-      (p) => p.salary <= cap - salary - minSalary(remaining, size - slot - 1, p),
+      (p) => p.salary <= cap - salary - minComplete(p),
     );
     if (eligible.length === 0) return null;
     const weights = eligible.map((p) => Math.pow(p.projection, 2));
@@ -227,22 +255,6 @@ function sampleLineup(
     remaining.splice(idx, 1);
   }
   return { picks, salary };
-}
-
-// Cheap lower-bound: cheapest remaining player × slots left, so we don't
-// pick someone who makes finishing the lineup impossible.
-function minSalary(
-  pool: DfsPlayer[],
-  slotsLeft: number,
-  excluding: DfsPlayer,
-): number {
-  if (slotsLeft <= 0) return 0;
-  const candidates = pool.filter((p) => p.id !== excluding.id);
-  if (candidates.length < slotsLeft) return Infinity;
-  const cheapest = [...candidates]
-    .sort((a, b) => a.salary - b.salary)
-    .slice(0, slotsLeft);
-  return sum(cheapest.map((p) => p.salary));
 }
 
 function weightedPick<T>(items: T[], weights: number[]): T {
