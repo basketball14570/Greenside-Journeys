@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DFS_PLAYERS } from "@/lib/demo-dfs";
+import type { DfsPlayer } from "@/lib/demo-dfs";
 import {
   optimizeLineups,
   COURSE_ARCHETYPES,
@@ -17,7 +17,7 @@ import {
 // simulate each one with shared wave-wind correlation, then surface the
 // top 20 by composite score.
 
-export function OptimizerPanel() {
+export function OptimizerPanel({ players }: { players: DfsPlayer[] }) {
   const [weights, setWeights] = useState<OptimizerWeights>(DEFAULT_WEIGHTS);
   const [archetype, setArchetype] = useState<CourseArchetype | "">("Parkland · long");
   const [results, setResults] = useState<Lineup[] | null>(null);
@@ -31,7 +31,7 @@ export function OptimizerPanel() {
     // sim itself is fast (<300ms for 1500 candidates × 200 sims on a
     // recent laptop) but rendering the spinner needs a frame to land.
     setTimeout(() => {
-      const out = optimizeLineups(DFS_PLAYERS, {
+      const out = optimizeLineups(players, {
         weights,
         topK: 20,
         archetype: archetype === "" ? null : (archetype as CourseArchetype),

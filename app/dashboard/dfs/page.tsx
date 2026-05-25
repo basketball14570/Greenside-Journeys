@@ -1,16 +1,33 @@
 import Link from "next/link";
 import { Stat } from "@/components/edge/primitives";
-import { DFS_PLAYERS, buildSampleLineup } from "@/lib/demo-dfs";
+import { buildSampleLineup, type DfsPlayer } from "@/lib/demo-dfs";
+import { buildRealSlate } from "@/lib/dfs/slate";
 import { getPlayerHistory } from "@/lib/data/ownership";
 import { OptimizerPanel } from "@/components/edge/OptimizerPanel";
 
-const SAMPLE = buildSampleLineup(DFS_PLAYERS);
-const TOTAL_SALARY = SAMPLE.picks.reduce((s, p) => s + p.salary, 0);
-const TOTAL_PROJ = SAMPLE.picks.reduce((s, p) => s + p.projection, 0);
-const AVG_OWN =
-  SAMPLE.picks.reduce((s, p) => s + p.ownership, 0) / SAMPLE.picks.length;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default function DfsPage() {
+function value(p: DfsPlayer): number {
+  return p.salary > 0 ? (p.projection / p.salary) * 1000 : 0;
+}
+
+export default async function DfsPage() {
+  const slate = await buildRealSlate();
+  const players = slate.players;
+  const sample = buildSampleLineup(players);
+  const totalSalary = sample.picks.reduce((s, p) => s + p.salary, 0);
+  const totalProj = sample.picks.reduce((s, p) => s + p.projection, 0);
+  const avgOwn =
+    sample.picks.length > 0
+      ? sample.picks.reduce((s, p) => s + p.ownership, 0) / sample.picks.length
+      : 0;
+  const pool = [...players].sort((a, b) => b.projection - a.projection);
+  const modelLabel =
+    slate.source === "v2-datagolf"
+      ? "Ownership: live model + DataGolf form"
+      : "Ownership: live model (salary + value)";
+
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
       <header className="flex items-end justify-between flex-wrap gap-4">
@@ -22,30 +39,15 @@ export default function DfsPage() {
             ● DraftKings DFS
           </span>
           <h1
-            className="serif-italic mt-1.5 flex items-center gap-2.5 flex-wrap"
+            className="serif-italic mt-1.5"
             style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
           >
-            <em>Wave-aware lineup builder.</em>
-            <span
-              className="num uppercase"
-              style={{
-                fontSize: 9.5,
-                letterSpacing: 1.2,
-                padding: "3px 8px",
-                borderRadius: 4,
-                background: "rgba(245,197,88,0.1)",
-                color: "#f5c558",
-                border: "1px solid rgba(245,197,88,0.3)",
-                position: "relative",
-                top: -6,
-              }}
-            >
-              Example data
-            </span>
+            <em>{slate.event}</em>
           </h1>
           <p className="text-text-dim mt-2 max-w-xl" style={{ fontSize: 14 }}>
-            Example slate · projections are a preview until the live DFS feed is
-            wired. The ownership database is real.
+            Live DK salaries · projections from DK season scoring (AvgPPG), with
+            projected ownership from the model. Tee-time / wind tilt activates
+            once the draw posts.
           </p>
         </div>
         <Link
@@ -69,7 +71,7 @@ export default function DfsPage() {
                 className="num font-semibold uppercase text-text-muted"
                 style={{ fontSize: 9.5, letterSpacing: 1.2 }}
               >
-                Suggested lineup · wave-tilted
+                Suggested lineup · best value under cap
               </span>
               <div
                 className="serif-italic mt-0.5 text-text"
@@ -78,43 +80,30 @@ export default function DfsPage() {
                 Today&apos;s build
               </div>
             </div>
-            <button
-              className="font-bold"
-              style={{
-                background: "#8ee68e",
-                color: "#06140c",
-                padding: "8px 14px",
-                borderRadius: 6,
-                fontSize: 12,
-              }}
-            >
-              Export to DK →
-            </button>
           </div>
 
           <div
             className="grid gap-2.5 px-5 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
             style={{
-              gridTemplateColumns: "1.8fr 50px 70px 70px 60px 70px",
+              gridTemplateColumns: "2fr 80px 70px 70px 60px",
               fontSize: 9.5,
               letterSpacing: 1.1,
             }}
           >
             <span>Player</span>
-            <span className="text-right">Wave</span>
             <span className="text-right">Salary</span>
             <span className="text-right">Proj</span>
+            <span className="text-right">Value</span>
             <span className="text-right">Own%</span>
-            <span className="text-right">Wind Δ</span>
           </div>
-          {SAMPLE.picks.map((p, i) => (
+          {sample.picks.map((p, i) => (
             <div
               key={p.id}
               className="grid gap-2.5 px-5 py-3 items-center"
               style={{
-                gridTemplateColumns: "1.8fr 50px 70px 70px 60px 70px",
+                gridTemplateColumns: "2fr 80px 70px 70px 60px",
                 borderBottom:
-                  i < SAMPLE.picks.length - 1
+                  i < sample.picks.length - 1
                     ? "1px solid rgba(255,255,255,0.06)"
                     : "none",
               }}
@@ -122,20 +111,7 @@ export default function DfsPage() {
               <span className="text-text font-semibold" style={{ fontSize: 13.5 }}>
                 {p.name}
               </span>
-              <span
-                className="num font-semibold text-right"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 0.8,
-                  color: p.wave === "AM" ? "#8ee68e" : "#f5c558",
-                }}
-              >
-                {p.wave}
-              </span>
-              <span
-                className="num text-text text-right"
-                style={{ fontSize: 12.5 }}
-              >
+              <span className="num text-text text-right" style={{ fontSize: 12.5 }}>
                 ${p.salary.toLocaleString()}
               </span>
               <span
@@ -144,26 +120,11 @@ export default function DfsPage() {
               >
                 {p.projection.toFixed(1)}
               </span>
-              <span
-                className="num text-text-dim text-right"
-                style={{ fontSize: 12 }}
-              >
-                {p.ownership}%
+              <span className="num text-text-dim text-right" style={{ fontSize: 12 }}>
+                {value(p).toFixed(2)}
               </span>
-              <span
-                className="num font-semibold text-right"
-                style={{
-                  fontSize: 12,
-                  color:
-                    p.windAdj > 0.3
-                      ? "#8ee68e"
-                      : p.windAdj < -0.3
-                        ? "#e07868"
-                        : "#a8b3ac",
-                }}
-              >
-                {p.windAdj > 0 ? "+" : ""}
-                {p.windAdj.toFixed(1)}
+              <span className="num text-text-dim text-right" style={{ fontSize: 12 }}>
+                {p.ownership.toFixed(1)}%
               </span>
             </div>
           ))}
@@ -175,18 +136,17 @@ export default function DfsPage() {
               className="num text-text-dim"
               style={{ fontSize: 11, letterSpacing: 0.4 }}
             >
-              {SAMPLE.picks.length} golfers ·{" "}
+              {sample.picks.length} golfers ·{" "}
               <span className="text-text font-semibold">
-                ${TOTAL_SALARY.toLocaleString()}
+                ${totalSalary.toLocaleString()}
               </span>{" "}
-              used · ${SAMPLE.remainingSalary.toLocaleString()} left
+              used · ${sample.remainingSalary.toLocaleString()} left
             </span>
             <span
               className="num font-semibold"
               style={{ fontSize: 11, letterSpacing: 0.4, color: "#8ee68e" }}
             >
-              PROJ {TOTAL_PROJ.toFixed(1)} · AVG OWN{" "}
-              {AVG_OWN.toFixed(0)}%
+              PROJ {totalProj.toFixed(1)} · AVG OWN {avgOwn.toFixed(0)}%
             </span>
           </div>
         </div>
@@ -200,16 +160,12 @@ export default function DfsPage() {
           </span>
           <div className="mt-3 grid grid-cols-2 gap-4">
             <Stat
-              value={TOTAL_PROJ.toFixed(0)}
+              value={totalProj.toFixed(0)}
               unit="pts"
               label="Lineup projection"
               accent="#8ee68e"
             />
-            <Stat
-              value={`${AVG_OWN.toFixed(0)}`}
-              unit="%"
-              label="Avg ownership"
-            />
+            <Stat value={`${avgOwn.toFixed(0)}`} unit="%" label="Avg ownership" />
           </div>
 
           <div className="mt-5 pt-4 border-t border-line">
@@ -217,47 +173,27 @@ export default function DfsPage() {
               className="num font-semibold uppercase text-text-muted"
               style={{ fontSize: 9.5, letterSpacing: 1.2 }}
             >
-              Wave tilt
+              Model
             </span>
             <p className="text-text-dim mt-2" style={{ fontSize: 13, lineHeight: 1.4 }}>
-              AM-wave players currently project{" "}
-              <span className="text-text font-semibold">+0.4 strokes</span>{" "}
-              vs PM. The optimizer is currently overweighting AM relative to
+              {players.length} golfers in the pool. {modelLabel}. Projection is
+              DK season AvgPPG; run the optimizer below to leverage-tilt off the
               chalk.
             </p>
-          </div>
-
-          <div className="mt-4">
-            <button
-              className="w-full font-bold"
-              style={{
-                background: "#1e4030",
-                color: "#f0ebe0",
-                padding: "10px 0",
-                borderRadius: 6,
-                fontSize: 12.5,
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              Generate 20 lineups
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile reorders these three into Chalk → Leverage → Ownership →
-          Optimizer (the higher-leverage "intelligence" sits up top, with
-          the heavier optimizer below the fold). Desktop keeps the
-          Optimizer-first layout it always had. */}
+      {/* Mobile reorders these into Leverage → Ownership → Optimizer. */}
       <div className="flex flex-col gap-6 lg:contents">
         <div className="order-3 lg:order-none">
-          <OptimizerPanel />
+          <OptimizerPanel players={players} />
         </div>
         <div className="order-1 lg:order-none">
-          <LeverageInsights />
+          <LeverageInsights players={players} />
         </div>
         <div className="order-2 lg:order-none">
-          <ProjectedOwnershipPreview />
+          <ProjectedOwnershipPreview players={players} />
         </div>
       </div>
 
@@ -271,82 +207,57 @@ export default function DfsPage() {
             className="serif-italic text-text"
             style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
           >
-            Player pool · 144 entrants
+            Player pool · {players.length} golfers
           </span>
           <span
             className="num text-text-muted"
             style={{ fontSize: 11, letterSpacing: 0.4 }}
           >
-            Showing top 12 by projection
+            Showing top 20 by projection
           </span>
         </div>
         <div
           className="grid gap-2.5 px-5 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
           style={{
-            gridTemplateColumns: "1.6fr 50px 70px 70px 60px 70px 80px",
+            gridTemplateColumns: "2fr 80px 70px 70px 60px 90px",
             fontSize: 9.5,
             letterSpacing: 1.1,
           }}
         >
           <span>Player</span>
-          <span className="text-right">Wave</span>
           <span className="text-right">Salary</span>
           <span className="text-right">Proj</span>
+          <span className="text-right">Value</span>
           <span className="text-right">Own%</span>
-          <span className="text-right">Wind Δ</span>
           <span className="text-right">Floor → Ceil</span>
         </div>
-        {DFS_PLAYERS.map((p, i) => {
-          const inLineup = SAMPLE.picks.find((x) => x.id === p.id);
+        {pool.slice(0, 20).map((p, i, arr) => {
+          const inLineup = sample.picks.find((x) => x.id === p.id);
           return (
             <div
               key={p.id}
               className="grid gap-2.5 px-5 py-3 items-center relative"
               style={{
-                gridTemplateColumns: "1.6fr 50px 70px 70px 60px 70px 80px",
+                gridTemplateColumns: "2fr 80px 70px 70px 60px 90px",
                 borderBottom:
-                  i < DFS_PLAYERS.length - 1
-                    ? "1px solid rgba(255,255,255,0.06)"
-                    : "none",
+                  i < arr.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
                 background: inLineup ? "rgba(142,230,142,0.05)" : "transparent",
               }}
             >
               {inLineup && (
                 <div
                   className="absolute"
-                  style={{
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 2,
-                    background: "#8ee68e",
-                  }}
+                  style={{ left: 0, top: 0, bottom: 0, width: 2, background: "#8ee68e" }}
                 />
               )}
               <span
                 className="text-text"
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: inLineup ? 600 : 400,
-                }}
+                style={{ fontSize: 13.5, fontWeight: inLineup ? 600 : 400 }}
               >
                 {inLineup && <span style={{ color: "#8ee68e", marginRight: 6 }}>★</span>}
                 {p.name}
               </span>
-              <span
-                className="num font-semibold text-right"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 0.8,
-                  color: p.wave === "AM" ? "#8ee68e" : "#f5c558",
-                }}
-              >
-                {p.wave}
-              </span>
-              <span
-                className="num text-text text-right"
-                style={{ fontSize: 12.5 }}
-              >
+              <span className="num text-text text-right" style={{ fontSize: 12.5 }}>
                 ${p.salary.toLocaleString()}
               </span>
               <span
@@ -355,31 +266,13 @@ export default function DfsPage() {
               >
                 {p.projection.toFixed(1)}
               </span>
-              <span
-                className="num text-text-dim text-right"
-                style={{ fontSize: 12 }}
-              >
-                {p.ownership}%
+              <span className="num text-text-dim text-right" style={{ fontSize: 12 }}>
+                {value(p).toFixed(2)}
               </span>
-              <span
-                className="num font-semibold text-right"
-                style={{
-                  fontSize: 12,
-                  color:
-                    p.windAdj > 0.3
-                      ? "#8ee68e"
-                      : p.windAdj < -0.3
-                        ? "#e07868"
-                        : "#a8b3ac",
-                }}
-              >
-                {p.windAdj > 0 ? "+" : ""}
-                {p.windAdj.toFixed(1)}
+              <span className="num text-text-dim text-right" style={{ fontSize: 12 }}>
+                {p.ownership.toFixed(1)}%
               </span>
-              <span
-                className="num text-text-dim text-right"
-                style={{ fontSize: 11.5 }}
-              >
+              <span className="num text-text-dim text-right" style={{ fontSize: 11.5 }}>
                 {p.floor} → {p.ceiling}
               </span>
             </div>
@@ -391,24 +284,25 @@ export default function DfsPage() {
 }
 
 // ─── Leverage insights ─────────────────────────────────────
-// For each DFS player with historical ownership, compare today's projected
-// ownership to their season-long average. Big positive delta = "they're
-// chalk this week relative to how they normally play"; big negative delta
-// = "the field is sleeping on them." Both are useful signals.
-function LeverageInsights() {
-  const rows = DFS_PLAYERS.map((p) => {
-    const h = getPlayerHistory(p.name);
-    if (!h || h.appearances < 2) return null;
-    const delta = p.ownership - h.avgOwn;
-    return {
-      name: p.name,
-      projected: p.ownership,
-      historical: h.avgOwn,
-      delta,
-      apps: h.appearances,
-      salary: p.salary,
-    };
-  }).filter((x): x is NonNullable<typeof x> => x !== null);
+// For each player with historical ownership, compare today's projected
+// ownership to their season-long average. Big positive delta = chalk relative
+// to how they normally play; big negative = the field is sleeping on them.
+function LeverageInsights({ players }: { players: DfsPlayer[] }) {
+  const rows = players
+    .map((p) => {
+      const h = getPlayerHistory(p.name);
+      if (!h || h.appearances < 2) return null;
+      const delta = p.ownership - h.avgOwn;
+      return {
+        name: p.name,
+        projected: p.ownership,
+        historical: h.avgOwn,
+        delta,
+        apps: h.appearances,
+        salary: p.salary,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
 
   const leverage = [...rows].sort((a, b) => a.delta - b.delta).slice(0, 5);
   const chalk = [...rows].sort((a, b) => b.delta - a.delta).slice(0, 5);
@@ -457,10 +351,7 @@ function LeverageCard({
         >
           ● {title}
         </span>
-        <div
-          className="text-text-dim mt-1"
-          style={{ fontSize: 12 }}
-        >
+        <div className="text-text-dim mt-1" style={{ fontSize: 12 }}>
           {subtitle}
         </div>
       </div>
@@ -490,10 +381,7 @@ function LeverageCard({
         >
           <div className="min-w-0">
             <div className="text-text font-medium truncate">{r.name}</div>
-            <div
-              className="num text-text-muted"
-              style={{ fontSize: 10.5 }}
-            >
+            <div className="num text-text-muted" style={{ fontSize: 10.5 }}>
               ${r.salary.toLocaleString()} · {r.apps} apps
             </div>
           </div>
@@ -517,14 +405,8 @@ function LeverageCard({
 }
 
 // ─── Projected ownership preview ───────────────────────────
-// Quick top-of-the-board look at the highest projected-ownership players,
-// linking through to /dashboard/ownership for the full slate (projections
-// tab is the default landing there). Patterned after CourseGuideCard so
-// the call-to-action ("Read the full ownership board →") feels familiar.
-function ProjectedOwnershipPreview() {
-  const top = [...DFS_PLAYERS]
-    .sort((a, b) => b.ownership - a.ownership)
-    .slice(0, 6);
+function ProjectedOwnershipPreview({ players }: { players: DfsPlayer[] }) {
+  const top = [...players].sort((a, b) => b.ownership - a.ownership).slice(0, 6);
 
   return (
     <Link
@@ -552,12 +434,7 @@ function ProjectedOwnershipPreview() {
       </div>
       <div
         className="serif-italic mt-1.5"
-        style={{
-          fontSize: 22,
-          letterSpacing: -0.3,
-          fontStyle: "normal",
-          color: "#f0ebe0",
-        }}
+        style={{ fontSize: 22, letterSpacing: -0.3, fontStyle: "normal", color: "#f0ebe0" }}
       >
         <em>Where the field is going.</em>
       </div>
@@ -571,10 +448,7 @@ function ProjectedOwnershipPreview() {
             <span className="truncate" style={{ color: "#f0ebe0" }}>
               {p.name}
             </span>
-            <span
-              className="font-semibold"
-              style={{ color: "#7fd49a" }}
-            >
+            <span className="font-semibold" style={{ color: "#7fd49a" }}>
               {p.ownership.toFixed(1)}%
             </span>
           </li>
