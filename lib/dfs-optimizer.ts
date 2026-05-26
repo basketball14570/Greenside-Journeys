@@ -142,41 +142,16 @@ export function optimizeLineups(
 
   // Simulate each lineup.
   const evaluated: Lineup[] = pool.map(({ picks, salary }) => {
-    const sims: number[] = new Array(simulations);
-    for (let i = 0; i < simulations; i++) {
-      // One shared wind draw per wave per sim. AM and PM each get their
-      // own factor so the correlation is wave-internal.
-      const amWind = randn() * waveSigma;
-      const pmWind = randn() * waveSigma;
-      let total = 0;
-      for (const p of picks) {
-        const sigma = Math.max(2, (p.ceiling - p.floor) / 2.5);
-        const idio = randn() * sigma;
-        const wave = p.wave === "AM" ? amWind : pmWind;
-        // The waveAdj is signed strokes; convert roughly to DK fantasy
-        // points (1 stroke ≈ 3.5 pts in DK golf scoring) and modulate
-        // by the wave factor draw.
-        const waveImpact = p.windAdj * 3.5 * (1 + wave);
-        const sample = Math.max(0, p.projection + idio + waveImpact);
-        total += sample;
-      }
-      sims[i] = total;
-    }
-    sims.sort((a, b) => a - b);
-    const meanSim = avg(sims);
-    const ceiling = percentile(sims, 0.9);
-    const floor = percentile(sims, 0.1);
-    const avgOwnership = avg(picks.map((p) => p.ownership));
-    const leverage = medianOwnership - avgOwnership;
+    const sim = simulateLineup(picks, simulations, waveSigma);
     return {
       picks,
       salary,
       projection: sum(picks.map((p) => p.projection)),
-      meanSim,
-      ceiling,
-      floor,
-      avgOwnership,
-      leverage,
+      meanSim: sim.meanSim,
+      ceiling: sim.ceiling,
+      floor: sim.floor,
+      avgOwnership: sim.avgOwnership,
+      leverage: medianOwnership - sim.avgOwnership,
       score: 0, // filled below
     };
   });
@@ -200,6 +175,74 @@ export function optimizeLineups(
   };
 
   return { lineups: evaluated.slice(0, topK), population };
+}
+
+// ─── Simulation ──────────────────────────────────────────
+
+// Monte Carlo one lineup: shared AM/PM wind draws per sim (wave-internal
+// correlation) plus each player's idiosyncratic spread from ceiling/floor.
+function simulateLineup(
+  picks: DfsPlayer[],
+  simulations: number,
+  waveSigma: number,
+): { meanSim: number; ceiling: number; floor: number; avgOwnership: number } {
+  const sims: number[] = new Array(simulations);
+  for (let i = 0; i < simulations; i++) {
+    const amWind = randn() * waveSigma;
+    const pmWind = randn() * waveSigma;
+    let total = 0;
+    for (const p of picks) {
+      const sigma = Math.max(2, (p.ceiling - p.floor) / 2.5);
+      const idio = randn() * sigma;
+      const wave = p.wave === "AM" ? amWind : pmWind;
+      // windAdj is signed strokes; ≈3.5 DK pts/stroke, modulated by the draw.
+      const waveImpact = p.windAdj * 3.5 * (1 + wave);
+      total += Math.max(0, p.projection + idio + waveImpact);
+    }
+    sims[i] = total;
+  }
+  sims.sort((a, b) => a - b);
+  return {
+    meanSim: avg(sims),
+    ceiling: percentile(sims, 0.9),
+    floor: percentile(sims, 0.1),
+    avgOwnership: avg(picks.map((p) => p.ownership)),
+  };
+}
+
+export type LineupEval = {
+  salary: number;
+  projection: number;
+  meanSim: number;
+  ceiling: number;
+  floor: number;
+  avgOwnership: number;
+};
+
+// Evaluate a user-built lineup with the same engine the optimizer uses, so
+// "build your own" mean/ceiling/ownership are consistent with the generated
+// lineups. Applies course-fit adjustment when an archetype is given.
+export function evaluateLineup(
+  picks: DfsPlayer[],
+  opts: { simulations?: number; waveSigma?: number; archetype?: CourseArchetype | null } = {},
+): LineupEval {
+  const simulations = opts.simulations ?? 400;
+  const waveSigma = opts.waveSigma ?? 0.06;
+  const archetype = opts.archetype ?? null;
+  const eff = archetype
+    ? picks.map((p) => ({
+        ...p,
+        projection: p.projection * fitMultiplier(p.id, archetype),
+        ceiling: p.ceiling * fitMultiplier(p.id, archetype),
+        floor: p.floor * fitMultiplier(p.id, archetype),
+      }))
+    : picks;
+  const sim = simulateLineup(eff, simulations, waveSigma);
+  return {
+    salary: sum(picks.map((p) => p.salary)),
+    projection: sum(eff.map((p) => p.projection)),
+    ...sim,
+  };
 }
 
 // ─── Sampling ────────────────────────────────────────────

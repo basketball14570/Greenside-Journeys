@@ -3,6 +3,7 @@ import { type DfsPlayer } from "@/lib/demo-dfs";
 import { buildRealSlate } from "@/lib/dfs/slate";
 import { getPlayerHistory } from "@/lib/data/ownership";
 import { OptimizerPanel } from "@/components/edge/OptimizerPanel";
+import { ManualLineup } from "@/components/edge/ManualLineup";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ export default async function DfsPage() {
           chalk/leverage cards. Player pool sits at the bottom. */}
       <ProjectedOwnershipPreview players={players} />
       <OptimizerPanel players={players} />
+      <ManualLineup players={players} />
       <LeverageInsights players={players} />
 
       {/* Full salary table */}
