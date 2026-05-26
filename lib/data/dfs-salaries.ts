@@ -1,6 +1,13 @@
 // Charles Schwab Challenge — Colonial Country Club, Fort Worth, TX.
 // DraftKings main slate salaries + AvgPointsPerGame (DK season scoring, a
 // recent-form proxy). Imported from the DK salary CSV; replace each week.
+//
+// Weekly upkeep:
+//   1. New event: paste the new CSV into RAW_DK_SALARIES, bump DK_EVENT,
+//      and reset DK_WITHDRAWALS to [].
+//   2. Mid-week withdrawals (fields finalize Tuesday): add the player's name
+//      to DK_WITHDRAWALS — they drop out of the field everywhere (ownership,
+//      optimizer, leverage) without touching the salary rows.
 
 export type DkSalaryRow = {
   name: string;
@@ -12,7 +19,11 @@ export const DK_EVENT = "Charles Schwab Challenge";
 export const DK_ROSTER_SIZE = 6;
 export const DK_SALARY_CAP = 50000;
 
-export const DK_SALARIES: DkSalaryRow[] = [
+// Players who withdrew after the DK slate posted. Names are matched
+// loosely (case/space/punctuation-insensitive) against the salary rows.
+export const DK_WITHDRAWALS: string[] = ["Wyndham Clark"];
+
+const RAW_DK_SALARIES: DkSalaryRow[] = [
   { name: "Ludvig Aberg", salary: 10500, ppg: 82.73 },
   { name: "Russell Henley", salary: 10200, ppg: 70.5 },
   { name: "Robert MacIntyre", salary: 9900, ppg: 74.36 },
@@ -146,3 +157,17 @@ export const DK_SALARIES: DkSalaryRow[] = [
   { name: "Kevin Kisner", salary: 6000, ppg: 38.12 },
   { name: "Ryan Palmer", salary: 6000, ppg: 25.7 },
 ];
+
+function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// The live field: the DK slate minus anyone who has withdrawn.
+const withdrawn = new Set(DK_WITHDRAWALS.map(normalizeName));
+export const DK_SALARIES: DkSalaryRow[] = RAW_DK_SALARIES.filter(
+  (r) => !withdrawn.has(normalizeName(r.name)),
+);
