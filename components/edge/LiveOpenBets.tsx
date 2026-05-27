@@ -56,11 +56,17 @@ export function LiveOpenBets({ layout }: { layout: "mobile" | "desktop" }) {
 
   const header = (
     <div className="flex items-baseline justify-between mb-2.5">
-      <span
-        className="serif-italic text-text"
-        style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
-      >
-        Open Tickets · This Event
+      <span className="flex items-baseline gap-2.5">
+        <span
+          className="inline-block self-center rounded-full"
+          style={{ width: 3, height: 18, background: "#7fd49a" }}
+        />
+        <span
+          className="serif-italic text-text"
+          style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+        >
+          Open Tickets · This Event
+        </span>
       </span>
       <Link
         href="/dashboard/bets"
@@ -136,8 +142,10 @@ export function LiveOpenBets({ layout }: { layout: "mobile" | "desktop" }) {
                 </div>
               </div>
             </div>
-            <div className="num text-text font-semibold shrink-0" style={{ fontSize: 13 }}>
-              {Number(b.stake)}u → {Number(b.to_win).toFixed(2)}u
+            <div className="num font-semibold shrink-0" style={{ fontSize: 13 }}>
+              <span className="text-text-dim">{Number(b.stake)}u</span>
+              <span className="text-text-muted"> → </span>
+              <span style={{ color: "#7fd49a" }}>{Number(b.to_win).toFixed(2)}u</span>
             </div>
           </div>
         ))}

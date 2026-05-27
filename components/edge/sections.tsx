@@ -971,14 +971,24 @@ export function DesktopLeaderboard({ rows }: { rows: LeaderRow[] }) {
   return (
     <div className="rounded-[14px] overflow-hidden bg-surface-1 border border-line">
       <div
-        className="flex items-baseline justify-between px-4 py-3.5 border-b border-line"
-        style={{ background: "rgba(0,0,0,0.18)" }}
+        className="flex items-baseline justify-between px-4 py-3.5 border-b"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(127,212,154,0.10), rgba(0,0,0,0.18) 60%)",
+          borderColor: "rgba(127,212,154,0.18)",
+        }}
       >
-        <span
-          className="serif-italic text-text"
-          style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
-        >
-          Leaderboard
+        <span className="flex items-baseline gap-2.5">
+          <span
+            className="inline-block self-center rounded-full"
+            style={{ width: 3, height: 18, background: "#7fd49a" }}
+          />
+          <span
+            className="serif-italic text-text"
+            style={{ fontSize: 17, letterSpacing: -0.2, fontStyle: "normal" }}
+          >
+            Leaderboard
+          </span>
         </span>
         <span
           className="num text-text-muted"
