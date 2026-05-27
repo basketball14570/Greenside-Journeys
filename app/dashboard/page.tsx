@@ -44,7 +44,7 @@ export default async function DashboardHome() {
             <WaveSplitChip summary={waveSplit} />
             <LiveOpenBets layout="mobile" />
             <CourseGuideCard />
-            <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
+            <MobileWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
             <ThisWeeksEdge limit={6} />
           </>
         ) : (
@@ -53,7 +53,7 @@ export default async function DashboardHome() {
             <WaveSplitChip summary={waveSplit} />
             <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
             <LiveOpenBets layout="mobile" />
-            <MobileWeatherHero courseName={courseName} snapshot={snapshot} />
+            <MobileWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
             <ThisWeeksEdge limit={6} />
           </>
         )}
@@ -67,7 +67,7 @@ export default async function DashboardHome() {
           style={{ gridTemplateColumns: "minmax(0, 1fr) 380px" }}
         >
           <div className="flex flex-col gap-6 min-w-0">
-            <DesktopWeatherHero courseName={courseName} snapshot={snapshot} />
+            <DesktopWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
             <LiveOpenBets layout="desktop" />
           </div>
           <div className="flex flex-col gap-6 min-w-0">

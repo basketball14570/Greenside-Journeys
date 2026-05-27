@@ -8,7 +8,6 @@ import {
   Stat,
   StatusDot,
   SectionLabel,
-  WaveSplit,
   WindArrow,
   WindSpark,
   type Book,
@@ -83,14 +82,86 @@ const HOURLY_WIND: WindPoint[] = [
 // ────────────────────────────────────────────────────────────
 // Weather Hero — mobile version
 // ────────────────────────────────────────────────────────────
-import type { WeatherSnapshot } from "@/lib/weather/forecast";
+import type {
+  WeatherSnapshot,
+  WaveSplitSummary,
+} from "@/lib/weather/forecast";
+
+// Headline second line + a real two-wave panel, both driven by the forecast.
+// "The 2 waves" = the combined tee waves (Thu AM/Fri PM vs Thu PM/Fri AM).
+function waveHeadline(summary?: WaveSplitSummary | null): string {
+  const c = summary?.combined ?? null;
+  if (!c) return "Wave split firms up midweek.";
+  const delta = c.deltaWave2MinusWave1; // + => wave2 windier => favors wave1
+  if (c.favors === "even" || Math.abs(delta) < 1.5) {
+    return "Both tee waves scoring even.";
+  }
+  return delta > 0
+    ? `${c.wave1.label} has the wind edge.`
+    : `${c.wave2.label} has the wind edge.`;
+}
+
+function WaveRow({
+  label,
+  wind,
+  favored,
+}: {
+  label: string;
+  wind: number;
+  favored: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="num text-text-dim" style={{ fontSize: 11.5 }}>
+        {label}
+      </span>
+      <span
+        className="num font-semibold"
+        style={{ fontSize: 12.5, color: favored ? "#8ee68e" : "#f0ebe0" }}
+      >
+        {wind.toFixed(1)} mph{favored ? " ·  edge" : ""}
+      </span>
+    </div>
+  );
+}
+
+function WaveEdgePanel({ summary }: { summary?: WaveSplitSummary | null }) {
+  const c = summary?.combined ?? null;
+  if (!c) {
+    return (
+      <div className="num text-text-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+        Wave split firms up midweek — once the tee draw and Thu/Fri forecast
+        lock in, the two-wave edge shows here.
+      </div>
+    );
+  }
+  const delta = c.deltaWave2MinusWave1;
+  const neutral = c.favors === "even" || Math.abs(delta) < 1.5;
+  const favored = neutral ? null : delta > 0 ? "wave1" : "wave2";
+  return (
+    <div className="space-y-1.5">
+      <WaveRow label={c.wave1.label} wind={c.wave1.windAvg} favored={favored === "wave1"} />
+      <WaveRow label={c.wave2.label} wind={c.wave2.windAvg} favored={favored === "wave2"} />
+      <div
+        className="num"
+        style={{ fontSize: 11, color: neutral ? "#a8b3ac" : "#8ee68e", letterSpacing: 0.3 }}
+      >
+        {neutral
+          ? `Even — within ${Math.abs(delta).toFixed(1)} mph`
+          : `${favored === "wave1" ? c.wave1.label : c.wave2.label} by ${Math.abs(delta).toFixed(1)} mph`}
+      </div>
+    </div>
+  );
+}
 
 export function MobileWeatherHero({
   courseName,
   snapshot,
+  waveSplit,
 }: {
   courseName?: string;
   snapshot?: WeatherSnapshot | null;
+  waveSplit?: WaveSplitSummary | null;
 } = {}) {
   const courseLabel = courseName ?? "the course";
   const sustained = snapshot?.sustainedMph ?? 18;
@@ -138,7 +209,7 @@ export function MobileWeatherHero({
             className="serif-italic mt-1.5 text-text"
             style={{ fontSize: 22, lineHeight: 1.18, letterSpacing: -0.2, fontStyle: "normal" }}
           >
-            <em>{headline}</em> AM wave is gaining strokes by the hour.
+            <em>{headline}</em> {waveHeadline(waveSplit)}
           </div>
         </div>
 
@@ -187,27 +258,13 @@ export function MobileWeatherHero({
               className="num font-semibold uppercase text-text-dim"
               style={{ fontSize: 10, letterSpacing: 1.2 }}
             >
-              Wave Split · Strokes Gained
+              Wave Split · Wind
             </span>
             <span className="num text-text-muted" style={{ fontSize: 10 }}>
-              R2 · vs field
+              Thu / Fri
             </span>
           </div>
-          <WaveSplit am={+0.4} pm={-0.4} width={300} />
-        </div>
-
-        <div
-          className="flex justify-between items-center mt-3.5 text-text-dim"
-          style={{ fontSize: 12.5 }}
-        >
-          <span>
-            You have{" "}
-            <strong className="font-semibold" style={{ color: "#8ee68e" }}>
-              4 AM-wave bets
-            </strong>{" "}
-            · 1 PM
-          </span>
-          <span className="text-text font-semibold">See exposure →</span>
+          <WaveEdgePanel summary={waveSplit} />
         </div>
       </div>
     </div>
@@ -220,9 +277,11 @@ export function MobileWeatherHero({
 export function DesktopWeatherHero({
   courseName,
   snapshot,
+  waveSplit,
 }: {
   courseName?: string;
   snapshot?: WeatherSnapshot | null;
+  waveSplit?: WaveSplitSummary | null;
 } = {}) {
   const courseLabel = courseName ?? "the course";
   const sustained = snapshot?.sustainedMph ?? 18;
@@ -276,7 +335,7 @@ export function DesktopWeatherHero({
         >
           <em>{headline}</em>
           <br />
-          AM wave is banking strokes.
+          {waveHeadline(waveSplit)}
         </div>
         <Stat value={String(sustained)} unit="mph" label={`Sustained · ${cardinal}`} />
         <div className="flex items-center gap-2.5 mt-2.5">
@@ -335,50 +394,14 @@ export function DesktopWeatherHero({
           className="num font-semibold uppercase text-text-muted"
           style={{ fontSize: 10, letterSpacing: 1.2 }}
         >
-          Wave Split · Your Exposure
+          Wave Split · Wind
         </span>
-        <div className="mt-4">
-          <WaveSplit am={+0.4} pm={-0.4} width={300} />
-        </div>
         <div
-          className="mt-3.5 p-3 rounded-lg border border-line flex justify-between"
+          className="mt-4 p-3.5 rounded-lg border border-line"
           style={{ background: "rgba(0,0,0,0.25)" }}
         >
-          <ExposureStat label="Bets · AM" value="4" color="#8ee68e" />
-          <ExposureStat label="Bets · PM" value="3" color="#e07868" />
-          <ExposureStat
-            label="Net ΔEV"
-            value={<>+0.42<span className="num font-normal" style={{ fontSize: 11 }}>u</span></>}
-            color="#8ee68e"
-          />
+          <WaveEdgePanel summary={waveSplit} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ExposureStat({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <div>
-      <div
-        className="num font-semibold uppercase text-text-muted mb-1"
-        style={{ fontSize: 9.5, letterSpacing: 1 }}
-      >
-        {label}
-      </div>
-      <div
-        className="serif-italic"
-        style={{ fontSize: 24, lineHeight: 1, color }}
-      >
-        {value}
       </div>
     </div>
   );
