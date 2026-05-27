@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { StatusDot } from "./primitives";
 import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
 import { getActiveEvent, findEventByName, SCHEDULE, statusOf, type PgaEvent } from "@/lib/data/pga-schedule";
+import { courseSlugFor } from "@/lib/weather/forecast";
 
 // Live event strap — replaces the static "Quail Hollow R2 Live" hardcode.
 // Order of preference for "what tournament are we showing":
@@ -26,6 +27,16 @@ type Strap = {
 
 export function LiveEventStrap() {
   const [strap, setStrap] = useState<Strap>(() => fromSchedule(getActiveEvent()));
+  const [imgOk, setImgOk] = useState(false);
+
+  const slug = courseSlugFor(strap.course);
+  const imgSrc = slug ? `/courses/${slug}.jpg` : null;
+
+  // A new course means a new candidate photo — reset until it loads so a
+  // stale image never lingers behind the wrong tournament.
+  useEffect(() => {
+    setImgOk(false);
+  }, [imgSrc]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +71,33 @@ export function LiveEventStrap() {
   }, []);
 
   return (
-    <div className="flex items-center gap-6 px-8 py-3.5 border-b border-line">
+    <div className="relative overflow-hidden border-b border-line">
+      {imgSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imgSrc}
+          alt=""
+          aria-hidden
+          onLoad={() => setImgOk(true)}
+          onError={() => setImgOk(false)}
+          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+          style={{ objectPosition: "center 42%", opacity: imgOk ? 1 : 0 }}
+        />
+      )}
+      {/* Legibility wash — heavier on the left where the title sits, fading
+          right so the photo breathes. Only shows once a photo loads. */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-opacity duration-700"
+        style={{
+          opacity: imgOk ? 1 : 0,
+          background:
+            "linear-gradient(90deg, rgba(7,18,11,0.95) 0%, rgba(7,18,11,0.84) 38%, rgba(7,18,11,0.6) 72%, rgba(7,18,11,0.42) 100%)",
+        }}
+      />
+      <div
+        className="relative flex items-center gap-6 px-8 transition-[padding] duration-300"
+        style={{ paddingTop: imgOk ? 22 : 14, paddingBottom: imgOk ? 22 : 14 }}
+      >
       <div className="flex flex-col gap-0.5">
         <span
           className="num font-semibold uppercase text-text-muted"
@@ -102,6 +139,7 @@ export function LiveEventStrap() {
             : strap.course
         }
       />
+      </div>
     </div>
   );
 }
