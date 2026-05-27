@@ -2,18 +2,22 @@ import Link from "next/link";
 import {
   Stat,
   StatusDot,
-  WaveSplit,
   WindArrow,
   WindSpark,
 } from "@/components/edge/primitives";
-import { ALERT_HISTORY, COURSES, type CourseSnapshot } from "@/lib/demo-courses";
+import { ALERT_HISTORY } from "@/lib/demo-courses";
 import { WaveSplitDetail } from "@/components/edge/WaveSplitChip";
 import { WaveWatchlist } from "@/components/edge/WaveWatchlist";
-import { getActiveEvent } from "@/lib/data/pga-schedule";
+import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
   getForecast,
   waveSplitFromForecast,
+  weatherSnapshotFromForecast,
+  type CombinedWaveEdge,
+  type Forecast,
+  type ForecastHour,
+  type WeatherSnapshot,
 } from "@/lib/weather/forecast";
 import { getFieldWaveAttribution } from "@/lib/data/wave-tees";
 
@@ -46,6 +50,8 @@ export default async function ConditionsPage() {
   ]);
   const waveSplit =
     slug && event ? waveSplitFromForecast(forecast, slug, event.startDate) : null;
+  const snapshot = weatherSnapshotFromForecast(forecast);
+  const current = nearestHour(forecast);
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -87,9 +93,25 @@ export default async function ConditionsPage() {
 
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          {COURSES.map((c) => (
-            <CourseCard key={c.id} course={c} />
-          ))}
+          {event && snapshot ? (
+            <RealConditionsCard
+              eventName={event.name}
+              course={event.course}
+              location={event.city}
+              statusLabel={statusLabelFor(event)}
+              edge={waveSplit?.combined ?? null}
+              snapshot={snapshot}
+              current={current}
+              source={forecast?.source ?? "demo"}
+            />
+          ) : (
+            <div
+              className="rounded-[14px] border border-line p-6 bg-surface-1 text-text-dim"
+              style={{ fontSize: 13.5 }}
+            >
+              Live forecast unavailable for this venue right now.
+            </div>
+          )}
         </div>
         <AlertHistoryPanel />
       </div>
@@ -97,8 +119,61 @@ export default async function ConditionsPage() {
   );
 }
 
-function CourseCard({ course }: { course: CourseSnapshot }) {
-  const isLive = course.status === "live";
+function edgeText(edge: CombinedWaveEdge | null): string {
+  if (!edge) {
+    return "Wave split firms up midweek — once the tee draw and Thu/Fri forecast lock in, the AM/PM edge shows here.";
+  }
+  const d = Math.abs(edge.deltaWave2MinusWave1);
+  if (edge.favors === "even" || d < 1.5) {
+    return `Neutral for both waves — wind plays within ${d.toFixed(1)} mph between the AM/PM tee waves, so neither side has a weather edge.`;
+  }
+  const easier = edge.favors === "wave1" ? edge.wave1 : edge.wave2;
+  const harder = edge.favors === "wave1" ? edge.wave2 : edge.wave1;
+  return `${easier.label} has the edge — about ${d.toFixed(1)} mph less average wind than ${harder.label}.`;
+}
+
+function nearestHour(forecast: Forecast | null): ForecastHour | null {
+  if (!forecast || forecast.hours.length === 0) return null;
+  const now = Date.now();
+  let best = forecast.hours[0];
+  let bestDelta = Infinity;
+  for (const h of forecast.hours) {
+    const delta = Math.abs(new Date(h.ts).getTime() - now);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = h;
+    }
+  }
+  return best;
+}
+
+function statusLabelFor(event: Parameters<typeof statusOf>[0]): string {
+  const s = statusOf(event);
+  return s === "live" ? "Live" : s === "upcoming" ? "Upcoming" : "Final";
+}
+
+function RealConditionsCard({
+  eventName,
+  course,
+  location,
+  statusLabel,
+  edge,
+  snapshot,
+  current,
+  source,
+}: {
+  eventName: string;
+  course: string;
+  location: string;
+  statusLabel: string;
+  edge: CombinedWaveEdge | null;
+  snapshot: WeatherSnapshot;
+  current: ForecastHour | null;
+  source: Forecast["source"];
+}) {
+  const isLive = statusLabel === "Live";
+  const precip = current?.precipIntensityMm ?? 0;
+  const precipChance = current?.precipChance ?? 0;
   return (
     <div
       className="relative rounded-[14px] overflow-hidden border border-line"
@@ -127,17 +202,16 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
               className="num font-semibold uppercase text-text-muted"
               style={{ fontSize: 9.5, letterSpacing: 1.3 }}
             >
-              {course.tournament} · {course.round}
+              {eventName}
             </span>
-            <Link
-              href={`/courses/${course.id}`}
-              className="serif-italic mt-0.5 text-text hover:opacity-80 transition block"
+            <div
+              className="serif-italic mt-0.5 text-text"
               style={{ fontSize: 22, letterSpacing: -0.3, fontStyle: "normal" }}
             >
-              {course.name} →
-            </Link>
+              {course}
+            </div>
             <div className="num text-text-dim mt-1" style={{ fontSize: 11.5 }}>
-              {course.location}
+              {location}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -148,7 +222,7 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
                   className="num font-semibold"
                   style={{ fontSize: 10.5, color: "#8ee68e", letterSpacing: 0.8 }}
                 >
-                  {course.round} LIVE
+                  LIVE
                 </span>
               </>
             ) : (
@@ -164,7 +238,7 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
                   border: "1px solid rgba(124,192,232,0.27)",
                 }}
               >
-                {course.status === "upcoming" ? "Upcoming" : "Final"}
+                {statusLabel}
               </span>
             )}
           </div>
@@ -174,19 +248,19 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
           className="text-text-dim mb-4 max-w-2xl"
           style={{ fontSize: 13.5, lineHeight: 1.45 }}
         >
-          {course.conditionsEdge}
+          {edgeText(edge)}
         </div>
 
         <div className="grid md:grid-cols-3 gap-5">
           <div>
-            <Stat value={course.wind.toString()} unit="mph" label="Sustained" />
+            <Stat value={snapshot.sustainedMph.toString()} unit="mph" label="Sustained" />
             <div className="flex items-center gap-2 mt-2">
-              <WindArrow degrees={course.windDir} size={18} />
+              <WindArrow degrees={snapshot.windDirDeg} size={18} />
               <span
                 className="num text-text-dim"
                 style={{ fontSize: 11.5, letterSpacing: 0.5 }}
               >
-                {course.windDirLabel} · gust {course.gust}
+                {snapshot.windDirCardinal} · gust {snapshot.gustMph}
               </span>
             </div>
           </div>
@@ -196,10 +270,10 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
               className="num font-semibold uppercase text-text-muted"
               style={{ fontSize: 9.5, letterSpacing: 1.2 }}
             >
-              Hourly · 6 AM → 8 PM
+              Hourly wind
             </span>
             <div className="mt-2">
-              <WindSpark data={course.hourly} width={260} height={68} />
+              <WindSpark data={snapshot.hourly} width={260} height={68} />
             </div>
           </div>
 
@@ -208,11 +282,18 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
               className="num font-semibold uppercase text-text-muted"
               style={{ fontSize: 9.5, letterSpacing: 1.2 }}
             >
-              Wave Split
+              Wave wind (Thu/Fri)
             </span>
-            <div className="mt-2">
-              <WaveSplit am={course.amSg} pm={course.pmSg} width={260} />
-            </div>
+            {edge ? (
+              <div className="mt-2 space-y-1.5">
+                <WaveLine label={edge.wave1.label} wind={edge.wave1.windAvg} />
+                <WaveLine label={edge.wave2.label} wind={edge.wave2.windAvg} />
+              </div>
+            ) : (
+              <div className="num text-text-muted mt-2" style={{ fontSize: 12 }}>
+                Pending forecast
+              </div>
+            )}
           </div>
         </div>
 
@@ -220,28 +301,29 @@ function CourseCard({ course }: { course: CourseSnapshot }) {
           className="mt-5 pt-4 border-t border-line flex flex-wrap gap-x-6 gap-y-2"
           style={{ fontSize: 11.5 }}
         >
-          <FactStat label="Temp" value={`${course.temperatureF}°F`} />
-          <FactStat label="Humidity" value={`${course.humidity}%`} />
+          {current && <FactStat label="Temp" value={`${Math.round(current.temperatureF)}°F`} />}
           <FactStat
             label="Precip"
-            value={
-              course.precipIntensity > 0
-                ? `${course.precipIntensity.toFixed(1)} mm/hr`
-                : `${course.precipChance}% chance`
-            }
-            tone={course.precipIntensity > 0 ? "warn" : undefined}
+            value={precip > 0 ? `${precip.toFixed(1)} mm/hr` : `${precipChance}% chance`}
+            tone={precip > 0 ? "warn" : undefined}
           />
           <span className="flex-1" />
-          <FactStat
-            label="Your bets"
-            value={
-              course.yourBets.am + course.yourBets.pm > 0
-                ? `${course.yourBets.am} AM · ${course.yourBets.pm} PM`
-                : "—"
-            }
-          />
+          <FactStat label="Source" value={source === "demo" ? "demo" : source} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function WaveLine({ label, wind }: { label: string; wind: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="num text-text-dim" style={{ fontSize: 11.5 }}>
+        {label}
+      </span>
+      <span className="num font-semibold text-text" style={{ fontSize: 12.5 }}>
+        {wind.toFixed(1)} mph
+      </span>
     </div>
   );
 }
