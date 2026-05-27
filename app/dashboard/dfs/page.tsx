@@ -37,8 +37,10 @@ export default async function DfsPage() {
           </h1>
           <p className="text-text-dim mt-2 max-w-xl" style={{ fontSize: 14 }}>
             Live DK salaries · projections from DK season scoring (AvgPPG), with
-            projected ownership from the model. Tee-time / wind tilt activates
-            once the draw posts.
+            projected ownership from the model.{" "}
+            {slate.wavesApplied
+              ? "Tee waves are in — the optimizer correlates AM/PM wind."
+              : "Tee-time / wind tilt activates once the draw posts."}
           </p>
         </div>
         <Link
@@ -102,7 +104,19 @@ export default async function DfsPage() {
                   i < arr.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
               }}
             >
-              <span className="text-text" style={{ fontSize: 13.5 }}>
+              <span className="text-text flex items-center gap-1.5" style={{ fontSize: 13.5 }}>
+                {slate.wavesApplied && (
+                  <span
+                    className="num font-semibold"
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: 0.6,
+                      color: p.wave === "AM" ? "#8ee68e" : "#f5c558",
+                    }}
+                  >
+                    {p.wave}
+                  </span>
+                )}
                 {p.name}
               </span>
               <span className="num text-text text-right" style={{ fontSize: 12.5 }}>

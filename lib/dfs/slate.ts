@@ -11,17 +11,29 @@
 // This tilts each projection toward this week's expectation while staying
 // anchored to how many points the player actually scores.
 //
-// Note: wave (AM/PM) and per-player wind deltas need tee times, which aren't
-// posted until ~Tuesday — neutral until then. Ceiling/floor are heuristic
-// spreads (golf DK scoring is high variance) that feed the Monte Carlo sim.
+// Tee waves: once the draw posts, each player is tagged to their tee wave
+// (AM = wave 1 = Thu AM/Fri PM, PM = wave 2 = Thu PM/Fri AM) from DataGolf's
+// field-updates, and a per-wave wind delta is derived from the forecast so the
+// optimizer's wave correlation and the manual lineup lab reflect conditions.
+// Ceiling/floor are heuristic spreads (golf DK scoring is high variance).
 
 import type { DfsPlayer } from "@/lib/demo-dfs";
 import { computeHeuristicProjection } from "@/lib/dfs/heuristic-projection";
 import { normName } from "@/lib/dfs/project-ownership";
 import { getPreTournamentProjections, type DgProjection } from "@/lib/data/datagolf";
+import { getFieldWaveAttribution } from "@/lib/data/wave-tees";
+import { getActiveEvent } from "@/lib/data/pga-schedule";
+import {
+  courseSlugFor,
+  getForecast,
+  waveSplitFromForecast,
+} from "@/lib/weather/forecast";
 
 // Weight on the DataGolf signal in the final blend (rest is AvgPPG).
 const DG_BLEND = 0.45;
+// Rough strokes-gained cost of wind, per mph, used to turn the per-wave wind
+// gap into a signed windAdj (advantage vs the field's average conditions).
+const SG_PER_MPH = 0.05;
 
 function slugify(name: string): string {
   return name
@@ -49,11 +61,39 @@ export type RealSlate = {
   event: string;
   source: "v2-datagolf" | "v1.1";
   projectionSharpened: boolean;
+  wavesApplied: boolean;
   players: DfsPlayer[];
 };
 
 export async function buildRealSlate(): Promise<RealSlate> {
   const { event, source, projections } = await computeHeuristicProjection();
+
+  // Tee waves + per-wave wind adjustment, in parallel. Either can be null
+  // (field not posted / no DataGolf add-on / no forecast) — slate still works.
+  const [fieldWaves, waveWinds] = await Promise.all([
+    getFieldWaveAttribution().catch(() => null),
+    waveWindAverages().catch(() => null),
+  ]);
+
+  // normName → "wave1" | "wave2"
+  const waveByName = new Map<string, "wave1" | "wave2">();
+  if (fieldWaves) {
+    for (const r of fieldWaves.rows) {
+      if (r.wave === "wave1" || r.wave === "wave2") {
+        waveByName.set(normName(r.name), r.wave);
+      }
+    }
+  }
+  const wavesApplied = waveByName.size >= 10;
+
+  // Signed windAdj per wave = advantage vs the field's mean conditions.
+  let wave1Adj = 0;
+  let wave2Adj = 0;
+  if (waveWinds) {
+    const fieldMean = (waveWinds.wave1 + waveWinds.wave2) / 2;
+    wave1Adj = (fieldMean - waveWinds.wave1) * SG_PER_MPH;
+    wave2Adj = (fieldMean - waveWinds.wave2) * SG_PER_MPH;
+  }
 
   // DataGolf finish-probability model → weekly-strength rating per player.
   let ratingByName: Map<string, number> | null = null;
@@ -100,20 +140,41 @@ export async function buildRealSlate(): Promise<RealSlate> {
       }
     }
     projection = Math.round(projection * 10) / 10;
+    const wave = waveByName.get(normName(p.name)) ?? null;
     return {
       id: slugify(p.name),
       name: p.name,
       salary: p.salary,
       projection,
       ownership: Number(p.projOwn.toFixed(1)),
-      // No tee-time draw pre-tournament — wave/wind tilt stays neutral.
-      wave: "AM",
-      windAdj: 0,
+      // Tee wave from the draw; unknown players default to wave 1 (AM).
+      wave: wave === "wave2" ? "PM" : "AM",
+      windAdj:
+        wave === "wave1"
+          ? Number(wave1Adj.toFixed(2))
+          : wave === "wave2"
+            ? Number(wave2Adj.toFixed(2))
+            : 0,
       // Golf DK scoring is high-variance: a stud's ceiling laps their floor.
       ceiling: Math.round(projection * 1.6),
       floor: Math.round(projection * 0.45),
     };
   });
 
-  return { event, source, projectionSharpened: sharpen, players };
+  return { event, source, projectionSharpened: sharpen, wavesApplied, players };
+}
+
+// Average forecast wind (mph) for each combined tee wave over the Thu+Fri
+// stretch, from the active event's course forecast. Null when we can't
+// resolve the course or the forecast/wave split is unavailable.
+async function waveWindAverages(): Promise<{ wave1: number; wave2: number } | null> {
+  const event = getActiveEvent();
+  if (!event) return null;
+  const slug = courseSlugFor(event.course);
+  if (!slug) return null;
+  const forecast = await getForecast(slug).catch(() => null);
+  const split = waveSplitFromForecast(forecast, slug, event.startDate);
+  const c = split?.combined;
+  if (!c) return null;
+  return { wave1: c.wave1.windAvg, wave2: c.wave2.windAvg };
 }
