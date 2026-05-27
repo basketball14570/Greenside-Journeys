@@ -250,13 +250,17 @@ export function MobileWeatherHero({
         </div>
 
         <div
-          className="px-3.5 py-3 rounded-[10px] border border-line"
-          style={{ background: "rgba(0,0,0,0.25)" }}
+          className="px-3.5 py-3 rounded-[10px]"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(127,212,154,0.10), rgba(0,0,0,0.25))",
+            border: "1px solid rgba(127,212,154,0.25)",
+          }}
         >
           <div className="flex justify-between items-baseline mb-2">
             <span
-              className="num font-semibold uppercase text-text-dim"
-              style={{ fontSize: 10, letterSpacing: 1.2 }}
+              className="num font-semibold uppercase"
+              style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
             >
               Wave Split · Wind
             </span>
@@ -352,8 +356,8 @@ export function DesktopWeatherHero({
 
       <div className="relative">
         <span
-          className="num font-semibold uppercase text-text-muted"
-          style={{ fontSize: 10, letterSpacing: 1.2 }}
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
         >
           Hourly Wind · 6 AM → 8 PM
         </span>
@@ -391,14 +395,18 @@ export function DesktopWeatherHero({
 
       <div className="relative">
         <span
-          className="num font-semibold uppercase text-text-muted"
-          style={{ fontSize: 10, letterSpacing: 1.2 }}
+          className="num font-semibold uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.2, color: "#f5c558" }}
         >
           Wave Split · Wind
         </span>
         <div
-          className="mt-4 p-3.5 rounded-lg border border-line"
-          style={{ background: "rgba(0,0,0,0.25)" }}
+          className="mt-4 p-3.5 rounded-lg"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(127,212,154,0.10), rgba(0,0,0,0.25))",
+            border: "1px solid rgba(127,212,154,0.25)",
+          }}
         >
           <WaveEdgePanel summary={waveSplit} />
         </div>
