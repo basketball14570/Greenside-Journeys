@@ -785,7 +785,7 @@ function LiveBetCard({
         className="mt-1 text-text-dim"
         style={{ fontSize: 13, lineHeight: 1.4 }}
       >
-        {bet.market}
+        {decision?.bet.market ?? bet.market}
         {bet.line !== null ? ` · ${bet.line}` : ""}
       </p>
       {decision?.reason && (

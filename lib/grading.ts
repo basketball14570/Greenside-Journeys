@@ -506,7 +506,12 @@ function parsePropLine(line: string): { side: "over" | "under" | null; line: num
 // position vs projected line — but we don't have a projected cut line in
 // the ESPN feed, so we just surface "live" until the event posts.
 function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
-  const wantsMake = bet.market.toLowerCase().includes("make");
+  // "Make the cut" / "Made cuts over 0.5" want a made cut; "miss" or the
+  // under side (e.g. "made cuts under 0.5" = zero cuts made) want a miss.
+  const m = bet.market.toLowerCase();
+  const line = (bet.line ?? "").toString().toLowerCase();
+  const under = line.startsWith("u") || m.includes("under") || m.includes("lower");
+  const wantsMake = m.includes("miss") ? false : !under;
   const p = findPlayer(snapshot, bet.player);
   if (!p) return { bet, status: "unknown", reason: "Player not in field" };
   const finalState = eventComplete(snapshot);
@@ -543,7 +548,9 @@ function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
 
 export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const m = bet.market.toLowerCase();
-  if (m.includes("make cut") || m.includes("miss cut")) return gradeMakeCut(bet, snapshot);
+  if (m.includes("make cut") || m.includes("made cut") || m.includes("make the cut") || m.includes("miss cut") || m.includes("miss the cut")) {
+    return gradeMakeCut(bet, snapshot);
+  }
   if (m.includes("top")) return gradeTopN(bet, snapshot);
   if (m.includes("win") && !m.includes("over") && !m.includes("under")) return gradeToWin(bet, snapshot);
   if (m.includes("3-ball") || m.includes("3 ball")) return gradeThreeBall(bet, snapshot);

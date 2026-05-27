@@ -21,7 +21,7 @@ export type DbBetRow = {
 export function dbBetToOpenBet(b: DbBetRow): OpenBet {
   const m = b.market.toLowerCase();
   const rm = m.match(/\br\s*(\d)\b/) ?? m.match(/round\s*(\d)/);
-  const round = rm ? Number(rm[1]) : undefined;
+  const roundRaw = rm ? Number(rm[1]) : undefined;
 
   const vsPart = b.market.split(/\bvs\b/i)[1]?.trim();
   let others: string[] | undefined;
@@ -44,7 +44,17 @@ export function dbBetToOpenBet(b: DbBetRow): OpenBet {
         : numMatch
           ? Math.floor(parseFloat(numMatch[1]))
           : null;
-    if (n) market = `${round ? `R${round} ` : ""}Top ${n}`;
+    if (n) market = `Top ${n}`;
+  }
+
+  // Finishing-position (Top N) is tournament-long on the books we parse —
+  // Underdog's "Leaderboard Position" is the final finish, not a round. A
+  // leading "R1"/round here is a parser artifact, so strip it from the label
+  // and don't scope the bet to a round.
+  let round = roundRaw;
+  if (/\btop\s*\d/i.test(market)) {
+    market = market.replace(/^\s*(r\s*\d+|round\s*\d+)\s+/i, "").trim();
+    round = undefined;
   }
 
   // Over/under props lose their side in the numeric `line` column, so

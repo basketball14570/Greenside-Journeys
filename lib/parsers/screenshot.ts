@@ -55,7 +55,8 @@ Return ONLY a JSON object matching this shape (no prose, no markdown fences):
 For PrizePicks / Underdog pick-em style slips, treat each leg as its own bet entry. Set "americanOdds" to the implied per-leg odds if visible, else null. Leave "stake"/"toWin" null when the card doesn't show dollar amounts.
 
 UNDERDOG / PRIZEPICKS SHARE CARDS (player photos, big ↑/↓ arrows, "N correct WINS Nx", maybe a sign-up promo code): IGNORE all marketing/promo/sign-up text. Each player row is one leg. The arrow gives the side: ↑ = Higher (Over), ↓ = Lower (Under). Translate the stat label into a gradeable market, keeping the round (e.g. "R1 – Thu" → round 1):
-- "Leaderboard Position" with ↓ N.5  →  market "R1 Top {floor(N)}" (finishing better than position N.5 means a top-N finish). Set line null.
+- "Leaderboard Position" / "Finishing Position" with ↓ N.5  →  market "Top {floor(N)}" (finishing better than position N.5 means a top-N finish). This is the FINAL tournament finish — NO round prefix. Set line null.
+- "Make the Cut" / "To Make the Cut" / "Made Cut"  →  market "Make Cut" (↑ / Higher / Yes) or "Miss Cut" (↓ / Lower / No). Tournament-long — NO round prefix. Set line null.
 - "Birdies or Better"  →  market "R1 birdies or better over" (↑) / "... under" (↓), line = the number.
 - "Bogeys or Worse"  →  market "R1 bogeys or worse under" (↓) / "... over" (↑), line = the number.
 - "Round Strokes"  →  market "R1 round score under" (↓) / "... over" (↑), line = the number.
