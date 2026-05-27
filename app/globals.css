@@ -106,3 +106,33 @@
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Section entrance — content rises + fades in, staggered per section via
+   the --gs-delay custom property. `backwards` fill holds the hidden state
+   during the delay (no flash) and releases after so hover transforms still
+   work. Adds the "live, kinetic" feel of a modern sports app. */
+@keyframes greensideRise {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.gs-rise {
+  animation: greensideRise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--gs-delay, 0ms);
+}
+
+/* Hover lift for cards — a small raise, deeper shadow, accent-tinted edge.
+   The pop on hover that DraftKings / Underdog cards have. */
+.gs-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.gs-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.7);
+  border-color: rgba(127, 212, 154, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-rise { animation: none; }
+  .gs-lift { transition: none; }
+  .gs-lift:hover { transform: none; }
+}

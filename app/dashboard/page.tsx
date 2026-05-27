@@ -15,6 +15,12 @@ import {
   waveSplitFromForecast,
 } from "@/lib/weather/forecast";
 import { WaveSplitChip } from "@/components/edge/WaveSplitChip";
+import type { CSSProperties } from "react";
+
+// Staggered entrance delay for each dashboard section.
+function rise(i: number): CSSProperties {
+  return { ["--gs-delay" as string]: `${i * 70}ms` } as CSSProperties;
+}
 
 // Same data, two layouts. CSS switches between them at the lg breakpoint
 // so we ship a single component tree without runtime device detection.
@@ -40,39 +46,73 @@ export default async function DashboardHome() {
         <EventStrap />
         {isTournamentLive ? (
           <>
-            <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
-            <WaveSplitChip summary={waveSplit} />
-            <LiveOpenBets layout="mobile" />
-            <CourseGuideCard />
-            <MobileWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
-            <ThisWeeksEdge limit={6} />
+            <div className="gs-rise" style={rise(0)}>
+              <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
+            </div>
+            <div className="gs-rise" style={rise(1)}>
+              <WaveSplitChip summary={waveSplit} />
+            </div>
+            <div className="gs-rise" style={rise(2)}>
+              <LiveOpenBets layout="mobile" />
+            </div>
+            <div className="gs-rise" style={rise(3)}>
+              <CourseGuideCard />
+            </div>
+            <div className="gs-rise" style={rise(4)}>
+              <MobileWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
+            </div>
+            <div className="gs-rise" style={rise(5)}>
+              <ThisWeeksEdge limit={6} />
+            </div>
           </>
         ) : (
           <>
-            <CourseGuideCard />
-            <WaveSplitChip summary={waveSplit} />
-            <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
-            <LiveOpenBets layout="mobile" />
-            <MobileWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
-            <ThisWeeksEdge limit={6} />
+            <div className="gs-rise" style={rise(0)}>
+              <CourseGuideCard />
+            </div>
+            <div className="gs-rise" style={rise(1)}>
+              <WaveSplitChip summary={waveSplit} />
+            </div>
+            <div className="gs-rise" style={rise(2)}>
+              <LiveDashboardLeaderboard layout="mobile" fallback={[]} limit={8} />
+            </div>
+            <div className="gs-rise" style={rise(3)}>
+              <LiveOpenBets layout="mobile" />
+            </div>
+            <div className="gs-rise" style={rise(4)}>
+              <MobileWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
+            </div>
+            <div className="gs-rise" style={rise(5)}>
+              <ThisWeeksEdge limit={6} />
+            </div>
           </>
         )}
       </div>
 
       {/* ─── Desktop ─── */}
       <div className="hidden lg:flex flex-col gap-6 px-8 py-6">
-        <CourseGuideCard />
+        <div className="gs-rise gs-lift" style={rise(0)}>
+          <CourseGuideCard />
+        </div>
         <div
           className="grid gap-6"
           style={{ gridTemplateColumns: "minmax(0, 1fr) 380px" }}
         >
           <div className="flex flex-col gap-6 min-w-0">
-            <DesktopWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
-            <LiveOpenBets layout="desktop" />
+            <div className="gs-rise gs-lift" style={rise(1)}>
+              <DesktopWeatherHero courseName={courseName} snapshot={snapshot} waveSplit={waveSplit} />
+            </div>
+            <div className="gs-rise gs-lift" style={rise(3)}>
+              <LiveOpenBets layout="desktop" />
+            </div>
           </div>
           <div className="flex flex-col gap-6 min-w-0">
-            <ThisWeeksEdge limit={8} />
-            <LiveDashboardLeaderboard layout="desktop" fallback={[]} limit={12} />
+            <div className="gs-rise gs-lift" style={rise(2)}>
+              <ThisWeeksEdge limit={8} />
+            </div>
+            <div className="gs-rise gs-lift" style={rise(4)}>
+              <LiveDashboardLeaderboard layout="desktop" fallback={[]} limit={12} />
+            </div>
           </div>
         </div>
       </div>
