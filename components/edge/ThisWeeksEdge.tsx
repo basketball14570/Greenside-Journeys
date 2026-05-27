@@ -87,11 +87,12 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
       <div
         className="grid gap-2 px-4 py-2 num font-semibold uppercase text-text-muted border-b border-line"
         style={{
-          gridTemplateColumns: "1fr 50px 50px 50px 50px",
+          gridTemplateColumns: "16px 1fr 54px 50px 50px 50px",
           fontSize: 9,
           letterSpacing: 1.1,
         }}
       >
+        <span />
         <span>Player</span>
         <span className="text-right">Win</span>
         <span className="text-right">Top 5</span>
@@ -103,38 +104,76 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
           Loading…
         </div>
       )}
-      {rows.map((r, i) => (
-        <div
-          key={r.player_name + i}
-          className="grid gap-2 px-4 py-2.5 items-center"
-          style={{
-            gridTemplateColumns: "1fr 50px 50px 50px 50px",
-            borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
-          }}
-        >
+      {(() => {
+        const maxWin = Math.max(...rows.map((r) => r.win), 0.0001);
+        return rows.map((r, i) => (
           <div
-            className="text-text truncate"
-            style={{ fontSize: 13, fontWeight: i === 0 ? 600 : 400 }}
+            key={r.player_name + i}
+            className="relative grid gap-2 px-4 py-2.5 items-center"
+            style={{
+              gridTemplateColumns: "16px 1fr 54px 50px 50px 50px",
+              borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+              background: i === 0 ? "rgba(127,212,154,0.05)" : "transparent",
+            }}
           >
-            {r.player_name}
+            {i === 0 && (
+              <div
+                className="absolute"
+                style={{ left: 0, top: 0, bottom: 0, width: 2, background: "#7fd49a" }}
+              />
+            )}
+            <span
+              className="num text-right"
+              style={{ fontSize: 10.5, color: i < 3 ? "#7fd49a" : "#6c7a72", fontWeight: i < 3 ? 700 : 400 }}
+            >
+              {i + 1}
+            </span>
+            <div
+              className="text-text truncate"
+              style={{ fontSize: 13, fontWeight: i === 0 ? 700 : i < 3 ? 600 : 400 }}
+            >
+              {r.player_name}
+            </div>
+            <div className="relative flex items-center justify-end" style={{ height: 18 }}>
+              <div
+                className="absolute rounded-sm"
+                style={{
+                  left: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  height: 14,
+                  width: `${Math.max(8, (r.win / maxWin) * 100)}%`,
+                  background: "linear-gradient(90deg, rgba(127,212,154,0.10), rgba(127,212,154,0.30))",
+                }}
+              />
+              <span
+                className="num relative font-bold"
+                style={{ fontSize: 12.5, color: "#7fd49a" }}
+              >
+                {pct(r.win)}
+              </span>
+            </div>
+            <span
+              className="num text-right font-semibold"
+              style={{ fontSize: 12, color: heat(r.top5, 0.3) }}
+            >
+              {pct(r.top5)}
+            </span>
+            <span
+              className="num text-right font-semibold"
+              style={{ fontSize: 12, color: heat(r.top10, 0.45) }}
+            >
+              {pct(r.top10)}
+            </span>
+            <span
+              className="num text-right font-semibold"
+              style={{ fontSize: 12, color: heat(r.makeCut, 0.9) }}
+            >
+              {pct(r.makeCut)}
+            </span>
           </div>
-          <span
-            className="num text-right font-semibold"
-            style={{ fontSize: 12, color: r.win > 0.08 ? "#7fd49a" : "#a8b3ac" }}
-          >
-            {pct(r.win)}
-          </span>
-          <span className="num text-right text-text-dim" style={{ fontSize: 12 }}>
-            {pct(r.top5)}
-          </span>
-          <span className="num text-right text-text-dim" style={{ fontSize: 12 }}>
-            {pct(r.top10)}
-          </span>
-          <span className="num text-right text-text-dim" style={{ fontSize: 12 }}>
-            {pct(r.makeCut)}
-          </span>
-        </div>
-      ))}
+        ));
+      })()}
       {data?.message && !isLive && (
         <div
           className="px-4 py-2 text-text-muted border-t border-line"
@@ -150,4 +189,14 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
 function pct(v: number): string {
   if (v >= 0.1) return `${(v * 100).toFixed(0)}%`;
   return `${(v * 100).toFixed(1)}%`;
+}
+
+// Heat-scale a probability toward the brand green as it approaches `full`.
+// Low values stay muted gray; strong values read bright green so the eye
+// tracks magnitude down the column without a legend.
+function heat(v: number, full: number): string {
+  const t = Math.max(0, Math.min(1, v / full));
+  if (t < 0.15) return "#6c7a72";
+  const alpha = 0.5 + t * 0.5;
+  return `rgba(127, 212, 154, ${alpha.toFixed(2)})`;
 }
