@@ -243,9 +243,10 @@ export function MobileWeatherHero({
           >
             <span>6A</span>
             <span>9A</span>
-            <span>NOW</span>
+            <span>12P</span>
             <span>3P</span>
             <span>6P</span>
+            <span>8P</span>
           </div>
         </div>
 
@@ -372,7 +373,7 @@ export function DesktopWeatherHero({
         >
           <span>6A</span>
           <span>9A</span>
-          <span>NOW</span>
+          <span>12P</span>
           <span>3P</span>
           <span>6P</span>
           <span>8P</span>

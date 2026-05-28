@@ -150,20 +150,37 @@ export function weatherSnapshotFromForecast(
   });
   const current = forecast.hours[nowIdx];
 
-  // 14 hours surrounding now (7 back, 6 forward) for the sparkline.
-  const start = Math.max(0, nowIdx - 7);
-  const end = Math.min(forecast.hours.length, start + 14);
-  const window = forecast.hours.slice(start, end);
-  const hourly = window.map((h, i) => ({
-    v: Math.round(h.windMph),
-    gust: Math.round(h.gustMph),
-    now: start + i === nowIdx,
-  }));
-
-  // Morning baseline: 6 AM local on the same day as `now`. Compute the day
-  // and hour in the course timezone so "since 6 AM" is anchored to the
-  // course's morning, not the server's UTC day.
+  // Compute the current day + hour in the course timezone so both the
+  // sparkline axis and the morning baseline are anchored to the course's
+  // clock rather than the server's UTC day.
   const curLocal = tz ? dateInTz(new Date(current.ts), tz) : null;
+
+  // Sparkline spans the playing day, 6 AM → 8 PM local, with the NOW marker
+  // on the hour matching the current local time. This keeps the marker
+  // aligned with the fixed 6A…8P axis instead of floating to the middle.
+  let hourly: { v: number; gust: number; now?: boolean }[] = [];
+  if (tz && curLocal) {
+    hourly = forecast.hours
+      .map((h) => ({ h, p: dateInTz(new Date(h.ts), tz) }))
+      .filter((x) => x.p.ymd === curLocal.ymd && x.p.hour >= 6 && x.p.hour <= 20)
+      .sort((a, b) => a.p.hour - b.p.hour)
+      .map((x) => ({
+        v: Math.round(x.h.windMph),
+        gust: Math.round(x.h.gustMph),
+        now: x.p.hour === curLocal.hour,
+      }));
+  }
+  if (hourly.length === 0) {
+    // No tz (or the local day isn't in range) — fall back to a 14-hour
+    // window centred on now so the chart still renders something useful.
+    const start = Math.max(0, nowIdx - 7);
+    const end = Math.min(forecast.hours.length, start + 14);
+    hourly = forecast.hours.slice(start, end).map((h, i) => ({
+      v: Math.round(h.windMph),
+      gust: Math.round(h.gustMph),
+      now: start + i === nowIdx,
+    }));
+  }
   const morning = forecast.hours.find((h) => {
     if (tz && curLocal) {
       const p = dateInTz(new Date(h.ts), tz);
