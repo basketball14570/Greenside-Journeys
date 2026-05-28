@@ -88,9 +88,9 @@ export function LiveEventStrap() {
           onError={() => setExtIdx((i) => i + 1)}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
           style={{
-            objectPosition: "center 52%",
+            objectPosition: "center 48%",
             opacity: imgOk ? 1 : 0,
-            filter: "brightness(1.15) saturate(1.1)",
+            filter: "brightness(1.04) saturate(1.06)",
           }}
         />
       )}
