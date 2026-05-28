@@ -35,6 +35,7 @@ export const COURSE_HOLE_PARS: Record<string, HolePar> = {
   "Caves Valley": [4, 5, 4, 4, 4, 3, 4, 3, 5, 4, 3, 4, 5, 4, 4, 3, 4, 4],
   "TPC Craig Ranch": [4, 4, 4, 3, 5, 4, 3, 4, 5, 4, 4, 5, 4, 4, 3, 4, 3, 4],
   "Memorial Park Golf Course": [4, 4, 4, 3, 5, 4, 3, 4, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5],
+  "Colonial Country Club": [5, 4, 4, 3, 4, 4, 4, 3, 4, 4, 5, 4, 3, 4, 4, 3, 4, 4],
 };
 
 // Returns the par for a single hole on a course, or 4 as a defensible
@@ -68,6 +69,7 @@ export function holeParStrict(
 // name so per-hole pars still load. Extend as new events are added.
 const EVENT_COURSE_ALIASES: { match: string; course: string }[] = [
   { match: "byron nelson", course: "TPC Craig Ranch" },
+  { match: "charles schwab", course: "Colonial Country Club" },
 ];
 
 export function resolveCourseName(
