@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   fetchLeaderboard,
@@ -128,6 +128,35 @@ export default function LeaderboardPage() {
   );
   const holePars = snapshot?.event?.holePars;
 
+  // Projected cut score — top 65 + ties — based on the current field. Only
+  // meaningful pre-cut (R1/R2); once round 3 starts ESPN sets isCut and the
+  // already-missed rows mark themselves, so we hide the divider.
+  const projectedCut = useMemo(() => {
+    if (!snapshot) return null;
+    const period = snapshot.event?.period ?? 0;
+    if (period >= 3) return null;
+    const scored = snapshot.players
+      .filter((p) => !p.isCut && p.totalScoreNum !== null)
+      .map((p) => p.totalScoreNum as number)
+      .sort((a, b) => a - b);
+    if (scored.length < 10) return null;
+    return scored[Math.min(64, scored.length - 1)];
+  }, [snapshot]);
+
+  // Where the cut row inserts in the position-sorted "others" list: index of
+  // the first row whose score would currently miss. null when the cut isn't
+  // meaningful (other sort orders, or no row is over the line yet).
+  const cutInsertIndex = useMemo(() => {
+    if (projectedCut === null || sort !== "pos") return null;
+    for (let i = 0; i < others.length; i++) {
+      const p = others[i];
+      if (p.isCut) return i;
+      const s = p.totalScoreNum;
+      if (s === null || s > projectedCut) return i;
+    }
+    return null;
+  }, [projectedCut, others, sort]);
+
   return (
     <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
       <header>
@@ -203,8 +232,11 @@ export default function LeaderboardPage() {
                   {others.length > 0 && <SectionLabel>All players</SectionLabel>}
                 </>
               )}
-              {others.map((p) => (
-                <Row key={p.id} player={p} courseName={courseName} holePars={holePars} />
+              {others.map((p, i) => (
+                <Fragment key={p.id}>
+                  {i === cutInsertIndex && <CutLineRow score={projectedCut} />}
+                  <Row player={p} courseName={courseName} holePars={holePars} />
+                </Fragment>
               ))}
             </>
           )}
@@ -355,6 +387,29 @@ function SectionLabel({ children }: { children: ReactNode }) {
       style={{ fontSize: 9.5, letterSpacing: 1.1, color: "#f5c558" }}
     >
       {children}
+    </div>
+  );
+}
+
+// Inline cut-line marker — sits between the last player projected to make
+// the cut and the first one currently outside, like the ESPN/DK boards do.
+function CutLineRow({ score }: { score: number | null }) {
+  const label =
+    score === null ? "E" : score === 0 ? "E" : score > 0 ? `+${score}` : `${score}`;
+  return (
+    <div
+      className="flex items-center gap-2 px-4 py-1.5 num font-semibold uppercase"
+      style={{
+        fontSize: 9.5,
+        letterSpacing: 1.2,
+        color: "#e57373",
+        background: "rgba(229,115,115,0.08)",
+        borderTop: "1px dashed rgba(229,115,115,0.55)",
+        borderBottom: "1px dashed rgba(229,115,115,0.55)",
+      }}
+    >
+      <span className="flex-1 truncate">Projected cut · top 65 + ties</span>
+      <span style={{ letterSpacing: 0.5 }}>{label}</span>
     </div>
   );
 }
