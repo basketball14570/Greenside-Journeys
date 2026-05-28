@@ -87,7 +87,11 @@ export function LiveEventStrap() {
           onLoad={() => setImgOk(true)}
           onError={() => setExtIdx((i) => i + 1)}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
-          style={{ objectPosition: "center 60%", opacity: imgOk ? 1 : 0 }}
+          style={{
+            objectPosition: "center 52%",
+            opacity: imgOk ? 1 : 0,
+            filter: "brightness(1.15) saturate(1.1)",
+          }}
         />
       )}
       {/* Legibility wash — heavier on the left where the title sits, fading
@@ -97,12 +101,12 @@ export function LiveEventStrap() {
         style={{
           opacity: imgOk ? 1 : 0,
           background:
-            "linear-gradient(90deg, rgba(7,18,11,0.95) 0%, rgba(7,18,11,0.84) 38%, rgba(7,18,11,0.6) 72%, rgba(7,18,11,0.42) 100%)",
+            "linear-gradient(90deg, rgba(7,18,11,0.92) 0%, rgba(7,18,11,0.7) 34%, rgba(7,18,11,0.34) 68%, rgba(7,18,11,0.12) 100%)",
         }}
       />
       <div
         className="relative flex items-center gap-6 px-8 transition-[padding] duration-300"
-        style={{ paddingTop: imgOk ? 22 : 14, paddingBottom: imgOk ? 22 : 14 }}
+        style={{ paddingTop: imgOk ? 40 : 14, paddingBottom: imgOk ? 40 : 14 }}
       >
       <div className="flex flex-col gap-0.5">
         <span
