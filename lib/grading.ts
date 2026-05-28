@@ -539,25 +539,42 @@ function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   return {
     bet,
     status: finalState ? (wantsMake ? "won" : "lost") : "live",
-    reason: makeCutMargin(p.totalScoreNum, cutoffForTopN(snapshot, 65)),
+    reason: makeCutMargin(p.totalScoreNum, p.totalToPar, projectedCutScore(snapshot)),
     observedValue: p.posDisplay,
-    standing: p.posDisplay || undefined,
+    standing: p.posDisplay || p.totalToPar || undefined,
     standingNote: p.todayLine?.thru ? `thru ${p.todayLine.thru}` : undefined,
   };
 }
 
-// Strokes clear / back / on the PGA cut line (top 65 + ties). Falls back to
-// "Pre-cut" before enough of the field has scored to project the line.
+// Projected cut score — top 65 + ties. Uses the 65th-best score once the
+// field is deep enough to be meaningful; before that, uses the worst score
+// among players already scoring so early R1 still shows a rough margin.
+function projectedCutScore(snapshot: LeaderboardSnapshot): number | null {
+  const scored = snapshot.players
+    .filter((p) => !p.isCut && p.totalScoreNum !== null)
+    .map((p) => p.totalScoreNum as number)
+    .sort((a, b) => a - b);
+  if (scored.length < 10) return null;
+  return scored[Math.min(64, scored.length - 1)];
+}
+
+// Strokes clear / back / on the PGA cut line (top 65 + ties). Falls back
+// progressively: cut margin when we can compute it, the player's current
+// to-par before enough field has scored, then a plain "Pre-cut".
 function makeCutMargin(
   myScore: number | null,
+  myToPar: string | null,
   cutoff: number | null,
 ): string {
-  if (cutoff === null || myScore === null) return "Pre-cut";
-  const diff = myScore - cutoff;
-  if (diff === 0) return "on the cut line";
-  const n = Math.abs(diff);
-  const s = n === 1 ? "" : "s";
-  return diff < 0 ? `${n} stroke${s} clear of cut` : `${n} stroke${s} back of cut`;
+  if (cutoff !== null && myScore !== null) {
+    const diff = myScore - cutoff;
+    if (diff === 0) return "on the cut line";
+    const n = Math.abs(diff);
+    const s = n === 1 ? "" : "s";
+    return diff < 0 ? `${n} stroke${s} clear of cut` : `${n} stroke${s} back of cut`;
+  }
+  if (myToPar) return `Currently ${myToPar}`;
+  return "Pre-cut";
 }
 
 // ── Dispatcher ───────────────────────────────────────────────────
