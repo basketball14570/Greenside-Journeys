@@ -523,6 +523,9 @@ export default function CutSweatPage() {
   // line is final, not projected.
   const round = proj?.round ?? null;
   const cutIsFinal = round != null && round >= 3;
+  // The cut line during round 1 is half-a-tournament's worth of noise — the
+  // field hasn't sorted out yet. Hold the bubble list until round 2 starts.
+  const bubbleNotReady = round == null || round < 2;
 
   // Field-wide bubble watch: every player within 2 strokes of the cut line
   // (either side), sorted by projected ownership so the chalkiest names on
@@ -612,10 +615,17 @@ export default function CutSweatPage() {
               ● Bubble watch · within 2 of the cut{haveOwnership ? " · chalk first" : ""}
             </span>
             <span className="num text-text-muted" style={{ fontSize: 11 }}>
-              cut {fmtToPar(cutLine)} · auto-refreshing
+              {bubbleNotReady
+                ? "starts after round 1"
+                : `cut ${fmtToPar(cutLine)} · auto-refreshing`}
             </span>
           </div>
-          {fieldBubble.length === 0 ? (
+          {bubbleNotReady ? (
+            <p className="text-text-dim" style={{ fontSize: 12.5 }}>
+              Waiting for round 1 to finish — the cut line is half-a-tournament
+              of noise until Friday. The bubble starts as round 2 gets going.
+            </p>
+          ) : fieldBubble.length === 0 ? (
             <p className="text-text-dim" style={{ fontSize: 12.5 }}>
               No one is within 2 shots of the line right now — the bubble is
               quiet. This updates automatically as scores move.
