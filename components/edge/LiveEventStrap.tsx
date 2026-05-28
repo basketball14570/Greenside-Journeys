@@ -87,7 +87,7 @@ export function LiveEventStrap() {
           onLoad={() => setImgOk(true)}
           onError={() => setExtIdx((i) => i + 1)}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
-          style={{ objectPosition: "center 42%", opacity: imgOk ? 1 : 0 }}
+          style={{ objectPosition: "center 60%", opacity: imgOk ? 1 : 0 }}
         />
       )}
       {/* Legibility wash — heavier on the left where the title sits, fading
