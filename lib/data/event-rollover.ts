@@ -54,3 +54,19 @@ export function goLiveAtCentral(startIso: string): number {
   const sunday = centralParts(new Date(start.getTime() - daysBack * 86_400_000));
   return centralWallToUTC(sunday.y, sunday.mo, sunday.day, 20);
 }
+
+// 9pm Central on the most recent Sunday — the DFS contest rollover. Saved
+// contests created before this instant belong to a prior week and should
+// drop out of the current-week list. If `now` is itself on a Sunday before
+// 9pm, the cutoff is the previous Sunday's 9pm.
+export function lastDfsContestRolloverCentral(now: Date = new Date()): number {
+  const p = centralParts(now);
+  let daysBack: number;
+  if (p.weekday === 0) {
+    daysBack = p.hour >= 21 ? 0 : 7;
+  } else {
+    daysBack = p.weekday;
+  }
+  const target = centralParts(new Date(now.getTime() - daysBack * 86_400_000));
+  return centralWallToUTC(target.y, target.mo, target.day, 21);
+}

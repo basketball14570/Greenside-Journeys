@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { parseStandingsCsv } from "@/lib/dfs/payouts";
+import { lastDfsContestRolloverCentral } from "@/lib/data/event-rollover";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,9 +32,13 @@ function shareId(): string {
 export async function GET() {
   const admin = supabaseAdmin();
   if (!admin) return NextResponse.json({ contests: [] });
+  // Roll over Sunday 9pm Central — older saves drop off the list so the
+  // weekend's contests don't bleed into the next event.
+  const cutoffIso = new Date(lastDfsContestRolloverCentral()).toISOString();
   const { data, error } = await admin
     .from("dfs_shared_contests")
     .select("id, name, event_name, field_size, format, round, created_at")
+    .gte("created_at", cutoffIso)
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) {
@@ -81,22 +86,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "standings CSV has no entries" }, { status: 400 });
   }
 
-  const id = shareId();
-  const { error } = await admin.from("dfs_shared_contests").insert({
+  // Re-saving the same contest (same name, event, uploader) within the week
+  // overwrites the prior row instead of stacking duplicates in the picker.
+  const cutoffIso = new Date(lastDfsContestRolloverCentral()).toISOString();
+  const eventName = body.data.eventName ?? null;
+  const { data: existing } = await admin
+    .from("dfs_shared_contests")
+    .select("id")
+    .eq("name", body.data.name)
+    .eq("created_by", userData.user.id)
+    .eq("event_name", eventName)
+    .gte("created_at", cutoffIso)
+    .maybeSingle();
+
+  const id = existing?.id ?? shareId();
+  const row = {
     id,
     name: body.data.name,
     entry_fee: body.data.fee ?? null,
     format: body.data.format,
     round: body.data.round ?? null,
     payout_ladder: body.data.payoutLadder,
-    event_name: body.data.eventName ?? null,
+    event_name: eventName,
     standings_csv: body.data.standingsCsv,
     field_size: parsed.entries.length,
     created_by: userData.user.id,
-  });
+  };
+  const { error } = existing
+    ? await admin.from("dfs_shared_contests").update(row).eq("id", id)
+    : await admin.from("dfs_shared_contests").insert(row);
 
   if (error) {
-    console.error("shared contest insert failed", { message: error.message, code: error.code });
+    console.error("shared contest save failed", { message: error.message, code: error.code });
     return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
   }
 

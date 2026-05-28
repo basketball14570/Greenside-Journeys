@@ -26,7 +26,7 @@ import {
   type GolferState,
 } from "@/lib/dfs/projection";
 import { PortfolioRoi } from "@/components/edge/PortfolioRoi";
-import { DK_SALARIES } from "@/lib/data/dfs-salaries";
+import { DK_SALARIES, DK_EVENT } from "@/lib/data/dfs-salaries";
 import { projectOwnership } from "@/lib/dfs/project-ownership";
 import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
@@ -234,31 +234,17 @@ export default function CutSweatPage() {
     } catch {}
   }
 
-  function saveCurrentPreset() {
+  async function saveCurrentPreset() {
     const name = presetName.trim();
     if (!name || !ladderText.trim()) return;
-    // Reuse the existing id when overwriting a same-named preset so its saved
-    // CSV key stays consistent (and gets overwritten, not orphaned).
+    // Reuse the existing id when overwriting a same-named preset.
     const existing = presets.find((p) => p.name === name);
     const id = existing?.id ?? `${Date.now()}`;
 
-    // Persist the standings CSV under its own key. Fields can be a few hundred
-    // KB; if localStorage is full, keep the rest of the preset and tell the
-    // user to use Share link (server-side) for very large fields.
-    let savedCsv = false;
-    if (standingsCsv) {
-      try {
-        localStorage.setItem(csvKey(id), standingsCsv);
-        savedCsv = true;
-      } catch {
-        setShareError("Field too large to save on this device — use Share link instead.");
-      }
-    } else {
-      try {
-        localStorage.removeItem(csvKey(id));
-      } catch {}
-    }
-
+    // Local preset stores ladder/fee/format/round only — small and safe. We
+    // deliberately stopped writing the standings CSV to localStorage because
+    // a multi-MB field could blow the quota and silently drop the entire
+    // preset list. The field now lives server-side via the publish below.
     const preset: ContestPreset = {
       id,
       name,
@@ -266,10 +252,52 @@ export default function CutSweatPage() {
       fee,
       format,
       round: roundParam,
-      standingsName: savedCsv ? standingsName ?? "saved field" : undefined,
+      standingsName: undefined,
     };
     const next = [...presets.filter((p) => p.name !== name), preset];
     persistPresets(next);
+
+    // Publish the contest to the shared list so the full field + payout
+    // ladder persist across browsers and sessions until Sunday 9pm Central.
+    // Re-saving the same name overwrites server-side, so no duplicates.
+    if (standingsCsv) {
+      setSharePending(true);
+      setShareError(null);
+      try {
+        const r = await fetch("/api/dfs/contests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            fee: fee ? Number(fee) : null,
+            format,
+            round: roundParam ? Number(roundParam) : null,
+            payoutLadder: ladderText,
+            eventName: live?.event ?? DK_EVENT,
+            standingsCsv,
+          }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          // Refresh the published-contests list so the new save shows up.
+          const list = await fetch("/api/dfs/contests", { cache: "no-store" })
+            .then((rr) => rr.json())
+            .catch(() => null);
+          if (list?.contests) setSharedList(list.contests);
+        } else {
+          setShareError(
+            j.error === "not signed in"
+              ? "Saved locally. Sign in to also save it for everyone."
+              : j.error ?? "Server save failed — saved locally only.",
+          );
+        }
+      } catch {
+        setShareError("Server save failed — saved locally only.");
+      } finally {
+        setSharePending(false);
+      }
+    }
+
     setPresetName("");
   }
 
@@ -859,7 +887,7 @@ export default function CutSweatPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={saveCurrentPreset}
-              disabled={!presetName.trim() || !ladderText.trim()}
+              disabled={!presetName.trim() || !ladderText.trim() || sharePending}
               className="num rounded-[8px] px-5 py-2.5 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 fontSize: 13,
@@ -868,7 +896,7 @@ export default function CutSweatPage() {
                 border: `1px solid ${!presetName.trim() || !ladderText.trim() ? "#3a3f48" : GREEN}`,
               }}
             >
-              Save contest
+              {sharePending ? "Saving…" : "Save contest"}
             </button>
             <button
               onClick={shareContest}
@@ -883,8 +911,10 @@ export default function CutSweatPage() {
               {!presetName.trim() || !ladderText.trim()
                 ? "Add a name + payout structure to save or share."
                 : !standingsCsv
-                  ? "Save stores it in this browser; upload a CSV to also save the field."
-                  : "Save stores the field + setup in this browser. Share link = anyone can open it and type their username."}
+                  ? "Save stores the setup locally; upload a CSV to also save the field for everyone."
+                  : sharePending
+                    ? "Saving to the website…"
+                    : "Save stores the field on the website until Sunday 9pm Central — load it back any time from Published contests above."}
             </span>
           </div>
 
