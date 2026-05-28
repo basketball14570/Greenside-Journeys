@@ -32,17 +32,19 @@ export function LiveEventStrap() {
   // on error so the filename's format doesn't have to match a hardcode.
   const [extIdx, setExtIdx] = useState(0);
 
-  const slug = courseSlugFor(strap.course);
+  // Anchor the background photo to the active event computed once on mount.
+  // The header text still tracks the live ESPN refresh, but the photo must
+  // not churn when a 60s refresh momentarily changes the course string —
+  // that made the image fade out and back in.
+  const [photoSlug] = useState<string | null>(() => {
+    const ev = getActiveEvent();
+    return ev ? courseSlugFor(ev.course) : null;
+  });
   const exts = ["jpg", "png", "jpeg", "webp"];
   const imgSrc =
-    slug && extIdx < exts.length ? `/courses/${slug}.${exts[extIdx]}` : null;
-
-  // A new course means a new candidate photo — reset until it loads so a
-  // stale image never lingers behind the wrong tournament.
-  useEffect(() => {
-    setImgOk(false);
-    setExtIdx(0);
-  }, [slug]);
+    photoSlug && extIdx < exts.length
+      ? `/courses/${photoSlug}.${exts[extIdx]}`
+      : null;
 
   useEffect(() => {
     let cancelled = false;
