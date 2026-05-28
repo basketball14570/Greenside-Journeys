@@ -478,24 +478,61 @@ export default function CutSweatPage() {
 
   // Per-golfer state for projections. CURRENT points are recomputed LIVE from
   // ESPN's hole-by-hole feed with the chosen format (Showdown scores a single
-  // round; Classic is cumulative), using the course's real scorecard pars — so
-  // they stay correct as the round plays out and don't go stale like a CSV
-  // snapshot. The CSV's FPTS is only a fallback for golfers ESPN hasn't listed.
+  // round; Classic is cumulative across 72 holes), using the course's real
+  // scorecard pars — so they stay correct as the round plays out and don't go
+  // stale like a CSV snapshot. The CSV's FPTS is only a fallback for golfers
+  // ESPN hasn't listed.
   const golferStates = useMemo(() => {
     if (!standings) return null;
     const resolve = buildNameResolver(
       (live?.players ?? []).map((p) => ({ name: p.name, points: p.points, thru: p.thru ?? 18 })),
     );
+    const showdown = format === "showdown" || format === "showdown_r4";
+    const currentRound = live?.round ?? proj?.round ?? 1;
+    // Cut settles after R2. From R3 on, anyone over the line is done; their
+    // remaining tournament holes drop to 0 (no projection past the cut).
+    const projCutLine = proj?.cutLine ?? null;
+    const cutSettled = currentRound != null && currentRound >= 3 && projCutLine !== null;
+    const scoreLookup = new Map<string, number | null>();
+    for (const p of proj?.players ?? []) {
+      scoreLookup.set(normalizeName(p.name), p.scoreToPar);
+    }
+
     const states = new Map<string, GolferState>();
     for (const pl of standings.players) {
       const key = normalizeName(pl.name);
       const l = resolve(pl.name);
       const points = l ? l.points : pl.fpts;
-      const thru = l ? l.thru : 18; // no live hole data → treat round as done
-      states.set(key, { points, holesPlayed: thru, holesRemaining: Math.max(0, 18 - thru) });
+      // When no live match: Showdown treats the round as done (18); Classic
+      // assumes the player hasn't started the current round yet (0).
+      const thruInRound = l ? l.thru : showdown ? 18 : 0;
+
+      if (showdown) {
+        states.set(key, {
+          points,
+          holesPlayed: thruInRound,
+          holesRemaining: Math.max(0, 18 - thruInRound),
+        });
+        continue;
+      }
+
+      // Classic: total tournament is 4 rounds × 18 = 72 holes. Pre-R1 the
+      // leaderboard often returns thru=18 with 0 points (stale prior-round
+      // status) — treat that as "hasn't started" so everyone starts at 72.
+      const notStarted = currentRound === 1 && points <= 0;
+      const effThru = notStarted ? 0 : thruInRound;
+      const pastRoundHoles = Math.max(0, ((currentRound ?? 1) - 1) * 18);
+      const holesPlayed = Math.min(72, pastRoundHoles + effThru);
+
+      const score = scoreLookup.get(key);
+      const missedCut =
+        cutSettled && projCutLine != null && score != null && score > projCutLine;
+      const holesRemaining = missedCut ? 0 : Math.max(0, 72 - holesPlayed);
+
+      states.set(key, { points, holesPlayed, holesRemaining });
     }
     return states;
-  }, [standings, live]);
+  }, [standings, live, format, proj]);
 
   const matchedGolfers = useMemo(() => {
     if (!golferStates || !live) return 0;
