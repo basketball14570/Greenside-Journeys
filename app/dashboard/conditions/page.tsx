@@ -11,6 +11,7 @@ import { WaveWatchlist } from "@/components/edge/WaveWatchlist";
 import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
+  courseTzFor,
   getForecast,
   waveSplitFromForecast,
   weatherSnapshotFromForecast,
@@ -50,7 +51,10 @@ export default async function ConditionsPage() {
   ]);
   const waveSplit =
     slug && event ? waveSplitFromForecast(forecast, slug, event.startDate) : null;
-  const snapshot = weatherSnapshotFromForecast(forecast);
+  const snapshot = weatherSnapshotFromForecast(
+    forecast,
+    slug ? courseTzFor(slug) : null,
+  );
   const current = nearestHour(forecast);
 
   return (

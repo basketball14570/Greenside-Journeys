@@ -300,10 +300,12 @@ export function DesktopWeatherHero({
       : sustained >= 8
         ? `Steady breeze at ${courseLabel}.`
         : `Calm at ${courseLabel}.`;
-  const nowLabel = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const nowLabel =
+    snapshot?.nowLabel ??
+    new Date().toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
   return (
     <div
       className="relative rounded-[18px] overflow-hidden border border-line"

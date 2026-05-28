@@ -99,6 +99,23 @@ export function courseSlugFor(courseName: string): string | null {
   return COURSE_NAME_TO_SLUG[courseName] ?? null;
 }
 
+// IANA timezone for a course slug — used to render times in the
+// tournament's local time rather than the server's.
+export function courseTzFor(courseId: string): string | null {
+  return COURSE_COORDS[courseId]?.tz ?? null;
+}
+
+// Attach an absolute UTC offset to a naive local time string so the
+// resulting ISO parses to the correct instant regardless of host tz.
+function toAbsoluteIso(naive: string, offsetSeconds: number): string {
+  const withSeconds = naive.length === 16 ? `${naive}:00` : naive;
+  const sign = offsetSeconds < 0 ? "-" : "+";
+  const abs = Math.abs(offsetSeconds);
+  const hh = String(Math.floor(abs / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((abs % 3600) / 60)).padStart(2, "0");
+  return `${withSeconds}${sign}${hh}:${mm}`;
+}
+
 // Compact view-model for the dashboard weather heros — derives the "now"
 // reading, the morning-to-now delta, and a windowed hourly series for
 // the sparkline. Returns null when the forecast is null or has no hours.
@@ -110,10 +127,14 @@ export type WeatherSnapshot = {
   deltaSinceMorningMph: number;
   hourly: { v: number; gust: number; now?: boolean }[];
   hourLabels: { am6: number; am9: number; now: number; pm3: number; pm6: number };
+  // Course-local timezone and the current clock label in that tz.
+  tz?: string;
+  nowLabel: string;
 };
 
 export function weatherSnapshotFromForecast(
   forecast: Forecast | null,
+  tz?: string | null,
 ): WeatherSnapshot | null {
   if (!forecast || forecast.hours.length === 0) return null;
 
@@ -139,16 +160,30 @@ export function weatherSnapshotFromForecast(
     now: start + i === nowIdx,
   }));
 
-  // Morning baseline: 6 AM local on the same day as `now`. Use the
-  // earliest hour at or after 6 AM that we have data for.
-  const todayStr = new Date(current.ts).toISOString().slice(0, 10);
+  // Morning baseline: 6 AM local on the same day as `now`. Compute the day
+  // and hour in the course timezone so "since 6 AM" is anchored to the
+  // course's morning, not the server's UTC day.
+  const curLocal = tz ? dateInTz(new Date(current.ts), tz) : null;
   const morning = forecast.hours.find((h) => {
+    if (tz && curLocal) {
+      const p = dateInTz(new Date(h.ts), tz);
+      return p.ymd === curLocal.ymd && p.hour >= 6;
+    }
     const d = new Date(h.ts);
-    return d.toISOString().slice(0, 10) === todayStr && d.getUTCHours() >= 6;
+    return (
+      d.toISOString().slice(0, 10) ===
+        new Date(current.ts).toISOString().slice(0, 10) && d.getUTCHours() >= 6
+    );
   });
   const deltaSinceMorningMph = morning
     ? Math.round(current.windMph - morning.windMph)
     : 0;
+
+  const nowLabel = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    ...(tz ? { timeZone: tz } : {}),
+  });
 
   return {
     sustainedMph: Math.round(current.windMph),
@@ -158,6 +193,8 @@ export function weatherSnapshotFromForecast(
     deltaSinceMorningMph,
     hourly,
     hourLabels: { am6: 6, am9: 9, now: nowIdx, pm3: 15, pm6: 18 },
+    tz: tz ?? undefined,
+    nowLabel,
   };
 }
 
@@ -411,6 +448,13 @@ async function fetchOpenMeteo(
   const res = await fetch(url, { signal, cache: "no-store" });
   if (!res.ok) throw new Error(`open-meteo ${res.status}`);
   const json = await res.json();
+  // With timezone=<tz>, Open-Meteo returns naive local wall-clock strings
+  // ("2026-05-28T06:00") plus a top-level utc_offset_seconds. Anchor each
+  // to an absolute ISO with that offset so new Date(ts) is correct on any
+  // server timezone — without this the "now" index and clock drift by the
+  // UTC offset (e.g. 5h on a UTC host showing a Central-time course).
+  const offsetSec: number =
+    typeof json.utc_offset_seconds === "number" ? json.utc_offset_seconds : 0;
   const t: string[] = json.hourly?.time ?? [];
   const wind: number[] = json.hourly?.wind_speed_10m ?? [];
   const gust: number[] = json.hourly?.wind_gusts_10m ?? [];
@@ -419,7 +463,7 @@ async function fetchOpenMeteo(
   const pop: number[] = json.hourly?.precipitation_probability ?? [];
   const precip: number[] = json.hourly?.precipitation ?? [];
   const hours: ForecastHour[] = t.map((iso, i) => ({
-    ts: iso,
+    ts: toAbsoluteIso(iso, offsetSec),
     windMph: round(wind[i] ?? 0, 1),
     gustMph: round(gust[i] ?? 0, 1),
     windDirDeg: Math.round(dir[i] ?? 0),

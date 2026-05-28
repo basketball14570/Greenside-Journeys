@@ -10,6 +10,7 @@ import { CourseGuideCard } from "@/components/edge/CourseGuideCard";
 import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
+  courseTzFor,
   getForecast,
   weatherSnapshotFromForecast,
   waveSplitFromForecast,
@@ -28,7 +29,8 @@ export default async function DashboardHome() {
   const event = getActiveEvent();
   const slug = event ? courseSlugFor(event.course) : null;
   const forecast = slug ? await getForecast(slug).catch(() => null) : null;
-  const snapshot = weatherSnapshotFromForecast(forecast);
+  const tz = slug ? courseTzFor(slug) : null;
+  const snapshot = weatherSnapshotFromForecast(forecast, tz);
   const courseName = event?.course;
   // Thursday→Sunday the tournament is actually being played — promote
   // the live leaderboard to the top of the mobile Today screen. Mon-Wed
