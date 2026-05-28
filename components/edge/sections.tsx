@@ -857,7 +857,13 @@ function Footnote({
 export function MobileLeaderboard({ rows }: { rows: LeaderRow[] }) {
   return (
     <div className="mb-4">
-      <SectionLabel action="Full board →">
+      <SectionLabel
+        action={
+          <Link href="/dashboard/leaderboard" className="hover:text-text">
+            Full board →
+          </Link>
+        }
+      >
         Leaderboard · R2 In Progress
       </SectionLabel>
       <div className="mx-5 rounded-[14px] bg-surface-1 border border-line overflow-hidden">

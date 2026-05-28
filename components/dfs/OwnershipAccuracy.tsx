@@ -61,6 +61,42 @@ export function OwnershipAccuracy() {
   const [actualText, setActualText] = useState("");
   const [sort, setSort] = useState<"actual" | "miss" | "over" | "under">("actual");
 
+  // Shared save state — Actual %Drafted is persisted server-side so anyone
+  // visiting the page sees the latest paste.
+  const [saveState, setSaveState] = useState<
+    | { kind: "idle" }
+    | { kind: "saving" }
+    | { kind: "saved"; at: string; by: string | null }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [loadedFromServer, setLoadedFromServer] = useState(false);
+
+  // Hydrate from whatever the last person saved for this event.
+  useEffect(() => {
+    fetch("/api/dfs/actual-ownership", { cache: "no-store" })
+      .then((r) => r.json())
+      .then(
+        (j: {
+          saved: {
+            rawText: string;
+            updatedAt: string;
+            updatedBy: string | null;
+          } | null;
+        }) => {
+          if (j.saved?.rawText) {
+            setActualText(j.saved.rawText);
+            setSaveState({
+              kind: "saved",
+              at: j.saved.updatedAt,
+              by: j.saved.updatedBy,
+            });
+          }
+          setLoadedFromServer(true);
+        },
+      )
+      .catch(() => setLoadedFromServer(true));
+  }, []);
+
   // Same projection the "This week's projection" page shows. Render instantly
   // with the synchronous v1.1 model, then upgrade to the shared v2 numbers
   // (salary + value + DataGolf form signal) once the endpoint resolves.
@@ -140,23 +176,76 @@ export function OwnershipAccuracy() {
       </div>
 
       <div className="rounded-[14px] border border-line p-4 bg-surface-1 space-y-2">
-        <div className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.1 }}>
-          Paste actual %Drafted
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="num font-semibold uppercase text-text-muted" style={{ fontSize: 10, letterSpacing: 1.1 }}>
+            Paste actual %Drafted
+          </div>
+          <SaveStatusLabel state={saveState} loaded={loadedFromServer} />
         </div>
         <textarea
           value={actualText}
-          onChange={(e) => setActualText(e.target.value)}
+          onChange={(e) => {
+            setActualText(e.target.value);
+            if (saveState.kind === "saved" || saveState.kind === "error") {
+              setSaveState({ kind: "idle" });
+            }
+          }}
           rows={5}
           placeholder={"Si Woo Kim\t34.36%\nScottie Scheffler\t27.11%\nJordan Spieth\t26.94%\n…"}
           className="w-full rounded-[8px] border border-line bg-surface-2 px-3 py-2 text-text font-mono"
           style={{ fontSize: 12 }}
         />
-        {actuals.length > 0 && (
-          <div className="text-text-muted num uppercase" style={{ fontSize: 10, letterSpacing: 1 }}>
-            Parsed {actuals.length} players · {joined.length} matched to projection
-            {unmatchedActual.length > 0 ? ` · ${unmatchedActual.length} unmatched` : ""}
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {actuals.length > 0 ? (
+            <div className="text-text-muted num uppercase" style={{ fontSize: 10, letterSpacing: 1 }}>
+              Parsed {actuals.length} players · {joined.length} matched to projection
+              {unmatchedActual.length > 0 ? ` · ${unmatchedActual.length} unmatched` : ""}
+            </div>
+          ) : (
+            <span />
+          )}
+          <button
+            disabled={actuals.length === 0 || saveState.kind === "saving"}
+            onClick={async () => {
+              setSaveState({ kind: "saving" });
+              try {
+                const res = await fetch("/api/dfs/actual-ownership", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ rawText: actualText, entries: actuals }),
+                });
+                const j = await res.json();
+                if (!res.ok) {
+                  setSaveState({
+                    kind: "error",
+                    message: j?.error === "sign in to save" ? "Sign in to save" : "Save failed",
+                  });
+                  return;
+                }
+                setSaveState({
+                  kind: "saved",
+                  at: j.saved?.updatedAt ?? new Date().toISOString(),
+                  by: j.saved?.updatedBy ?? null,
+                });
+              } catch {
+                setSaveState({ kind: "error", message: "Save failed" });
+              }
+            }}
+            className="num font-semibold uppercase transition"
+            style={{
+              padding: "6px 12px",
+              borderRadius: 6,
+              fontSize: 10.5,
+              letterSpacing: 0.6,
+              color: actuals.length === 0 ? "#6c7a72" : "#06140c",
+              background: actuals.length === 0 ? "rgba(127,212,154,0.18)" : "#7fd49a",
+              cursor: actuals.length === 0 ? "not-allowed" : "pointer",
+              opacity: saveState.kind === "saving" ? 0.7 : 1,
+            }}
+          >
+            {saveState.kind === "saving" ? "Saving…" : "Save for everyone"}
+          </button>
+        </div>
       </div>
 
       {metrics && (
@@ -253,6 +342,42 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
       <div className="num mt-1" style={{ fontSize: 18, color }}>{value}</div>
     </div>
   );
+}
+
+function SaveStatusLabel({
+  state,
+  loaded,
+}: {
+  state:
+    | { kind: "idle" }
+    | { kind: "saving" }
+    | { kind: "saved"; at: string; by: string | null }
+    | { kind: "error"; message: string };
+  loaded: boolean;
+}) {
+  if (!loaded) return null;
+  if (state.kind === "saved") {
+    const when = new Date(state.at).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    return (
+      <span className="num uppercase" style={{ fontSize: 10, letterSpacing: 0.8, color: "#7fd49a" }}>
+        Saved {when}
+        {state.by ? ` · ${state.by}` : ""}
+      </span>
+    );
+  }
+  if (state.kind === "error") {
+    return (
+      <span className="num uppercase" style={{ fontSize: 10, letterSpacing: 0.8, color: "#e87c7c" }}>
+        {state.message}
+      </span>
+    );
+  }
+  return null;
 }
 
 function SortChip<T extends string>({
