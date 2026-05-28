@@ -539,9 +539,25 @@ function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   return {
     bet,
     status: finalState ? (wantsMake ? "won" : "lost") : "live",
-    reason: "Pre-cut",
+    reason: makeCutMargin(p.totalScoreNum, cutoffForTopN(snapshot, 65)),
     observedValue: p.posDisplay,
+    standing: p.posDisplay || undefined,
+    standingNote: p.todayLine?.thru ? `thru ${p.todayLine.thru}` : undefined,
   };
+}
+
+// Strokes clear / back / on the PGA cut line (top 65 + ties). Falls back to
+// "Pre-cut" before enough of the field has scored to project the line.
+function makeCutMargin(
+  myScore: number | null,
+  cutoff: number | null,
+): string {
+  if (cutoff === null || myScore === null) return "Pre-cut";
+  const diff = myScore - cutoff;
+  if (diff === 0) return "on the cut line";
+  const n = Math.abs(diff);
+  const s = n === 1 ? "" : "s";
+  return diff < 0 ? `${n} stroke${s} clear of cut` : `${n} stroke${s} back of cut`;
 }
 
 // ── Dispatcher ───────────────────────────────────────────────────
