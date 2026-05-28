@@ -28,15 +28,21 @@ type Strap = {
 export function LiveEventStrap() {
   const [strap, setStrap] = useState<Strap>(() => fromSchedule(getActiveEvent()));
   const [imgOk, setImgOk] = useState(false);
+  // Course photos may be uploaded as jpg or png — walk candidate extensions
+  // on error so the filename's format doesn't have to match a hardcode.
+  const [extIdx, setExtIdx] = useState(0);
 
   const slug = courseSlugFor(strap.course);
-  const imgSrc = slug ? `/courses/${slug}.jpg` : null;
+  const exts = ["jpg", "png", "jpeg", "webp"];
+  const imgSrc =
+    slug && extIdx < exts.length ? `/courses/${slug}.${exts[extIdx]}` : null;
 
   // A new course means a new candidate photo — reset until it loads so a
   // stale image never lingers behind the wrong tournament.
   useEffect(() => {
     setImgOk(false);
-  }, [imgSrc]);
+    setExtIdx(0);
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +85,7 @@ export function LiveEventStrap() {
           alt=""
           aria-hidden
           onLoad={() => setImgOk(true)}
-          onError={() => setImgOk(false)}
+          onError={() => setExtIdx((i) => i + 1)}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
           style={{ objectPosition: "center 42%", opacity: imgOk ? 1 : 0 }}
         />
