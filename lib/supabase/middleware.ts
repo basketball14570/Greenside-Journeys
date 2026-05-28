@@ -3,6 +3,16 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
+// Mirror of AUTH_COOKIE_OPTIONS in client.ts / server.ts so the middleware
+// refresh-rotates write the same long-lived, path=/ cookies the rest of the
+// stack expects — Safari kicks short-lived JS-set session cookies and the
+// beta tester was being signed out on every new tab.
+const AUTH_COOKIE_OPTIONS: CookieOptions = {
+  maxAge: 60 * 60 * 24 * 365,
+  path: "/",
+  sameSite: "lax",
+};
+
 export async function updateSession(req: NextRequest) {
   let res = NextResponse.next({ request: req });
 
@@ -15,6 +25,7 @@ export async function updateSession(req: NextRequest) {
     url,
     anon,
     {
+      cookieOptions: AUTH_COOKIE_OPTIONS,
       cookies: {
         getAll() {
           return req.cookies.getAll();
