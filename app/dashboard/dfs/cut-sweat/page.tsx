@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   parseEntriesCsv,
@@ -154,6 +154,63 @@ export default function CutSweatPage() {
   useEffect(() => {
     setPresets(loadPresets());
   }, []);
+
+  // Auto-publish any locally-saved contest that has a stored field but
+  // hasn't made it to the shared list yet. Covers presets saved before the
+  // server-side persistence shipped — the user shouldn't have to re-save
+  // each one by hand to get them published.
+  const autoPublishedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (presets.length === 0) return;
+    const eventName = live?.event ?? DK_EVENT;
+    const sharedKeys = new Set(
+      sharedList.map((c) => `${c.name}::${c.eventName ?? ""}`),
+    );
+    const toPublish = presets.filter((p) => {
+      if (autoPublishedRef.current.has(p.id)) return false;
+      if (sharedKeys.has(`${p.name}::${eventName}`)) return false;
+      let csv: string | null = null;
+      try {
+        csv = localStorage.getItem(csvKey(p.id));
+      } catch {}
+      return !!csv;
+    });
+    if (toPublish.length === 0) return;
+
+    (async () => {
+      let pushed = false;
+      for (const p of toPublish) {
+        autoPublishedRef.current.add(p.id);
+        let csv: string | null = null;
+        try {
+          csv = localStorage.getItem(csvKey(p.id));
+        } catch {}
+        if (!csv) continue;
+        try {
+          const r = await fetch("/api/dfs/contests", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: p.name,
+              fee: p.fee ? Number(p.fee) : null,
+              format: p.format,
+              round: p.round ? Number(p.round) : null,
+              payoutLadder: p.ladder,
+              eventName,
+              standingsCsv: csv,
+            }),
+          });
+          if (r.ok) pushed = true;
+        } catch {}
+      }
+      if (pushed) {
+        const list = await fetch("/api/dfs/contests", { cache: "no-store" })
+          .then((rr) => rr.json())
+          .catch(() => null);
+        if (list?.contests) setSharedList(list.contests);
+      }
+    })();
+  }, [presets, sharedList, live?.event]);
 
   // Published contests anyone can load without uploading a CSV. The list is
   // public (read-only); selecting one pulls the full field server-side.
