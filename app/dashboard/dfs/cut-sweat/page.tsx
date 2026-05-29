@@ -727,8 +727,8 @@ export default function CutSweatPage() {
           ) : (
             <>
               <div
-                className="grid gap-2 px-3 py-1.5 num font-semibold uppercase text-text-muted"
-                style={{ gridTemplateColumns: "2fr 70px 70px 80px 90px", fontSize: 9.5, letterSpacing: 1 }}
+                className="grid gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 num font-semibold uppercase text-text-muted grid-cols-[minmax(0,1fr)_38px_30px_46px_44px] lg:grid-cols-[2fr_70px_70px_80px_90px]"
+                style={{ fontSize: 9.5, letterSpacing: 1 }}
               >
                 <span>Player</span>
                 <span className="text-right">Score</span>
@@ -742,15 +742,18 @@ export default function CutSweatPage() {
                   return (
                     <div
                       key={b.name}
-                      className="grid gap-2 items-center rounded-[8px] border border-line px-3 py-2 bg-bg"
-                      style={{ gridTemplateColumns: "2fr 70px 70px 80px 90px", fontSize: 12.5 }}
+                      className="grid gap-1.5 lg:gap-2 items-center rounded-[8px] border border-line px-2 lg:px-3 py-2 bg-bg grid-cols-[minmax(0,1fr)_38px_30px_46px_44px] lg:grid-cols-[2fr_70px_70px_80px_90px]"
+                      style={{ fontSize: 12.5 }}
                     >
-                      <span className="text-text truncate">
-                        {b.name}{" "}
-                        <span className="num" style={{ fontSize: 10.5, color: safe ? GREEN : RED }}>
+                      <div className="min-w-0">
+                        <div className="text-text truncate">{b.name}</div>
+                        <div
+                          className="num"
+                          style={{ fontSize: 10, color: safe ? GREEN : RED, marginTop: 1 }}
+                        >
                           {fmtMargin(b.margin)}
-                        </span>
-                      </span>
+                        </div>
+                      </div>
                       <span className="num text-right text-text-dim">{fmtToPar(b.scoreToPar)}</span>
                       <span className="num text-right text-text-muted">
                         {b.thru == null ? "—" : b.thru >= 18 ? "F" : b.thru}
