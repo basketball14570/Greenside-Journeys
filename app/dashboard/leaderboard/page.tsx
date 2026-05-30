@@ -7,7 +7,6 @@ import {
   type LeaderboardPlayer,
   type LeaderboardSnapshot,
 } from "@/lib/espn-leaderboard";
-import { useBetSlip } from "@/lib/bet-slip-store";
 import { SkeletonRow } from "@/components/edge/Skeleton";
 import { StarButton } from "@/components/edge/StarButton";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
@@ -20,7 +19,7 @@ import { ScorePill, abbrevName } from "@/components/edge/ScorePill";
 
 const REFRESH_MS = 30_000;
 
-type FilterMode = "all" | "mine" | "made_cut" | "top30";
+type FilterMode = "all" | "made_cut" | "top30";
 type SortKey = "pos" | "today" | "thru" | "name";
 
 export default function LeaderboardPage() {
@@ -33,7 +32,6 @@ export default function LeaderboardPage() {
   const [sort, setSort] = useState<SortKey>("pos");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const { slip } = useBetSlip();
   const { stars } = useStarredGolfers();
 
   const load = useCallback(async () => {
@@ -73,16 +71,7 @@ export default function LeaderboardPage() {
     if (q) {
       rows = rows.filter((p) => p.name.toLowerCase().includes(q));
     }
-    if (filter === "mine") {
-      const mineNames = new Set(
-        slip.legs.flatMap((l) =>
-          l.kind === "matchup"
-            ? [l.player.toLowerCase(), l.opponent.toLowerCase()]
-            : [l.player.toLowerCase()],
-        ),
-      );
-      rows = rows.filter((p) => mineNames.has(p.name.toLowerCase()));
-    } else if (filter === "made_cut") {
+    if (filter === "made_cut") {
       rows = rows.filter((p) => !p.isCut);
     } else if (filter === "top30") {
       rows = rows.filter((p) => p.posNum !== null && p.posNum <= 30);
@@ -112,7 +101,7 @@ export default function LeaderboardPage() {
       }
     });
     return rows;
-  }, [snapshot, query, filter, sort, slip.legs]);
+  }, [snapshot, query, filter, sort]);
 
   // Starred golfers float to a "Favorites" group on top; everyone else falls
   // into "All players" below (no duplication).
@@ -196,7 +185,6 @@ export default function LeaderboardPage() {
         onFilter={setFilter}
         sort={sort}
         onSort={setSort}
-        slipCount={slip.legs.length}
         totalRows={filtered.length}
         totalPlayers={snapshot?.players.length ?? 0}
       />
@@ -206,7 +194,7 @@ export default function LeaderboardPage() {
           <span className="w-3 md:w-9 shrink-0" />
           <span className="flex-1 min-w-0">Player</span>
           <span className="w-9 md:w-[70px] text-right shrink-0">Tot</span>
-          <span className="w-9 md:w-[70px] text-right shrink-0">Tdy</span>
+          <span className="w-9 md:w-[70px] text-right shrink-0">Rd</span>
           <span className="w-8 md:w-[60px] text-right shrink-0">Thru</span>
         </div>
         <div className="max-h-[640px] overflow-y-auto">
@@ -250,7 +238,6 @@ function Controls({
   onFilter,
   sort,
   onSort,
-  slipCount,
   totalRows,
   totalPlayers,
 }: {
@@ -260,7 +247,6 @@ function Controls({
   onFilter: (v: FilterMode) => void;
   sort: SortKey;
   onSort: (v: SortKey) => void;
-  slipCount: number;
   totalRows: number;
   totalPlayers: number;
 }) {
@@ -275,7 +261,7 @@ function Controls({
         style={{ fontSize: 13 }}
       />
       <div className="flex rounded-[10px] border border-line overflow-hidden">
-        {(["all", "mine", "made_cut", "top30"] as FilterMode[]).map((f) => (
+        {(["all", "made_cut", "top30"] as FilterMode[]).map((f) => (
           <button
             key={f}
             onClick={() => onFilter(f)}
@@ -286,13 +272,7 @@ function Controls({
             }`}
             style={{ fontSize: 12 }}
           >
-            {f === "all"
-              ? "All"
-              : f === "mine"
-                ? `Mine${slipCount ? ` (${slipCount})` : ""}`
-                : f === "made_cut"
-                  ? "Made cut"
-                  : "Top 30"}
+            {f === "all" ? "All" : f === "made_cut" ? "Made cut" : "Top 30"}
           </button>
         ))}
       </div>
