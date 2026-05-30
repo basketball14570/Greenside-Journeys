@@ -72,7 +72,10 @@ Return ONLY a JSON object matching this shape (no prose, no markdown fences):
 For PrizePicks / Underdog pick-em style slips, treat each leg as its own bet entry. Set "americanOdds" to the implied per-leg odds if visible, else null. Leave "stake"/"toWin" null when the card doesn't show dollar amounts.
 
 UNDERDOG / PRIZEPICKS SHARE CARDS (player photos, big ↑/↓ arrows, "N correct WINS Nx", maybe a sign-up promo code): IGNORE all marketing/promo/sign-up text. Each player row is one leg. The arrow gives the side: ↑ = Higher (Over), ↓ = Lower (Under). Translate the stat label into a gradeable market, keeping the round (e.g. "R1 – Thu" → round 1):
-- "Leaderboard Position" / "Finishing Position" with ↓ N.5  →  market "Top {floor(N)}" (finishing better than position N.5 means a top-N finish). This is the FINAL tournament finish — NO round prefix. Set line null.
+- "Leaderboard Position" / "Finishing Position" with ↓ N.5 — TWO variants by whether a round indicator is shown next to the stat:
+  - With "R1" / "R2" / "R3" / "R4" / "Round 1-4" in the label (e.g. "Better 10.5 R3 Leaderboard Position") → market "R{n} Top {floor(N)}". Round-scoped — settles at the end of that round, not the tournament. Set line null.
+  - Without any round indicator → market "Top {floor(N)}" (tournament-long, FINAL finish — NO round prefix). Set line null.
+  In both cases ↓ / "Better" / "Lower" / Under is the typical side; ↑ / "Worse" / "Higher" / Over is rare but possible.
 - "Make the Cut" / "To Make the Cut" / "Made Cut"  →  market "Make Cut" (↑ / Higher / Yes) or "Miss Cut" (↓ / Lower / No). Tournament-long — NO round prefix. Set line null.
 - "Birdies or Better"  →  market "R1 birdies or better over" (↑) / "... under" (↓), line = the number.
 - "Bogeys or Worse"  →  market "R1 bogeys or worse under" (↓) / "... over" (↑), line = the number.

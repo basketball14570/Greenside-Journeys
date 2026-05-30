@@ -33,7 +33,9 @@ export function dbBetToOpenBet(b: DbBetRow): OpenBet {
   }
 
   // Underdog "leaderboard position better N.5" = a top-floor(N) finish.
-  // Rewrite to a "Top N" market so it routes to the top-N grader.
+  // Rewrite to a "Top N" market so it routes to the top-N grader, but
+  // preserve any "Rn" / "Round n" prefix on the round-scoped variant
+  // (e.g. "R3 Leaderboard Position" stays round-scoped on grading).
   let market = b.market;
   if (/(leaderboard|finish\w*)\s*position/.test(m) && !/\btop\b/.test(m)) {
     const stripped = m.replace(/\br\s*\d\b/g, " ").replace(/round\s*\d/g, " ");
@@ -44,18 +46,14 @@ export function dbBetToOpenBet(b: DbBetRow): OpenBet {
         : numMatch
           ? Math.floor(parseFloat(numMatch[1]))
           : null;
-    if (n) market = `Top ${n}`;
+    if (n) market = roundRaw ? `R${roundRaw} Top ${n}` : `Top ${n}`;
   }
 
-  // Finishing-position (Top N) is tournament-long on the books we parse —
-  // Underdog's "Leaderboard Position" is the final finish, not a round. A
-  // leading "R1"/round here is a parser artifact, so strip it from the label
-  // and don't scope the bet to a round.
-  let round = roundRaw;
-  if (/\btop\s*\d/i.test(market)) {
-    market = market.replace(/^\s*(r\s*\d+|round\s*\d+)\s+/i, "").trim();
-    round = undefined;
-  }
+  // Trust the round prefix: parsers now emit one only when the slip
+  // explicitly shows R1/R2/R3 next to the leaderboard-position label.
+  // Round-scoped Top-N settles when that round is final; tournament-long
+  // Top-N waits for the event to post (grader handles both via bet.round).
+  const round = roundRaw;
 
   // Over/under props lose their side in the numeric `line` column, so
   // rebuild an "O x" / "U x" line from the keyword in the market text.
