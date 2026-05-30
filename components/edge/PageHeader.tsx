@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 // Editorial page masthead — the "designed by a person" header that replaces
 // the plain kicker + serif-h1 every page shared. A colored category tag, a
@@ -35,58 +35,8 @@ export function PageHeader({
 }) {
   const c = ACCENT[accent];
   const img = useCoursePhoto(imageSlug ?? null);
-  // Condense the masthead into a sticky title bar once it scrolls out of
-  // view so the user keeps page context as they go down a long list.
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [condensed, setCondensed] = useState(false);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      ([entry]) => setCondensed(!entry.isIntersecting),
-      { rootMargin: "-60px 0px 0px 0px", threshold: 0 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  const titleText = typeof title === "string" ? title : kicker;
 
   return (
-    <>
-      {condensed && (
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Scroll to top"
-          className="fixed left-0 right-0 z-20 flex items-center gap-2 px-4 lg:px-8 py-2 border-b border-line lg:hidden"
-          style={{
-            top: 58, // sit just below the sticky tab nav
-            background: "linear-gradient(180deg, rgba(10,19,14,0.95), rgba(10,19,14,0.82))",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <span
-            className={`inline-block rounded-full ${live ? "gs-status-pulse" : ""}`}
-            style={{ width: 5, height: 5, background: c }}
-          />
-          <span
-            className="num font-bold uppercase truncate"
-            style={{ fontSize: 11, letterSpacing: 0.9, color: "#cfead4" }}
-          >
-            {kicker}
-          </span>
-          <span
-            className="serif-italic truncate text-text-dim"
-            style={{ fontSize: 13, fontStyle: "normal" }}
-          >
-            · {titleText}
-          </span>
-          <span className="num ml-auto" style={{ fontSize: 11, color: "#7e8a83" }}>
-            ↑ Top
-          </span>
-        </button>
-      )}
-      <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />
     <header className="relative overflow-hidden rounded-[16px] mb-6">
       {img && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -156,7 +106,6 @@ export function PageHeader({
         />
       </div>
     </header>
-    </>
   );
 }
 
