@@ -260,6 +260,87 @@ export async function fetchLeaderboard(signal?: AbortSignal): Promise<Leaderboar
   const res = await fetch(`${ENDPOINT}?_=${Date.now()}`, { cache: "no-store", signal });
   if (!res.ok) throw new Error(`ESPN ${res.status}`);
   const json = await res.json();
+  const snap = buildSnapshot(json);
+  // The scoreboard endpoint drops teeTime once a round goes live, but the
+  // summary endpoint keeps the pairings/tee-time data. If most players are
+  // missing a teeTime we still have the active round in flight, so fetch
+  // summary in parallel and backfill.
+  if (snap.event && needsTeeTimeBackfill(snap.players)) {
+    try {
+      await backfillTeeTimes(snap, signal);
+    } catch {
+      // Soft fail — main snapshot is still valid, just without tee times.
+    }
+  }
+  return snap;
+}
+
+function needsTeeTimeBackfill(players: LeaderboardPlayer[]): boolean {
+  if (players.length === 0) return false;
+  const missing = players.filter((p) => !p.teeTime && !p.isCut).length;
+  return missing / players.length > 0.5;
+}
+
+async function backfillTeeTimes(
+  snap: LeaderboardSnapshot,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!snap.event?.id) return;
+  const url = `https://site.api.espn.com/apis/site/v2/sports/golf/pga/summary?event=${snap.event.id}&_=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store", signal });
+  if (!res.ok) return;
+  const json = await res.json();
+
+  // Build a name → teeTime map by walking every shape ESPN has historically
+  // used for round pairings: top-level pairings, leaderboard rounds with
+  // pairings per group, competitor.linescores entries with a teeTime, etc.
+  const teeByAthId = new Map<string, string>();
+  const teeByName = new Map<string, string>();
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+
+  function record(athId: string | undefined, name: string | undefined, tee: string | undefined) {
+    if (!tee) return;
+    if (athId) teeByAthId.set(String(athId), tee);
+    if (name) teeByName.set(norm(name), tee);
+  }
+
+  // Walk an arbitrary nested object and pick up any (player, teeTime) pairs
+  // we can spot. This is intentionally permissive — ESPN moves these around
+  // between endpoints and event states.
+  function walk(node: any) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+    const tee = node.teeTime || node.startTime || null;
+    if (tee && typeof tee === "string") {
+      const ath = node.athlete || node.player || node;
+      const athId = ath?.id;
+      const name = ath?.displayName || ath?.fullName || ath?.shortName || node?.name;
+      record(athId, name, tee);
+    }
+    for (const k of Object.keys(node)) walk(node[k]);
+  }
+  walk(json);
+
+  if (typeof window !== "undefined") {
+    console.log("[espn summary backfill]", {
+      teeByAthIdSize: teeByAthId.size,
+      teeByNameSize: teeByName.size,
+      sample: [...teeByName.entries()].slice(0, 5),
+    });
+  }
+
+  for (const p of snap.players) {
+    if (p.teeTime) continue;
+    const t = teeByAthId.get(p.id) || teeByName.get(norm(p.name));
+    if (t) p.teeTime = t;
+  }
+}
+
+function buildSnapshot(json: any): LeaderboardSnapshot {
   const event = pickEvent(json);
   if (!event) {
     return {
@@ -274,20 +355,6 @@ export async function fetchLeaderboard(signal?: AbortSignal): Promise<Leaderboar
     comp?.status?.period || comp?.status?.type?.period || event?.status?.period || 1,
   );
   const competitors: any[] = comp?.competitors || [];
-  // Temporary debug: dump the first competitor's raw shape so we can see
-  // which paths actually carry the tee time during a live round. Remove
-  // once the tee-time sort is confirmed correct.
-  if (typeof window !== "undefined" && competitors[0]) {
-    const c0 = competitors[0];
-    console.log("[espn raw competitor]", {
-      keys: Object.keys(c0),
-      status: c0.status,
-      startDate: c0.startDate,
-      startTime: c0.startTime,
-      linescoresKeys: Array.isArray(c0.linescores) && c0.linescores[0] ? Object.keys(c0.linescores[0]) : null,
-      firstLinescore: c0.linescores?.[0],
-    });
-  }
   const players = competitors.map((c: any) => normalizePlayer(c, period, par));
   addComputedPositions(players);
 
