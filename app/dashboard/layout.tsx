@@ -7,6 +7,7 @@ import {
   MobileTopBar,
 } from "@/components/edge/chrome";
 import { LiveEventStrap } from "@/components/edge/LiveEventStrap";
+import { LiveTicker } from "@/components/edge/LiveTicker";
 import { CommandPalette } from "@/components/edge/CommandPalette";
 import { PwaInstallPrompt } from "@/components/edge/PwaInstallPrompt";
 import { ToastProvider } from "@/components/edge/Toast";
@@ -29,6 +30,7 @@ export default function DashboardLayout({
         {/* Desktop chrome */}
         <div className="hidden lg:block">
           <DesktopAppBar active={desktopActive} />
+          <LiveTicker />
           <LiveEventStrap />
         </div>
 
@@ -38,6 +40,7 @@ export default function DashboardLayout({
           <div className="pt-3">
             <MobileTopBar />
           </div>
+          <LiveTicker />
           <MobileBottomNav active={mobileActive} />
         </div>
 

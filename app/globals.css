@@ -131,8 +131,27 @@
   border-color: rgba(127, 212, 154, 0.4);
 }
 
+/* Live score ticker — the duplicated track scrolls left continuously for a
+   seamless loop (two copies, translate -50%). Pauses on hover so a score is
+   readable. The ESPN/sportsbook "scores are moving" cue. */
+@keyframes greensideTicker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.gs-ticker-track {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  will-change: transform;
+  animation: greensideTicker var(--gs-ticker-dur, 60s) linear infinite;
+}
+.gs-ticker-track:hover {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gs-rise { animation: none; }
   .gs-lift { transition: none; }
   .gs-lift:hover { transform: none; }
+  .gs-ticker-track { animation: none; }
 }
