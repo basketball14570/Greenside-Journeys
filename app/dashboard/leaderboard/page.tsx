@@ -202,11 +202,11 @@ export default function LeaderboardPage() {
       />
 
       <div className="rounded-[14px] border border-line overflow-hidden bg-surface-1">
-        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 text-[10px] md:text-xs uppercase tracking-wider text-text-dim border-b border-line">
-          <span className="w-4 md:w-9 shrink-0" />
+        <div className="flex items-center gap-1.5 md:gap-3 px-2 md:px-4 py-2.5 text-[10px] md:text-xs uppercase tracking-wider text-text-dim border-b border-line">
+          <span className="w-3 md:w-9 shrink-0" />
           <span className="flex-1 min-w-0">Player</span>
-          <span className="w-11 md:w-[70px] text-right shrink-0">Total</span>
-          <span className="hidden md:inline-block md:w-[70px] text-right shrink-0">Today</span>
+          <span className="w-9 md:w-[70px] text-right shrink-0">Tot</span>
+          <span className="w-9 md:w-[70px] text-right shrink-0">Tdy</span>
           <span className="w-8 md:w-[60px] text-right shrink-0">Thru</span>
         </div>
         <div className="max-h-[640px] overflow-y-auto">
@@ -435,25 +435,26 @@ function Row({
         <span className="absolute left-0 top-0 bottom-0" style={{ width: 3, background: "#7fd49a" }} />
       )}
       <div
-        className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 hover:bg-surface-2"
+        className="flex items-center gap-1.5 md:gap-3 px-2 md:px-4 py-2.5 hover:bg-surface-2"
         onClick={() => canExpand && setOpen((v) => !v)}
         style={{
           cursor: canExpand ? "pointer" : "default",
           background: mine ? "rgba(127,212,154,0.06)" : undefined,
         }}
       >
-        <div className="shrink-0 -ml-1" onClick={(e) => e.stopPropagation()}>
-          <StarButton player={player.name} size={14} />
+        <div className="shrink-0 -ml-0.5" onClick={(e) => e.stopPropagation()}>
+          <StarButton player={player.name} size={12} />
         </div>
-        {/* Rank badge — medal-tinted for the top 3 */}
+        {/* Rank badge — medal-tinted for the top 3. Narrower on mobile so
+            three numeric columns can fit alongside the photo + name. */}
         <span
           className="num shrink-0 inline-flex items-center justify-center font-bold"
           style={{
-            minWidth: 30,
-            height: 22,
-            padding: "0 6px",
-            fontSize: 11.5,
-            borderRadius: 6,
+            minWidth: 24,
+            height: 20,
+            padding: "0 5px",
+            fontSize: 10.5,
+            borderRadius: 5,
             color: player.isCut ? "#7e8a83" : topColor ? "#0a130e" : "#c7cfc9",
             background: player.isCut
               ? "transparent"
@@ -465,17 +466,17 @@ function Row({
         >
           {player.posDisplay || "—"}
         </span>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 md:gap-2">
           <PlayerAvatar
             name={player.name}
             headshot={player.headshot}
             flagHref={player.flagHref}
-            size={28}
+            size={22}
             ring={mine ? "#7fd49a" : null}
           />
           <span
             className="truncate"
-            style={{ fontSize: 13.5, fontWeight: rank != null && rank <= 10 ? 700 : 500 }}
+            style={{ fontSize: 13, fontWeight: rank != null && rank <= 10 ? 700 : 500 }}
           >
             <span className="md:hidden">{abbrevName(player.name)}</span>
             <span className="hidden md:inline">{player.name}</span>
@@ -486,22 +487,22 @@ function Row({
             </span>
           )}
         </div>
-        <div className="shrink-0 w-11 md:w-[70px] flex justify-end">
+        <div className="shrink-0 w-9 md:w-[70px] flex justify-end">
           <ScorePill text={player.totalToPar} num={player.totalScoreNum} strong />
         </div>
         <div
-          className="hidden md:block text-right num shrink-0 md:w-[70px]"
-          style={{ fontSize: 13.5, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) ?? "#a8b3ac" }}
+          className="text-right num shrink-0 w-9 md:w-[70px]"
+          style={{ fontSize: 12.5, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) ?? "#a8b3ac" }}
         >
           {today?.toPar ?? "—"}
         </div>
-        <div className="text-right num shrink-0 w-8 md:w-[60px]" style={{ fontSize: 12.5, color: "#7e8a83" }}>
+        <div className="text-right num shrink-0 w-8 md:w-[60px]" style={{ fontSize: 11.5, color: "#7e8a83" }}>
           {today?.complete
             ? "F"
             : today?.thru != null
               ? today.thru
               : player.teeTime
-                ? <span style={{ color: "#a8b3ac" }}>{formatTeeTime(player.teeTime)}</span>
+                ? <span style={{ color: "#a8b3ac", fontSize: 10 }}>{formatTeeTime(player.teeTime)}</span>
                 : "—"}
         </div>
       </div>
