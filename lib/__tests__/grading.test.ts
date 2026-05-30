@@ -45,6 +45,8 @@ function player(over: Partial<LeaderboardPlayer> & { name: string }): Leaderboar
     name: over.name,
     shortName: over.name,
     countryFlag: "",
+    headshot: null,
+    flagHref: null,
     posDisplay: over.posDisplay ?? "1",
     posNum: over.posNum ?? 1,
     totalToPar: over.totalToPar ?? "E",

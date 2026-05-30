@@ -15,6 +15,7 @@ import { resolveCourseName } from "@/lib/data/course-pars";
 import { courseSlugFor } from "@/lib/weather/forecast";
 import { buildScorecard, HoleStrip } from "@/components/edge/HoleScorecard";
 import { PageHeader } from "@/components/edge/PageHeader";
+import { PlayerAvatar } from "@/components/edge/PlayerAvatar";
 
 const REFRESH_MS = 30_000;
 
@@ -440,15 +441,23 @@ function Row({
         >
           {player.posDisplay || "—"}
         </div>
-        <div className="self-center min-w-0 flex items-center gap-1.5">
-          <span className="font-medium truncate" style={{ fontSize: 13 }}>
-            {player.name}
-          </span>
-          {canExpand && (
-            <span className="num" style={{ fontSize: 8, color: "#7e8a83" }}>
-              {open ? "▲" : "▼"}
+        <div className="self-center min-w-0 flex items-center gap-2">
+          <PlayerAvatar
+            name={player.name}
+            headshot={player.headshot}
+            flagHref={player.flagHref}
+            size={28}
+          />
+          <span className="min-w-0 flex items-center gap-1.5">
+            <span className="font-medium truncate" style={{ fontSize: 13 }}>
+              {player.name}
             </span>
-          )}
+            {canExpand && (
+              <span className="num" style={{ fontSize: 8, color: "#7e8a83" }}>
+                {open ? "▲" : "▼"}
+              </span>
+            )}
+          </span>
         </div>
         <div
           className="text-right num self-center"

@@ -27,6 +27,11 @@ export type LeaderboardPlayer = {
   name: string;
   shortName: string;
   countryFlag: string;
+  // Player identity assets from ESPN: circular headshot URL and the flag
+  // image URL. Null when ESPN doesn't carry them; the UI falls back to
+  // initials / no flag.
+  headshot: string | null;
+  flagHref: string | null;
   posDisplay: string;        // "T3" / "12" / "CUT"
   posNum: number | null;
   totalToPar: string | null; // "+1" / "E" / "-7" — overall to par
@@ -174,11 +179,20 @@ function normalizePlayer(c: any, eventRound: number, par: number | null): Leader
     todayLine.toPar = fmtToPar(todayLine.strokes - par);
   }
 
+  const athId = ath.id || c.id;
+  // ESPN ships a headshot href for most tour players; fall back to the
+  // golf headshot CDN pattern by athlete id when it's absent.
+  const headshot: string | null =
+    ath.headshot?.href ||
+    (athId ? `https://a.espncdn.com/i/headshots/golf/players/full/${athId}.png` : null);
+
   return {
-    id: ath.id || c.id,
+    id: athId,
     name: ath.displayName || ath.fullName || ath.shortName || "Unknown",
     shortName: ath.shortName || "",
     countryFlag: ath.flag?.alt || ath.flag?.href || "",
+    headshot,
+    flagHref: ath.flag?.href || null,
     posDisplay: c.status?.position?.displayName || "",
     posNum: c.status?.position?.id ? Number(c.status.position.id) : null,
     totalToPar:

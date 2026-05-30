@@ -20,6 +20,7 @@ import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
 import { buildScorecard, HoleStrip, type HoleCell } from "@/components/edge/HoleScorecard";
 import { PageHeader } from "@/components/edge/PageHeader";
+import { PlayerAvatar } from "@/components/edge/PlayerAvatar";
 import { shareParlayImage, type ShareLeg } from "@/lib/parlay-share";
 
 // Per-player live shot-quality stats from DataGolf. Pulled separately
@@ -558,6 +559,7 @@ function ParlayGroup({
             dg={g.dg}
             shots={g.shots ?? null}
             scorecard={g.scorecard ?? null}
+            player={g.player ?? null}
             eventName={eventName}
             hideMoney={multi}
             onRemove={!multi ? onRemoveAll : undefined}
@@ -637,6 +639,7 @@ function LiveBetCard({
   dg,
   shots,
   scorecard,
+  player,
   eventName,
   onRemove,
   hideMoney,
@@ -646,6 +649,7 @@ function LiveBetCard({
   dg: DGStat | null;
   shots?: ShotCounts | null;
   scorecard?: HoleCell[] | null;
+  player?: LeaderboardPlayer | null;
   eventName?: string | null;
   onRemove?: () => void;
   hideMoney?: boolean;
@@ -764,7 +768,15 @@ function LiveBetCard({
         </div>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3">
-        <h3 style={{ fontSize: 16, fontWeight: 600 }}>{bet.player}</h3>
+        <h3 className="flex items-center gap-2" style={{ fontSize: 16, fontWeight: 600 }}>
+          <PlayerAvatar
+            name={bet.player}
+            headshot={player?.headshot}
+            flagHref={player?.flagHref}
+            size={30}
+          />
+          {bet.player}
+        </h3>
         {!hideMoney && (
           <span className="num" style={{ fontSize: 12, color: "#a8b3ac" }}>
             {Number(bet.stake).toFixed(2)}u → {Number(bet.to_win).toFixed(2)}u
