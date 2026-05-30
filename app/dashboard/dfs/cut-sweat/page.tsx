@@ -31,6 +31,7 @@ import { projectOwnership } from "@/lib/dfs/project-ownership";
 import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
 import { PageHeader } from "@/components/edge/PageHeader";
+import { ScorePill } from "@/components/edge/ScorePill";
 
 const FORMAT_LABELS: Record<ScoringFormat, string> = {
   classic: "Classic",
@@ -754,15 +755,21 @@ export default function CutSweatPage() {
                           {fmtMargin(b.margin)}
                         </div>
                       </div>
-                      <span className="num text-right text-text-dim">{fmtToPar(b.scoreToPar)}</span>
+                      <span className="flex justify-end">
+                        <ScorePill text={fmtToPar(b.scoreToPar)} num={b.scoreToPar} />
+                      </span>
                       <span className="num text-right text-text-muted">
                         {b.thru == null ? "—" : b.thru >= 18 ? "F" : b.thru}
                       </span>
                       <span className="num text-right text-text">
                         {b.own == null ? "—" : `${b.own.toFixed(1)}%`}
                       </span>
-                      <span className="num text-right" style={{ color: safe ? GREEN : RED, fontWeight: 600 }}>
-                        {(b.makeCut * 100).toFixed(0)}%
+                      <span className="flex justify-end">
+                        <ScorePill
+                          text={`${(b.makeCut * 100).toFixed(0)}%`}
+                          color={safe ? GREEN : RED}
+                          minWidth={42}
+                        />
                       </span>
                     </div>
                   );

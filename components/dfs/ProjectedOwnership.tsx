@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ScorePill } from "@/components/edge/ScorePill";
 
 type Projection = {
   player_name: string;
@@ -207,12 +208,13 @@ export function ProjectedOwnership() {
           />
           <div className="rounded-[14px] border border-line overflow-hidden">
             <div
-              className="grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b border-line"
+              className="grid gap-2 px-4 py-2.5 num font-semibold uppercase text-text-muted border-b"
               style={{
                 gridTemplateColumns: "2fr 80px 100px 90px 110px",
                 fontSize: 10,
                 letterSpacing: 1.1,
-                background: "rgba(0,0,0,0.18)",
+                background: "linear-gradient(90deg, rgba(127,212,154,0.10), rgba(0,0,0,0.18) 60%)",
+                borderColor: "rgba(127,212,154,0.18)",
               }}
             >
               <span>Player</span>
@@ -234,11 +236,12 @@ export function ProjectedOwnership() {
                 <span className="num text-right text-text-dim">
                   ${r.salary.toLocaleString()}
                 </span>
-                <span
-                  className="num text-right font-semibold"
-                  style={{ color: ownColor(r.projected_own) }}
-                >
-                  {r.projected_own.toFixed(1)}%
+                <span className="flex justify-end">
+                  <ScorePill
+                    text={`${r.projected_own.toFixed(1)}%`}
+                    color={ownColor(r.projected_own)}
+                    minWidth={52}
+                  />
                 </span>
                 <span className="num text-right text-text-dim">
                   {r.historical_avg_own != null

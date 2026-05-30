@@ -16,6 +16,7 @@ import { courseSlugFor } from "@/lib/weather/forecast";
 import { buildScorecard, HoleStrip } from "@/components/edge/HoleScorecard";
 import { PageHeader } from "@/components/edge/PageHeader";
 import { PlayerAvatar } from "@/components/edge/PlayerAvatar";
+import { ScorePill, abbrevName } from "@/components/edge/ScorePill";
 
 const REFRESH_MS = 30_000;
 
@@ -486,7 +487,7 @@ function Row({
           )}
         </div>
         <div className="shrink-0 w-11 md:w-[70px] flex justify-end">
-          <ScorePill value={player.totalToPar} num={player.totalScoreNum} strong />
+          <ScorePill text={player.totalToPar} num={player.totalScoreNum} strong />
         </div>
         <div
           className="text-right num shrink-0 w-11 md:w-[70px]"
@@ -511,52 +512,6 @@ function Row({
       )}
     </div>
   );
-}
-
-// To-par as a tinted pill — green under, red over, neutral even. The pop
-// that a bare number lacks on a dark board.
-function ScorePill({
-  value,
-  num,
-  strong,
-}: {
-  value: string | null;
-  num: number | null;
-  strong?: boolean;
-}) {
-  if (value == null) return <span className="num text-text-muted" style={{ fontSize: 13.5 }}>—</span>;
-  const under = num !== null && num < 0;
-  const over = num !== null && num > 0;
-  const color = under ? "#7fd49a" : over ? "#e87c7c" : "#d4dbd6";
-  const bg = under ? "rgba(127,212,154,0.14)" : over ? "rgba(232,124,124,0.13)" : "rgba(255,255,255,0.05)";
-  return (
-    <span
-      className="num inline-flex items-center justify-center font-bold"
-      style={{
-        minWidth: strong ? 40 : 34,
-        height: 22,
-        padding: "0 7px",
-        fontSize: 13.5,
-        borderRadius: 6,
-        color,
-        background: bg,
-      }}
-    >
-      {value}
-    </span>
-  );
-}
-
-// Compact name for tight mobile rows: "Jordan Smith" → "J. Smith",
-// "Christiaan Bezuidenhout" → "C. Bezuidenhout". Keeps an already-initial
-// first token ("J.J. Spaun") intact.
-function abbrevName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return name;
-  const first = parts[0];
-  const last = parts[parts.length - 1];
-  if (first.includes(".")) return `${first} ${last}`;
-  return `${first[0]}. ${last}`;
 }
 
 function parseLeaderTotal(toPar: string | null): number | null {
