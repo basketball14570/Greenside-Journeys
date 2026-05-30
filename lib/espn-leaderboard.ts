@@ -303,17 +303,10 @@ async function backfillTeeTimes(
   const norm = (s: string) =>
     s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
 
-  let filled = 0;
   for (const p of snap.players) {
     if (p.teeTime) continue;
     const t = byName[norm(p.name)];
-    if (t) {
-      p.teeTime = t;
-      filled++;
-    }
-  }
-  if (typeof window !== "undefined") {
-    console.log("[tee-time backfill]", { source: json.source, available: json.count, filled });
+    if (t) p.teeTime = t;
   }
 }
 

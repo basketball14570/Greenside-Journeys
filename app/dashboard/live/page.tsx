@@ -448,27 +448,7 @@ export default function MobileLivePage() {
       else map.set(key, [g]);
     }
     return Array.from(map.entries())
-      .map(([key, legs]) => {
-        const sorted = [...legs].sort(byTeeTime);
-        if (typeof window !== "undefined") {
-          // Temporary debug: print the sort inputs so we can see why a leg
-          // isn't landing where the user expects. Remove once the order is
-          // confirmed correct.
-          console.log("[bet sort]", key, sorted.map((l) => ({
-            player: l.bet.player,
-            teeTime: l.teeTime,
-            todayLine: l.player?.todayLine
-              ? {
-                  thru: l.player.todayLine.thru,
-                  strokes: l.player.todayLine.strokes,
-                  complete: l.player.todayLine.complete,
-                }
-              : null,
-            effectiveTeeMs: effectiveTeeMs(l),
-          })));
-        }
-        return { key, legs: sorted };
-      })
+      .map(([key, legs]) => ({ key, legs: [...legs].sort(byTeeTime) }))
       .sort((a, b) => (a.key < b.key ? 1 : -1));
   }, [graded]);
 
