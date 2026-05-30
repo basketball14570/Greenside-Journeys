@@ -101,6 +101,10 @@ export async function parseBetSlip(
           { type: "text", text: "Extract every bet visible in this slip." },
         ],
       },
+      // Prefill the assistant turn so the model continues from "{" instead of
+      // preambling ("Here's the data:") or wrapping in ```json fences. The
+      // SDK returns only the continuation, so we re-prepend "{" below.
+      { role: "assistant", content: [{ type: "text", text: "{" }] },
     ],
   });
 
@@ -109,11 +113,12 @@ export async function parseBetSlip(
     throw new Error("No text response from Claude");
   }
 
-  const raw = textBlock.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
+  const raw = "{" + textBlock.text;
+  const parsed = extractJson(raw);
+  if (parsed === null) {
+    // Log the raw response so we can see in Vercel logs what shape the
+    // model actually returned when the parser couldn't recover it.
+    console.error("[bet-slip parse] unparseable response:", raw.slice(0, 2000));
     throw new Error(
       "Couldn't read the bet slip. If it's a long parlay, screenshot it in 2 shorter images and upload each — they add to the same tickets.",
     );
@@ -121,9 +126,68 @@ export async function parseBetSlip(
   const betsField = (parsed as { bets?: unknown })?.bets;
   const result = z.array(ParsedBetSchema).safeParse(betsField);
   if (!result.success) {
+    console.error(
+      "[bet-slip parse] schema mismatch:",
+      JSON.stringify(betsField).slice(0, 2000),
+      result.error.issues.slice(0, 5),
+    );
     throw new Error(
       "Bet slip didn't match any known sportsbook format — try a sharper crop",
     );
   }
   return result.data;
+}
+
+// Try increasingly loose strategies to pull a JSON object out of a model
+// response. The strict prompt + assistant prefill should make the first
+// attempt always win, but real model output drifts: fences, preamble,
+// trailing notes, truncation at max_tokens.
+function extractJson(raw: string): unknown | null {
+  const trimmed = raw.trim();
+
+  // 1. Strict — fastest path, should hit when prefill worked.
+  try {
+    return JSON.parse(trimmed);
+  } catch {}
+
+  // 2. Strip surrounding code fences if present.
+  const fenced = trimmed.replace(/^```(?:json)?\s*|\s*```$/g, "");
+  if (fenced !== trimmed) {
+    try {
+      return JSON.parse(fenced);
+    } catch {}
+  }
+
+  // 3. Pull the fenced block out of the middle of prose.
+  const inner = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (inner) {
+    try {
+      return JSON.parse(inner[1].trim());
+    } catch {}
+  }
+
+  // 4. Take everything from the first "{" to the last "}". Handles
+  //    "Here's the data: {...}. Hope this helps." style preambles.
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    } catch {}
+  }
+
+  // 5. Truncated mid-array (hit max_tokens). Walk back to the last
+  //    complete leg and close the brackets ourselves.
+  if (start !== -1) {
+    const head = trimmed.slice(start);
+    const lastComplete = head.lastIndexOf("},");
+    if (lastComplete > 0) {
+      const repaired = head.slice(0, lastComplete + 1) + "]}";
+      try {
+        return JSON.parse(repaired);
+      } catch {}
+    }
+  }
+
+  return null;
 }
