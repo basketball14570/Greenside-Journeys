@@ -2,7 +2,7 @@
 // the endpoint is the same one ESPN's own scoreboard.com uses. CORS is
 // open for browsers — we call it client-side.
 
-import { holeParFor } from "@/lib/data/course-pars";
+import { holeParStrict } from "@/lib/data/course-pars";
 
 const ENDPOINT =
   "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
@@ -392,11 +392,14 @@ export function roundStats(
     if (h.strokes === null || h.strokes <= 0) continue;
     played++;
     strokes += h.strokes;
-    // Par precedence: ESPN's per-hole par (rare) → the event's hole-par
-    // array pulled from ESPN's course record → the static scorecard map.
-    // Without the holePars fallback, unmapped courses default every hole to
-    // par 4, which silently miscounts par-3/par-5 bogeys and birdies.
-    const par = h.par ?? holePars?.[h.hole - 1] ?? holeParFor(courseName, h.hole);
+    // Par precedence: ESPN's per-hole par on the linescore (rare and
+    // authoritative when present — captures tournament-day par changes) →
+    // the curated scorecard map → ESPN's event-level holePars from the
+    // course record → 4. The curated map wins over the snapshot map
+    // because ESPN sometimes ships incomplete `courseRec.holes` (all 4s
+    // or missing entries), which would otherwise miscount any par on a
+    // par-3 as a birdie. Mirrors lib/bets/shot-props.ts.
+    const par = h.par ?? holeParStrict(courseName, h.hole) ?? holePars?.[h.hole - 1] ?? 4;
     const diff = h.strokes - par;
     if (diff <= -2) eagles++;
     else if (diff === -1) birdies++;
