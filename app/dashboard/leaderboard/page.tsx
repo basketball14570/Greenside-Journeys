@@ -201,13 +201,12 @@ export default function LeaderboardPage() {
       />
 
       <div className="rounded-[14px] border border-line overflow-hidden bg-surface-1">
-        <div className="grid gap-1.5 md:gap-2 px-3 md:px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line grid-cols-[20px_24px_1fr_40px_40px_30px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]">
-          <div />
-          <div>Pos</div>
-          <div>Player</div>
-          <div className="text-right">Total</div>
-          <div className="text-right">Today</div>
-          <div className="text-right">Thru</div>
+        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line">
+          <span className="w-4 md:w-9 shrink-0" />
+          <span className="flex-1 min-w-0">Player</span>
+          <span className="w-11 md:w-[70px] text-right shrink-0">Total</span>
+          <span className="w-11 md:w-[70px] text-right shrink-0">Today</span>
+          <span className="w-9 md:w-[60px] text-right shrink-0">Thru</span>
         </div>
         <div className="max-h-[640px] overflow-y-auto">
           {!snapshot && loading ? (
@@ -428,27 +427,27 @@ function Row({
   return (
     <div className="border-b border-line/50 last:border-b-0">
       <div
-        className="grid gap-1.5 md:gap-2 px-3 md:px-4 py-2 hover:bg-surface-2 grid-cols-[20px_24px_1fr_40px_40px_30px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]"
+        className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 hover:bg-surface-2"
         onClick={() => canExpand && setOpen((v) => !v)}
         style={{ cursor: canExpand ? "pointer" : "default" }}
       >
-        <div className="self-center -ml-1" onClick={(e) => e.stopPropagation()}>
+        <div className="shrink-0 -ml-1" onClick={(e) => e.stopPropagation()}>
           <StarButton player={player.name} size={14} />
         </div>
-        <div
-          className="num self-center"
-          style={{ fontSize: 13, color: player.isCut ? "#a8b3ac" : undefined }}
-        >
-          {player.posDisplay || "—"}
-        </div>
-        <div className="self-center min-w-0 flex items-center gap-1.5">
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <span
+            className="num shrink-0 text-right"
+            style={{ fontSize: 12, width: 26, color: player.isCut ? "#a8b3ac" : "#7e8a83" }}
+          >
+            {player.posDisplay || "—"}
+          </span>
           <PlayerAvatar
             name={player.name}
             headshot={player.headshot}
             flagHref={player.flagHref}
-            size={24}
+            size={26}
           />
-          <span className="font-medium truncate" style={{ fontSize: 13 }}>
+          <span className="font-medium truncate" style={{ fontSize: 13.5 }}>
             {player.name}
           </span>
           {canExpand && (
@@ -458,18 +457,18 @@ function Row({
           )}
         </div>
         <div
-          className="text-right num self-center"
+          className="text-right num shrink-0 w-11 md:w-[70px]"
           style={{ fontSize: 14, color: colorForToPar(player.totalScoreNum) }}
         >
           {player.totalToPar ?? "—"}
         </div>
         <div
-          className="text-right num self-center"
+          className="text-right num shrink-0 w-11 md:w-[70px]"
           style={{ fontSize: 14, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) }}
         >
           {today?.toPar ?? "—"}
         </div>
-        <div className="text-right num self-center" style={{ fontSize: 13 }}>
+        <div className="text-right num shrink-0 w-9 md:w-[60px]" style={{ fontSize: 13 }}>
           {today?.complete
             ? "F"
             : today?.thru != null
