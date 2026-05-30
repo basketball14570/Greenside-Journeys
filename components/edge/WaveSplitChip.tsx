@@ -433,38 +433,38 @@ function RoundAggregates({
         return (
           <li
             key={r.date}
-            className="grid items-center gap-3 px-3 py-2.5 rounded-[10px] border border-line"
-            style={{
-              gridTemplateColumns: "60px 1fr 90px",
-              background: "rgba(0,0,0,0.12)",
-            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] border border-line"
+            style={{ background: "rgba(0,0,0,0.12)" }}
           >
-            <span className="num" style={{ fontSize: 13, fontWeight: 600 }}>
+            <span
+              className="num shrink-0 inline-flex items-center justify-center font-bold"
+              style={{
+                width: 34,
+                height: 22,
+                fontSize: 11,
+                borderRadius: 6,
+                background: "rgba(255,255,255,0.06)",
+                color: "#d4dbd6",
+              }}
+            >
               {r.dayLabel}
             </span>
-            <div className="flex items-baseline gap-3 num flex-wrap" style={{ fontSize: 12.5 }}>
-              <span style={{ color: "#a8b3ac" }}>
-                AM{" "}
-                <strong style={{ color: "#f0ebe0" }}>
-                  {r.am?.windAvg ?? "—"}
-                </strong>
-                {r.am ? `mph · ${r.am.tempAvg}°` : ""}
-              </span>
-              <span style={{ color: "#6c7a72" }}>·</span>
-              <span style={{ color: "#a8b3ac" }}>
-                PM{" "}
-                <strong style={{ color: "#f0ebe0" }}>
-                  {r.pm?.windAvg ?? "—"}
-                </strong>
-                {r.pm ? `mph · ${r.pm.tempAvg}°` : ""}
-              </span>
-            </div>
+            <span className="num shrink-0" style={{ fontSize: 12 }}>
+              <span style={{ color: "#7e8a83" }}>AM </span>
+              <strong style={{ color: "#f0ebe0" }}>{r.am?.windAvg ?? "—"}</strong>
+              {r.am ? <span style={{ color: "#7e8a83" }}>mph·{r.am.tempAvg}°</span> : null}
+            </span>
+            <span className="num shrink-0" style={{ fontSize: 12 }}>
+              <span style={{ color: "#7e8a83" }}>PM </span>
+              <strong style={{ color: "#f0ebe0" }}>{r.pm?.windAvg ?? "—"}</strong>
+              {r.pm ? <span style={{ color: "#7e8a83" }}>mph·{r.pm.tempAvg}°</span> : null}
+            </span>
             <span
-              className="num text-right"
+              className="num shrink-0 ml-auto"
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 padding: "2px 8px",
-                borderRadius: 4,
+                borderRadius: 5,
                 color,
                 background: `${color}1a`,
                 border: `1px solid ${color}33`,

@@ -10,6 +10,7 @@ import {
   type ForecastHour,
 } from "@/lib/weather/forecast";
 import { WaveSplitDetail } from "@/components/edge/WaveSplitChip";
+import { PageHeader } from "@/components/edge/PageHeader";
 
 // Weather hub. Goal: never make a user leave the site to check the
 // forecast at their tournament. Hourly grid (temp, wind, gust, direction,
@@ -34,50 +35,36 @@ export default async function WeatherPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
+      <PageHeader
+        kicker="Weather"
+        title="Hourly at the course."
+        imageSlug={event ? courseSlugFor(event.course) : null}
+        subtitle={
+          event ? (
+            <>
+              {event.course} · {event.city} ·{" "}
+              <span className="num text-text-muted">
+                {event.startDate} → {event.endDate}
+              </span>
+            </>
+          ) : (
+            "No active event."
+          )
+        }
+        right={
           <span
-            className="num font-semibold uppercase"
-            style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
+            className="num text-text-muted text-right block"
+            style={{ fontSize: 10, letterSpacing: 0.4, lineHeight: 1.5 }}
           >
-            ● Weather
-          </span>
-          <h1
-            className="serif-italic mt-1.5"
-            style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
-          >
-            <em>Hourly at the course.</em>
-          </h1>
-          <p className="text-text-dim mt-2 max-w-2xl" style={{ fontSize: 14 }}>
-            {event ? (
-              <>
-                {event.course} · {event.city} ·{" "}
-                <span className="num text-text-muted">
-                  {event.startDate} → {event.endDate}
-                </span>
-              </>
-            ) : (
-              "No active event."
+            NOAA HRRR / GFS · Open-Meteo
+            {forecast?.fetchedAt && (
+              <span className="block">
+                Updated {new Date(forecast.fetchedAt).toLocaleTimeString()}
+              </span>
             )}
-          </p>
-        </div>
-        <div className="text-right">
-          <span
-            className="num text-text-muted block"
-            style={{ fontSize: 10.5, letterSpacing: 0.4 }}
-          >
-            Powered by NOAA HRRR / GFS via Open-Meteo
           </span>
-          {forecast?.fetchedAt && (
-            <span
-              className="num text-text-muted block mt-0.5"
-              style={{ fontSize: 10.5, letterSpacing: 0.4 }}
-            >
-              Updated {new Date(forecast.fetchedAt).toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-      </header>
+        }
+      />
 
       {!forecast && (
         <div className="rounded-[14px] border border-line bg-surface-1 p-5">
