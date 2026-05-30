@@ -285,58 +285,35 @@ async function backfillTeeTimes(
   snap: LeaderboardSnapshot,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (!snap.event?.id) return;
-  const url = `https://site.api.espn.com/apis/site/v2/sports/golf/pga/summary?event=${snap.event.id}&_=${Date.now()}`;
-  const res = await fetch(url, { cache: "no-store", signal });
-  if (!res.ok) return;
-  const json = await res.json();
+  // Client-only: hits our own /api/leaderboard/tee-times route which
+  // proxies DataGolf's in-play feed (DataGolf keeps tee times populated
+  // through the live round, unlike ESPN's scoreboard endpoint which nulls
+  // them out as soon as the round goes "in").
+  if (typeof window === "undefined") return;
 
-  // Build a name → teeTime map by walking every shape ESPN has historically
-  // used for round pairings: top-level pairings, leaderboard rounds with
-  // pairings per group, competitor.linescores entries with a teeTime, etc.
-  const teeByAthId = new Map<string, string>();
-  const teeByName = new Map<string, string>();
+  const res = await fetch(`/api/leaderboard/tee-times?_=${Date.now()}`, {
+    cache: "no-store",
+    signal,
+  });
+  if (!res.ok) return;
+  const json: { byName?: Record<string, string>; source?: string; count?: number } =
+    await res.json();
+  const byName = json.byName ?? {};
+
   const norm = (s: string) =>
     s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
 
-  function record(athId: string | undefined, name: string | undefined, tee: string | undefined) {
-    if (!tee) return;
-    if (athId) teeByAthId.set(String(athId), tee);
-    if (name) teeByName.set(norm(name), tee);
-  }
-
-  // Walk an arbitrary nested object and pick up any (player, teeTime) pairs
-  // we can spot. This is intentionally permissive — ESPN moves these around
-  // between endpoints and event states.
-  function walk(node: any) {
-    if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) {
-      for (const item of node) walk(item);
-      return;
-    }
-    const tee = node.teeTime || node.startTime || null;
-    if (tee && typeof tee === "string") {
-      const ath = node.athlete || node.player || node;
-      const athId = ath?.id;
-      const name = ath?.displayName || ath?.fullName || ath?.shortName || node?.name;
-      record(athId, name, tee);
-    }
-    for (const k of Object.keys(node)) walk(node[k]);
-  }
-  walk(json);
-
-  if (typeof window !== "undefined") {
-    console.log("[espn summary backfill]", {
-      teeByAthIdSize: teeByAthId.size,
-      teeByNameSize: teeByName.size,
-      sample: [...teeByName.entries()].slice(0, 5),
-    });
-  }
-
+  let filled = 0;
   for (const p of snap.players) {
     if (p.teeTime) continue;
-    const t = teeByAthId.get(p.id) || teeByName.get(norm(p.name));
-    if (t) p.teeTime = t;
+    const t = byName[norm(p.name)];
+    if (t) {
+      p.teeTime = t;
+      filled++;
+    }
+  }
+  if (typeof window !== "undefined") {
+    console.log("[tee-time backfill]", { source: json.source, available: json.count, filled });
   }
 }
 

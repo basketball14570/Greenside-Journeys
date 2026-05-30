@@ -212,19 +212,34 @@ const TEED_OFF_BASE = -1e15;
 
 function effectiveTeeMs(leg: GradedLeg): number {
   const today = leg.player?.todayLine;
-  // ESPN sometimes creates a placeholder todayLine for players in the
-  // field who haven't teed off yet (thru null, strokes null, not
-  // complete). Require an actual play signal so those players are still
-  // treated as upcoming and sort by their real tee time.
   const hasStarted = !!today && (today.complete || (today.thru ?? 0) > 0 || today.strokes !== null);
   if (hasStarted) {
     return TEED_OFF_BASE + (18 - (today!.thru ?? 0));
   }
   if (leg.teeTime) {
-    const t = Date.parse(leg.teeTime);
-    if (Number.isFinite(t)) return t;
+    const t = parseTeeTime(leg.teeTime);
+    if (t !== null) return t;
   }
   return Number.MAX_SAFE_INTEGER;
+}
+
+// Tee time comes from two sources with two formats: ESPN ships ISO strings
+// ("2026-05-31T15:30:00Z"); DataGolf ships local time-of-day ("10:30",
+// "10:30 AM", "13:45"). Both need to be ordinally comparable. For ISO we
+// use the parsed timestamp; for plain time-of-day we just convert
+// HH * 60 + MM into a synthetic minute count — within a single round
+// that's enough to order players chronologically.
+function parseTeeTime(s: string): number | null {
+  const isoMs = Date.parse(s);
+  if (Number.isFinite(isoMs)) return isoMs;
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+  if (!m) return null;
+  let hh = Number(m[1]);
+  const mm = Number(m[2]);
+  const ampm = m[3]?.toLowerCase();
+  if (ampm === "pm" && hh < 12) hh += 12;
+  if (ampm === "am" && hh === 12) hh = 0;
+  return hh * 60 + mm;
 }
 
 function byTeeTime(a: GradedLeg, b: GradedLeg): number {
