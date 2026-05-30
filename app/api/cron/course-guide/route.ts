@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SCHEDULE } from "@/lib/data/pga-schedule";
 import { getCourseProfile, fetchEspnCourseHoles } from "@/lib/data/course-profiles";
 import { buildGuide, slugifyCourse } from "@/lib/course-guides/build";
+import { generateCourseProfile } from "@/lib/course-guides/profile-gen";
 import { guideExists, upsertGuide } from "@/lib/course-guides/store";
 
 export const runtime = "nodejs";
@@ -47,20 +48,31 @@ export async function GET(req: Request) {
     return NextResponse.json({ ran_at: new Date().toISOString(), skipped: "no eligible event" });
   }
 
-  const profile = getCourseProfile(target.course);
+  // Prefer live ESPN holes when complete; needed by both the repo profile
+  // path and the generated-profile fallback below.
+  const espnHoles = await fetchEspnCourseHoles();
+
+  // Hand-authored profile wins. When a venue isn't in the repo, have the
+  // model build the structural profile (metadata + holes when ESPN lacks
+  // them) so the guide still generates instead of the cron skipping.
+  let profile = getCourseProfile(target.course);
+  let profileSource: "repo" | "model" = "repo";
+  let genHolesSource: "espn" | "model" | null = null;
   if (!profile) {
-    // No structural profile — we can't fabricate course meta. Surface so a
-    // venue can be added to lib/data/course-profiles.ts.
-    return NextResponse.json({
-      ran_at: new Date().toISOString(),
-      skipped: "no course profile",
-      event: target.name,
-      course: target.course,
-    });
+    const generated = await generateCourseProfile(target, espnHoles);
+    if (!generated) {
+      return NextResponse.json({
+        ran_at: new Date().toISOString(),
+        skipped: "no course profile and generation failed",
+        event: target.name,
+        course: target.course,
+      });
+    }
+    profile = generated.profile;
+    profileSource = "model";
+    genHolesSource = generated.holesSource;
   }
 
-  // Prefer live ESPN holes when complete; otherwise the repo profile.
-  const espnHoles = await fetchEspnCourseHoles();
   const holes = espnHoles ?? profile.holes;
 
   const guide = await buildGuide(target, profile, holes);
@@ -77,7 +89,8 @@ export async function GET(req: Request) {
     published: ok,
     slug: guide.slug,
     event: target.name,
-    holesSource: espnHoles ? "espn" : "profile",
+    profileSource,
+    holesSource: espnHoles ? "espn" : genHolesSource ?? "profile",
   });
 }
 

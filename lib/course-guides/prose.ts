@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { claude } from "@/lib/claude";
+import { claude, WRITING_MODEL } from "@/lib/claude";
 import type { DriverTier, HoleGuide } from "./types";
 import type { TierAggregate } from "./generate";
 
@@ -8,7 +8,7 @@ import type { TierAggregate } from "./generate";
 // house voice. Returns null on any failure so the cron skips publishing
 // rather than shipping a broken/half guide.
 
-const GUIDE_MODEL = "claude-sonnet-4-6";
+const GUIDE_MODEL = WRITING_MODEL;
 
 const ToneEnum = z.enum(["fit", "fade", "prop", "general"]);
 

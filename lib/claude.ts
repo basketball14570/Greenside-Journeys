@@ -13,3 +13,8 @@ export function claude(): Anthropic {
 // Default vision-capable Claude model for bet-slip parsing.
 // Keep this in one place so model upgrades are a single-line change.
 export const VISION_MODEL = "claude-sonnet-4-6";
+
+// Long-form writing / reasoning model — course-guide prose and the
+// structural-profile generation. Uses the most capable Opus tier since
+// these run rarely (weekly cron) and quality is the whole point.
+export const WRITING_MODEL = "claude-opus-4-8";
