@@ -1,6 +1,23 @@
 import { z } from "zod";
 import { claude, VISION_MODEL } from "@/lib/claude";
 
+// Carries the raw model response when parsing fails, so the API route can
+// surface it for debugging without losing the user-facing error message.
+export class BetSlipParseError extends Error {
+  rawResponse?: string;
+  stage?: "no_text" | "unparseable" | "schema_mismatch";
+  schemaIssues?: unknown;
+  constructor(
+    message: string,
+    opts: { rawResponse?: string; stage?: BetSlipParseError["stage"]; schemaIssues?: unknown } = {},
+  ) {
+    super(message);
+    this.rawResponse = opts.rawResponse;
+    this.stage = opts.stage;
+    this.schemaIssues = opts.schemaIssues;
+  }
+}
+
 export const ParsedBetSchema = z.object({
   book: z.enum([
     "draftkings",
@@ -110,17 +127,19 @@ export async function parseBetSlip(
 
   const textBlock = res.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from Claude");
+    throw new BetSlipParseError("No text response from Claude", {
+      stage: "no_text",
+      rawResponse: JSON.stringify(res.content).slice(0, 2000),
+    });
   }
 
   const raw = "{" + textBlock.text;
   const parsed = extractJson(raw);
   if (parsed === null) {
-    // Log the raw response so we can see in Vercel logs what shape the
-    // model actually returned when the parser couldn't recover it.
     console.error("[bet-slip parse] unparseable response:", raw.slice(0, 2000));
-    throw new Error(
+    throw new BetSlipParseError(
       "Couldn't read the bet slip. If it's a long parlay, screenshot it in 2 shorter images and upload each — they add to the same tickets.",
+      { stage: "unparseable", rawResponse: raw.slice(0, 2000) },
     );
   }
   const betsField = (parsed as { bets?: unknown })?.bets;
@@ -131,8 +150,13 @@ export async function parseBetSlip(
       JSON.stringify(betsField).slice(0, 2000),
       result.error.issues.slice(0, 5),
     );
-    throw new Error(
+    throw new BetSlipParseError(
       "Bet slip didn't match any known sportsbook format — try a sharper crop",
+      {
+        stage: "schema_mismatch",
+        rawResponse: JSON.stringify(betsField).slice(0, 2000),
+        schemaIssues: result.error.issues.slice(0, 5),
+      },
     );
   }
   return result.data;

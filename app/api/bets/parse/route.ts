@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseBetSlip } from "@/lib/parsers/screenshot";
+import { parseBetSlip, BetSlipParseError } from "@/lib/parsers/screenshot";
 import { supabaseServer } from "@/lib/supabase/server";
 import { checkQuota, bumpUsage, QUOTA_ERROR_CODE } from "@/lib/usage";
 
@@ -65,6 +65,28 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // For parse-specific failures, include the raw model response and stage
+    // in the body (not user-visible — for devtools/log inspection). Helps
+    // diagnose "the message looks the same but I don't know why" cases.
+    if (err instanceof BetSlipParseError) {
+      return NextResponse.json(
+        {
+          error: msg,
+          debug: {
+            stage: err.stage,
+            rawResponse: err.rawResponse,
+            schemaIssues: err.schemaIssues,
+          },
+        },
+        { status: 500 },
+      );
+    }
+    // Anthropic SDK errors carry a numeric status; surface it in debug so
+    // we can tell upstream 4xx (bad model/image/auth) from our own 5xx.
+    const status = (err as { status?: number })?.status;
+    return NextResponse.json(
+      { error: msg, debug: status ? { upstreamStatus: status } : undefined },
+      { status: 500 },
+    );
   }
 }
