@@ -188,18 +188,18 @@ function classify(player: LeaderboardPlayer | null): {
 } {
   if (!player) return { bucket: "other", sortKey: Number.MAX_SAFE_INTEGER };
   const today = player.todayLine;
-  const thru = today?.thru ?? null;
-  // Done today: round complete or full 18 logged.
-  if (today?.complete || thru === 18) {
-    return { bucket: "done", sortKey: 0 };
+  // ESPN populates todayLine the moment a player tees off, so its mere
+  // presence is the "they're playing today" signal. thru can still be
+  // null in that window (just teed, no holes complete yet) — earlier
+  // code missed that and dropped first-hole players into "upcoming".
+  if (today) {
+    if (today.complete || today.thru === 18) {
+      return { bucket: "done", sortKey: 0 };
+    }
+    // Live: closer to finishing = smaller sortKey = sorts to the top of
+    // the section. Just-teed players (thru null) sort last within Live.
+    return { bucket: "live", sortKey: 18 - (today.thru ?? 0) };
   }
-  // Live: in progress (some holes done, not all).
-  if (thru !== null && thru > 0 && thru < 18) {
-    // Lower thru first = teed off most recently. Bettors usually want
-    // "who's about to settle next" — invert so closer-to-finish leads.
-    return { bucket: "live", sortKey: 18 - thru };
-  }
-  // Upcoming: has a tee time, hasn't started.
   if (player.teeTime) {
     const t = Date.parse(player.teeTime);
     return { bucket: "upcoming", sortKey: Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER };

@@ -115,22 +115,27 @@ function ticketBucket(
   let latestDoneMs = 0;
   for (const leg of legs) {
     const today = leg.player?.todayLine;
-    const thru = today?.thru ?? null;
     const teeMs = leg.teeTime ? Date.parse(leg.teeTime) : NaN;
     const settled = leg.bet.status === "won" || leg.bet.status === "lost" || leg.bet.status === "push" || leg.bet.status === "void";
     if (settled) {
       if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
       continue;
     }
-    if (today?.complete || thru === 18) {
-      if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
+    // todayLine being present is the "playing today" signal — ESPN sets
+    // it when a player tees off, even before they complete their first
+    // hole (thru is still null in that window). Don't gate on thru > 0.
+    if (today) {
+      if (today.complete || today.thru === 18) {
+        if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
+        continue;
+      }
+      allDone = false;
+      hasLive = true;
+      mostUrgentLive = Math.min(mostUrgentLive, 18 - (today.thru ?? 0));
       continue;
     }
     allDone = false;
-    if (thru !== null && thru > 0 && thru < 18) {
-      hasLive = true;
-      mostUrgentLive = Math.min(mostUrgentLive, 18 - thru);
-    } else if (leg.teeTime && Number.isFinite(teeMs)) {
+    if (leg.teeTime && Number.isFinite(teeMs)) {
       hasUpcoming = true;
       earliestUpcomingMs = Math.min(earliestUpcomingMs, teeMs);
     }
