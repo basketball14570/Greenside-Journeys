@@ -115,13 +115,15 @@ export async function parseBetSlip(
             type: "image",
             source: { type: "base64", media_type: mediaType, data: imageBase64 },
           },
-          { type: "text", text: "Extract every bet visible in this slip." },
+          // Explicit instruction to start the response with "{" — assistant
+          // prefill isn't supported on this model, so we lean on the prompt
+          // plus the lenient extractor below to recover any prose wrapping.
+          {
+            type: "text",
+            text: "Extract every bet visible in this slip. Respond with ONLY the JSON object, starting with { and ending with }. No prose, no code fences, no preamble.",
+          },
         ],
       },
-      // Prefill the assistant turn so the model continues from "{" instead of
-      // preambling ("Here's the data:") or wrapping in ```json fences. The
-      // SDK returns only the continuation, so we re-prepend "{" below.
-      { role: "assistant", content: [{ type: "text", text: "{" }] },
     ],
   });
 
@@ -133,7 +135,7 @@ export async function parseBetSlip(
     });
   }
 
-  const raw = "{" + textBlock.text;
+  const raw = textBlock.text;
   const parsed = extractJson(raw);
   if (parsed === null) {
     console.error("[bet-slip parse] unparseable response:", raw.slice(0, 2000));
