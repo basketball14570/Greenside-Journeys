@@ -212,7 +212,16 @@ function normalizePlayer(c: any, eventRound: number, par: number | null): Leader
     currentRound: eventRound,
     todayLine,
     rounds: linescores,
-    teeTime: c.status?.teeTime || null,
+    // ESPN sometimes returns the tee time on different paths depending on
+    // the event state (pre-round vs mid-round). Walk the most common
+    // locations so we don't drop the data once a round has started.
+    teeTime:
+      c.status?.teeTime ||
+      c.status?.startTime ||
+      c.status?.type?.teeTime ||
+      c.startDate ||
+      c.startTime ||
+      null,
     statusText: status,
   };
 }
@@ -264,9 +273,22 @@ export async function fetchLeaderboard(signal?: AbortSignal): Promise<Leaderboar
   const period = Number(
     comp?.status?.period || comp?.status?.type?.period || event?.status?.period || 1,
   );
-  const players = (comp?.competitors || []).map((c: any) =>
-    normalizePlayer(c, period, par),
-  );
+  const competitors: any[] = comp?.competitors || [];
+  // Temporary debug: dump the first competitor's raw shape so we can see
+  // which paths actually carry the tee time during a live round. Remove
+  // once the tee-time sort is confirmed correct.
+  if (typeof window !== "undefined" && competitors[0]) {
+    const c0 = competitors[0];
+    console.log("[espn raw competitor]", {
+      keys: Object.keys(c0),
+      status: c0.status,
+      startDate: c0.startDate,
+      startTime: c0.startTime,
+      linescoresKeys: Array.isArray(c0.linescores) && c0.linescores[0] ? Object.keys(c0.linescores[0]) : null,
+      firstLinescore: c0.linescores?.[0],
+    });
+  }
+  const players = competitors.map((c: any) => normalizePlayer(c, period, par));
   addComputedPositions(players);
 
   const courseRec = Array.isArray(comp?.courses) ? comp.courses[0] : comp?.course;
