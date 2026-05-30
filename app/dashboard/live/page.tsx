@@ -121,17 +121,19 @@ function ticketBucket(
       if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
       continue;
     }
-    // todayLine being present is the "playing today" signal — ESPN sets
-    // it when a player tees off, even before they complete their first
-    // hole (thru is still null in that window). Don't gate on thru > 0.
-    if (today) {
-      if (today.complete || today.thru === 18) {
+    // todayLine alone isn't enough — ESPN sometimes ships a placeholder
+    // for not-yet-teed players. Require an actual play signal (a hole
+    // done, recorded strokes, or completion) before counting them as
+    // having started today.
+    const hasStarted = !!today && (today.complete || (today.thru ?? 0) > 0 || today.strokes !== null);
+    if (hasStarted) {
+      if (today!.complete || today!.thru === 18) {
         if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
         continue;
       }
       allDone = false;
       hasLive = true;
-      mostUrgentLive = Math.min(mostUrgentLive, 18 - (today.thru ?? 0));
+      mostUrgentLive = Math.min(mostUrgentLive, 18 - (today!.thru ?? 0));
       continue;
     }
     allDone = false;
@@ -210,8 +212,13 @@ const TEED_OFF_BASE = -1e15;
 
 function effectiveTeeMs(leg: GradedLeg): number {
   const today = leg.player?.todayLine;
-  if (today) {
-    return TEED_OFF_BASE + (18 - (today.thru ?? 0));
+  // ESPN sometimes creates a placeholder todayLine for players in the
+  // field who haven't teed off yet (thru null, strokes null, not
+  // complete). Require an actual play signal so those players are still
+  // treated as upcoming and sort by their real tee time.
+  const hasStarted = !!today && (today.complete || (today.thru ?? 0) > 0 || today.strokes !== null);
+  if (hasStarted) {
+    return TEED_OFF_BASE + (18 - (today!.thru ?? 0));
   }
   if (leg.teeTime) {
     const t = Date.parse(leg.teeTime);

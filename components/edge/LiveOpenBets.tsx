@@ -188,17 +188,17 @@ function classify(player: LeaderboardPlayer | null): {
 } {
   if (!player) return { bucket: "other", sortKey: Number.MAX_SAFE_INTEGER };
   const today = player.todayLine;
-  // ESPN populates todayLine the moment a player tees off, so its mere
-  // presence is the "they're playing today" signal. thru can still be
-  // null in that window (just teed, no holes complete yet) — earlier
-  // code missed that and dropped first-hole players into "upcoming".
-  if (today) {
-    if (today.complete || today.thru === 18) {
+  // ESPN sometimes ships a placeholder todayLine for not-yet-teed players
+  // in the field. Require an actual play signal (a hole done, strokes
+  // recorded, or completion) before counting them as having started.
+  const hasStarted = !!today && (today.complete || (today.thru ?? 0) > 0 || today.strokes !== null);
+  if (hasStarted) {
+    if (today!.complete || today!.thru === 18) {
       return { bucket: "done", sortKey: 0 };
     }
-    // Live: closer to finishing = smaller sortKey = sorts to the top of
-    // the section. Just-teed players (thru null) sort last within Live.
-    return { bucket: "live", sortKey: 18 - (today.thru ?? 0) };
+    // Live: more holes done = teed off earlier = smaller sortKey = top
+    // of the section. Just-teed (thru null) lands at the bottom of Live.
+    return { bucket: "live", sortKey: 18 - (today!.thru ?? 0) };
   }
   if (player.teeTime) {
     const t = Date.parse(player.teeTime);
