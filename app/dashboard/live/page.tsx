@@ -767,29 +767,37 @@ function LiveBetCard({
           )}
         </div>
       </div>
-      <div className="mt-2 flex items-baseline justify-between gap-3">
-        <h3 className="flex items-center gap-2" style={{ fontSize: 16, fontWeight: 600 }}>
-          <PlayerAvatar
-            name={bet.player}
-            headshot={player?.headshot}
-            flagHref={player?.flagHref}
-            size={30}
-          />
-          {bet.player}
-        </h3>
+      <div className="mt-2.5 flex items-center gap-3">
+        <PlayerAvatar
+          name={bet.player}
+          headshot={player?.headshot}
+          flagHref={player?.flagHref}
+          size={44}
+        />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate" style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.2 }}>
+            {bet.player}
+          </h3>
+          <p
+            className="mt-0.5 text-text-dim truncate"
+            style={{ fontSize: 12.5, lineHeight: 1.3 }}
+          >
+            {decision?.bet.market ?? bet.market}
+            {bet.line !== null ? ` · ${bet.line}` : ""}
+          </p>
+        </div>
         {!hideMoney && (
-          <span className="num" style={{ fontSize: 12, color: "#a8b3ac" }}>
-            {Number(bet.stake).toFixed(2)}u → {Number(bet.to_win).toFixed(2)}u
-          </span>
+          <div className="text-right shrink-0 leading-tight">
+            <div className="num font-bold" style={{ fontSize: 16, color: "#7fd49a", letterSpacing: -0.3 }}>
+              {Number(bet.to_win).toFixed(0)}
+              <span style={{ fontSize: 11, color: "#a8b3ac" }}>u</span>
+            </div>
+            <div className="num text-text-muted mt-0.5" style={{ fontSize: 10.5, letterSpacing: 0.3 }}>
+              risk {Number(bet.stake).toFixed(0)}u
+            </div>
+          </div>
         )}
       </div>
-      <p
-        className="mt-1 text-text-dim"
-        style={{ fontSize: 13, lineHeight: 1.4 }}
-      >
-        {decision?.bet.market ?? bet.market}
-        {bet.line !== null ? ` · ${bet.line}` : ""}
-      </p>
       {decision?.reason && (
         <p
           className="mt-2 num"

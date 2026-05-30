@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { PlayerAvatar } from "@/components/edge/PlayerAvatar";
+import { fetchLeaderboard, type LeaderboardPlayer } from "@/lib/espn-leaderboard";
 
 // "This week's edge" — DataGolf pre-tournament projections on the
 // dashboard home. Top players by win% with their top5/top10/top20/
@@ -25,10 +27,16 @@ type Response = {
 export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
   const [data, setData] = useState<Response | null>(null);
   const [loading, setLoading] = useState(true);
+  const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    fetchLeaderboard()
+      .then((s) => {
+        if (!cancelled) setPlayers(s.players);
+      })
+      .catch(() => {});
     fetch("/api/projections/this-week", { cache: "no-store" })
       .then((r) => r.json())
       .then((j: Response) => {
@@ -44,6 +52,16 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
   }, []);
 
   const rows = (data?.projections ?? []).slice(0, limit);
+  // Match projection names to leaderboard headshots/flags so each row
+  // has a face. Loose-match by normalized token set so "C. Bezuidenhout"
+  // and "Christiaan Bezuidenhout" line up.
+  const playerByName = useMemo(() => {
+    const key = (s: string) =>
+      s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+    const m = new Map<string, LeaderboardPlayer>();
+    for (const p of players) m.set(key(p.name), p);
+    return (name: string) => m.get(key(name)) ?? null;
+  }, [players]);
   const isLive = data?.source === "datagolf";
 
   return (
@@ -97,11 +115,12 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
       <div
         className="grid gap-2 px-4 py-2 num font-semibold uppercase text-text-muted border-b border-line"
         style={{
-          gridTemplateColumns: "16px 1fr 54px 50px 50px 50px",
+          gridTemplateColumns: "16px 22px 1fr 54px 44px 44px 44px",
           fontSize: 9,
           letterSpacing: 1.1,
         }}
       >
+        <span />
         <span />
         <span>Player</span>
         <span className="text-right">Win</span>
@@ -121,7 +140,7 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
             key={r.player_name + i}
             className="relative grid gap-2 px-4 py-2.5 items-center"
             style={{
-              gridTemplateColumns: "16px 1fr 54px 50px 50px 50px",
+              gridTemplateColumns: "16px 22px 1fr 54px 44px 44px 44px",
               borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
               background: i === 0 ? "rgba(127,212,154,0.05)" : "transparent",
             }}
@@ -138,6 +157,12 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
             >
               {i + 1}
             </span>
+            <PlayerAvatar
+              name={r.player_name}
+              headshot={playerByName(r.player_name)?.headshot}
+              flagHref={playerByName(r.player_name)?.flagHref}
+              size={22}
+            />
             <div
               className="text-text truncate"
               style={{ fontSize: 13, fontWeight: i === 0 ? 700 : i < 3 ? 600 : 400 }}
