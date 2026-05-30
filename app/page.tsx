@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MarketingNav, MarketingFooter } from "@/components/marketing/Nav";
+import { LiveTicker } from "@/components/edge/LiveTicker";
 import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import { FEATURED_PARLAY } from "@/lib/data/featured-parlay";
 
@@ -17,6 +18,9 @@ export default function MarketingHome() {
   return (
     <main className="min-h-screen bg-bg text-text">
       <MarketingNav />
+
+      {/* Live proof — real moving golf data before the visitor scrolls. */}
+      <LiveTicker />
 
       {/* ─── Hero ─────────────────────────────────────── */}
       <section className="relative overflow-hidden">
