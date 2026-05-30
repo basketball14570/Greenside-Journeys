@@ -5,6 +5,7 @@ import { getPlayerHistory } from "@/lib/data/ownership";
 import { OptimizerPanel } from "@/components/edge/OptimizerPanel";
 import { ManualLineup } from "@/components/edge/ManualLineup";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
+import { PageHeader } from "@/components/edge/PageHeader";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,36 +22,28 @@ export default async function DfsPage() {
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
       <DfsMobileNav />
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <span
-            className="num font-semibold uppercase"
-            style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-          >
-            ● DraftKings DFS
-          </span>
-          <h1
-            className="serif-italic mt-1.5"
-            style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
-          >
-            <em>{slate.event}</em>
-          </h1>
-          <p className="text-text-dim mt-2 max-w-xl" style={{ fontSize: 14 }}>
+      <PageHeader
+        kicker="DraftKings DFS"
+        title={slate.event}
+        subtitle={
+          <>
             Live DK salaries · projections from DK season scoring (AvgPPG), with
             projected ownership from the model.{" "}
             {slate.wavesApplied
               ? "Tee waves are in — the optimizer correlates AM/PM wind."
               : "Tee-time / wind tilt activates once the draw posts."}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/dfs/cut-sweat"
-          className="num rounded-[8px] border border-line px-3 py-2 hover:border-line-strong shrink-0"
-          style={{ fontSize: 12.5 }}
-        >
-          Cut sweat →
-        </Link>
-      </header>
+          </>
+        }
+        right={
+          <Link
+            href="/dashboard/dfs/cut-sweat"
+            className="num rounded-[8px] border border-line px-3 py-2 hover:border-line-strong"
+            style={{ fontSize: 12.5 }}
+          >
+            Cut sweat →
+          </Link>
+        }
+      />
 
       {/* Mobile + desktop order: projected ownership, optimizer, then the
           chalk/leverage cards. Player pool sits at the bottom. */}

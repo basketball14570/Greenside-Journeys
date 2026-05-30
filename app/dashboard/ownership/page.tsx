@@ -20,6 +20,7 @@ import { ProjectedOwnership } from "@/components/dfs/ProjectedOwnership";
 import { OwnershipAccuracy } from "@/components/dfs/OwnershipAccuracy";
 import { LeverageView } from "@/components/dfs/LeverageView";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
+import { PageHeader } from "@/components/edge/PageHeader";
 
 // DFS ownership browser. Three views: tournaments grid, player leaderboard,
 // drill-down on either. Mirrors the standalone HTML viewer but uses the
@@ -81,27 +82,19 @@ export default function OwnershipPage() {
   return (
     <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
       <DfsMobileNav />
-      <header>
-        <span
-          className="num font-semibold uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-        >
-          ● DFS Ownership
-        </span>
-        <h1
-          className="serif-italic mt-1.5"
-          style={{ fontSize: 36, letterSpacing: -0.4 }}
-        >
-          <em>Field ownership history.</em>
-        </h1>
-        <p className="text-text-dim mt-2 max-w-2xl" style={{ fontSize: 14 }}>
-          DraftKings finishing ownership{archiveLoaded ? " across every event in the archive" : " across the 2026 season"}. Use it to
-          find leverage plays (chronically under-owned for their salary)
-          and to gauge chalk levels at similar courses.{" "}
-          {stats.records.toLocaleString()} records · {stats.players}{" "}
-          players · {stats.tournaments} events.
-        </p>
-      </header>
+      <PageHeader
+        kicker="DFS Ownership"
+        title="Field ownership history."
+        subtitle={
+          <>
+            DraftKings finishing ownership{archiveLoaded ? " across every event in the archive" : " across the 2026 season"}. Use it to
+            find leverage plays (chronically under-owned for their salary)
+            and to gauge chalk levels at similar courses.{" "}
+            {stats.records.toLocaleString()} records · {stats.players}{" "}
+            players · {stats.tournaments} events.
+          </>
+        }
+      />
 
       <div className="flex items-center gap-2 flex-wrap">
         <Tab

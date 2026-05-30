@@ -15,6 +15,27 @@ import {
   type OddsRow,
 } from "@/lib/data/odds-types";
 import { americanToDecimal, impliedProbability } from "@/lib/hedge";
+import { PageHeader } from "@/components/edge/PageHeader";
+
+// Small live/demo status pill reused by both odds mastheads.
+function StatusPill({ live, on, off }: { live: boolean; on: string; off: string }) {
+  return (
+    <span
+      className="num uppercase"
+      style={{
+        fontSize: 9,
+        letterSpacing: 1,
+        padding: "3px 8px",
+        borderRadius: 4,
+        color: live ? "#7fd49a" : "#a8b3ac",
+        background: live ? "rgba(127,212,154,0.13)" : "rgba(168,179,172,0.1)",
+        border: live ? "1px solid rgba(127,212,154,0.3)" : "1px solid rgba(168,179,172,0.25)",
+      }}
+    >
+      {live ? on : off}
+    </span>
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -231,89 +252,40 @@ function SlimCard({ row }: { row: OddsRow }) {
 function MajorsHeader({ matrix }: { matrix: OddsMatrix }) {
   const isLive = matrix.source === "the-odds-api" && matrix.rows.length > 0;
   return (
-    <header className="space-y-2">
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <span
-          className="num font-semibold uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-        >
-          ● Upcoming majors
-        </span>
-        <span
-          className="num uppercase"
-          style={{
-            fontSize: 9,
-            letterSpacing: 1,
-            padding: "2px 7px",
-            borderRadius: 4,
-            color: isLive ? "#7fd49a" : "#a8b3ac",
-            background: isLive ? "rgba(127,212,154,0.13)" : "rgba(168,179,172,0.1)",
-            border: isLive
-              ? "1px solid rgba(127,212,154,0.3)"
-              : "1px solid rgba(168,179,172,0.25)",
-          }}
-        >
-          {isLive ? "Live futures" : "No live futures"}
-        </span>
-      </div>
-      <h1
-        className="serif-italic"
-        style={{ fontSize: "clamp(26px, 5vw, 36px)", letterSpacing: -0.4 }}
-      >
-        <em>{matrix.event}</em>
-      </h1>
-      <p className="text-text-dim max-w-2xl" style={{ fontSize: 14, lineHeight: 1.5 }}>
-        Outright winner futures for the next major championship, priced across
-        the books. These run year-round — the weekly board on{" "}
-        <strong className="text-text">Line shop</strong> tracks whatever tour
-        event is current.
-      </p>
-    </header>
+    <PageHeader
+      kicker="Upcoming majors"
+      title={matrix.event}
+      right={<StatusPill live={isLive} on="Live futures" off="No live futures" />}
+      subtitle={
+        <>
+          Outright winner futures for the next major championship, priced across
+          the books. These run year-round — the weekly board on{" "}
+          <strong className="text-text">Line shop</strong> tracks whatever tour
+          event is current.
+        </>
+      }
+    />
   );
 }
 
 function Header({ matrix }: { matrix: OddsMatrix }) {
   const isLive = matrix.source !== "demo";
   return (
-    <header className="space-y-2">
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <span
-          className="num font-semibold uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-        >
-          ● Line shop
-        </span>
-        <span
-          className="num uppercase"
-          style={{
-            fontSize: 9,
-            letterSpacing: 1,
-            padding: "2px 7px",
-            borderRadius: 4,
-            color: isLive ? "#7fd49a" : "#a8b3ac",
-            background: isLive ? "rgba(127,212,154,0.13)" : "rgba(168,179,172,0.1)",
-            border: isLive
-              ? "1px solid rgba(127,212,154,0.3)"
-              : "1px solid rgba(168,179,172,0.25)",
-          }}
-        >
-          {isLive ? "Live" : "Demo"}
-        </span>
-      </div>
-      <h1
-        className="serif-italic"
-        style={{ fontSize: "clamp(26px, 5vw, 36px)", letterSpacing: -0.4 }}
-      >
-        <em>{matrix.event}</em>
-      </h1>
-      <p className="text-text-dim max-w-2xl" style={{ fontSize: 14, lineHeight: 1.5 }}>
-        The best available price on each player and the book offering it,
-        next to DataGolf&apos;s model fair line. <strong className="text-text">EV</strong>{" "}
-        is your expected return per $1 at that price —{" "}
-        <span style={{ color: "#7fd49a" }}>green is +EV</span>. Covers whatever
-        tour event is current.
-      </p>
-    </header>
+    <PageHeader
+      kicker="Line shop"
+      title={matrix.event}
+      live={isLive}
+      right={<StatusPill live={isLive} on="Live" off="Demo" />}
+      subtitle={
+        <>
+          The best available price on each player and the book offering it,
+          next to DataGolf&apos;s model fair line. <strong className="text-text">EV</strong>{" "}
+          is your expected return per $1 at that price —{" "}
+          <span style={{ color: "#7fd49a" }}>green is +EV</span>. Covers whatever
+          tour event is current.
+        </>
+      }
+    />
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QuotaLimitBanner } from "@/components/edge/QuotaBanner";
+import { PageHeader } from "@/components/edge/PageHeader";
 import { useQuota } from "@/lib/use-quota";
 import { QUOTA_ERROR_CODE } from "@/lib/usage";
 
@@ -66,35 +67,22 @@ export default function AskPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 max-w-4xl mx-auto h-full flex flex-col">
-      <header className="mb-5 flex items-end justify-between flex-wrap gap-3">
-        <div>
-          <span
-            className="num font-semibold uppercase"
-            style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-          >
-            ● Ask Greenside
-          </span>
-          <h1
-            className="serif-italic mt-1.5"
-            style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
-          >
-            <em>Talk to your portfolio.</em>
-          </h1>
-          <p className="text-text-dim mt-1 max-w-xl" style={{ fontSize: 13.5 }}>
-            Conversational access to every bet, every alert, every condition.
-            Answers grounded in your actual data — never guessed.
-          </p>
-        </div>
-        {messages.length > 0 && (
-          <button
-            onClick={() => setMessages([])}
-            className="num font-semibold uppercase text-text-dim hover:text-text"
-            style={{ fontSize: 10.5, letterSpacing: 0.8 }}
-          >
-            Clear ↻
-          </button>
-        )}
-      </header>
+      <PageHeader
+        kicker="Ask Greenside"
+        title="Talk to your portfolio."
+        subtitle="Conversational access to every bet, every alert, every condition. Answers grounded in your actual data — never guessed."
+        right={
+          messages.length > 0 ? (
+            <button
+              onClick={() => setMessages([])}
+              className="num font-semibold uppercase text-text-dim hover:text-text"
+              style={{ fontSize: 10.5, letterSpacing: 0.8 }}
+            >
+              Clear ↻
+            </button>
+          ) : undefined
+        }
+      />
 
       <div
         ref={scrollRef}

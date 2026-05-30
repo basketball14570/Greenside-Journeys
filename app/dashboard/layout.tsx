@@ -8,6 +8,7 @@ import {
 } from "@/components/edge/chrome";
 import { LiveEventStrap } from "@/components/edge/LiveEventStrap";
 import { LiveTicker } from "@/components/edge/LiveTicker";
+import { DashboardFooter } from "@/components/edge/DashboardFooter";
 import { CommandPalette } from "@/components/edge/CommandPalette";
 import { PwaInstallPrompt } from "@/components/edge/PwaInstallPrompt";
 import { ToastProvider } from "@/components/edge/Toast";
@@ -45,6 +46,8 @@ export default function DashboardLayout({
         </div>
 
         <main className="flex-1 min-w-0">{children}</main>
+
+        <DashboardFooter />
 
         <CommandPalette />
         <PwaInstallPrompt />

@@ -30,6 +30,7 @@ import { DK_SALARIES, DK_EVENT } from "@/lib/data/dfs-salaries";
 import { projectOwnership } from "@/lib/dfs/project-ownership";
 import { SCORING_FORMATS, type ScoringFormat } from "@/lib/dfs/scoring";
 import { DfsMobileNav } from "@/components/dfs/DfsMobileNav";
+import { PageHeader } from "@/components/edge/PageHeader";
 
 const FORMAT_LABELS: Record<ScoringFormat, string> = {
   classic: "Classic",
@@ -678,27 +679,26 @@ export default function CutSweatPage() {
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-6xl mx-auto">
       <DfsMobileNav />
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <span className="num font-semibold uppercase" style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}>
-            ● DraftKings DFS
-          </span>
-          <h1 className="serif-italic mt-1.5" style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}>
-            <em>Cut sweat.</em>
-          </h1>
-          <p className="text-text-dim mt-1" style={{ fontSize: 13.5 }}>
+      <PageHeader
+        kicker="DraftKings DFS"
+        title="Cut sweat."
+        live={!loading && !cutIsFinal && !!proj?.players?.length}
+        subtitle={
+          <>
             {cutIsFinal ? "Cut line (final)" : "Projected cut line"}{" "}
             <strong className="num text-text">{loading ? "…" : fmtToPar(cutLine)}</strong>
             {round ? ` · round ${round}` : ""}
             {cutIsFinal ? " · cut settled" : ""}
             {proj?.source === "unavailable" ? " · DataGolf not configured" : ""}
             {proj?.source === "error" ? " · live feed unavailable" : ""}
-          </p>
-        </div>
-        <Link href="/dashboard/dfs" className="num text-text-dim hover:text-text" style={{ fontSize: 12 }}>
-          ← Lineup builder
-        </Link>
-      </header>
+          </>
+        }
+        right={
+          <Link href="/dashboard/dfs" className="num text-text-dim hover:text-text" style={{ fontSize: 12 }}>
+            ← Lineup builder
+          </Link>
+        }
+      />
 
       {/* Field-wide bubble watch — the live cut sweat. Independent of any
           uploaded lineup: every golfer within 2 of the line, chalk first. */}

@@ -8,6 +8,7 @@ import {
 import { ALERT_HISTORY } from "@/lib/demo-courses";
 import { WaveSplitDetail } from "@/components/edge/WaveSplitChip";
 import { WaveWatchlist } from "@/components/edge/WaveWatchlist";
+import { PageHeader } from "@/components/edge/PageHeader";
 import { getActiveEvent, statusOf } from "@/lib/data/pga-schedule";
 import {
   courseSlugFor,
@@ -59,32 +60,12 @@ export default async function ConditionsPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
-      <header className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <span
-            className="num font-semibold uppercase"
-            style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-          >
-            ● Live Conditions
-          </span>
-          <h1
-            className="serif-italic mt-1.5"
-            style={{ fontSize: 36, letterSpacing: -0.4, fontStyle: "normal" }}
-          >
-            <em>Course weather & alerts.</em>
-          </h1>
-          <p className="text-text-dim mt-2 max-w-xl" style={{ fontSize: 14 }}>
-            Live wind, gust, and precip from the tournament venues you&apos;re
-            exposed to. Alert history scoped to the bets in your portfolio.
-          </p>
-        </div>
-        <span
-          className="num text-text-muted"
-          style={{ fontSize: 11, letterSpacing: 0.4 }}
-        >
-          Updated 7:44 AM · refreshes every 10 min
-        </span>
-      </header>
+      <PageHeader
+        kicker="Live Conditions"
+        title="Course weather & alerts."
+        imageSlug={slug}
+        subtitle="Live wind, gust, and precip from the tournament venues you're exposed to. Alert history scoped to the bets in your portfolio."
+      />
 
       {waveSplit && <WaveSplitDetail summary={waveSplit} />}
 

@@ -19,6 +19,7 @@ import { resolveCourseName } from "@/lib/data/course-pars";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { StarButton } from "@/components/edge/StarButton";
 import { buildScorecard, HoleStrip, type HoleCell } from "@/components/edge/HoleScorecard";
+import { PageHeader } from "@/components/edge/PageHeader";
 import { shareParlayImage, type ShareLeg } from "@/lib/parlay-share";
 
 // Per-player live shot-quality stats from DataGolf. Pulled separately
@@ -323,24 +324,13 @@ export default function MobileLivePage() {
 
   return (
     <div className="px-5 py-5 space-y-5">
-      <header>
-        <span
-          className="num font-semibold uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-        >
-          ● Live tickets
-        </span>
-        <h1
-          className="serif-italic mt-1"
-          style={{ fontSize: 30, letterSpacing: -0.3, fontStyle: "normal" }}
-        >
-          <em>Tracking now.</em>
-        </h1>
-        <p className="text-text-dim mt-1" style={{ fontSize: 13 }}>
-          Open bets graded against the live ESPN leaderboard. Updates every
-          minute.
-        </p>
-      </header>
+      <PageHeader
+        kicker="Live tickets"
+        title="Tracking now."
+        accent="green"
+        live={snapshot?.event?.state === "in"}
+        subtitle="Open bets graded against the live ESPN leaderboard. Updates every minute."
+      />
 
       <UploadTicketButton />
 

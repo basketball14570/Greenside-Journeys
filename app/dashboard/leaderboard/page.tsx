@@ -12,7 +12,9 @@ import { SkeletonRow } from "@/components/edge/Skeleton";
 import { StarButton } from "@/components/edge/StarButton";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { resolveCourseName } from "@/lib/data/course-pars";
+import { courseSlugFor } from "@/lib/weather/forecast";
 import { buildScorecard, HoleStrip } from "@/components/edge/HoleScorecard";
+import { PageHeader } from "@/components/edge/PageHeader";
 
 const REFRESH_MS = 30_000;
 
@@ -159,28 +161,22 @@ export default function LeaderboardPage() {
 
   return (
     <div className="px-5 lg:px-8 py-6 space-y-5 max-w-6xl mx-auto">
-      <header>
-        <span
-          className="num font-semibold uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.4, color: "#f5c558" }}
-        >
-          ● Leaderboard
-        </span>
-        <h1
-          className="serif-italic mt-1.5"
-          style={{ fontSize: 36, letterSpacing: -0.4 }}
-        >
-          <em>The full board, live.</em>
-        </h1>
-        <p className="text-text-dim mt-2 max-w-2xl" style={{ fontSize: 14 }}>
-          Every player in the active ESPN field. Build a slip at{" "}
-          <Link href="/dashboard/slip" className="text-text underline">
-            /dashboard/slip
-          </Link>{" "}
-          — top-N, matchups, over/unders, make-cut — and rows decorate
-          live with win / loss / live status.
-        </p>
-      </header>
+      <PageHeader
+        kicker="Leaderboard"
+        title="The full board, live."
+        live={snapshot?.event?.state === "in"}
+        imageSlug={snapshot?.event?.course ? courseSlugFor(snapshot.event.course) : null}
+        subtitle={
+          <>
+            Every player in the active ESPN field. Build a slip at{" "}
+            <Link href="/dashboard/slip" className="text-text underline">
+              /dashboard/slip
+            </Link>{" "}
+            — top-N, matchups, over/unders, make-cut — and rows decorate
+            live with win / loss / live status.
+          </>
+        }
+      />
 
       <EventStrap
         snapshot={snapshot}
