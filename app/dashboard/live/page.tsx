@@ -200,33 +200,28 @@ function TicketSectionHeader({
   );
 }
 
-// Within a ticket, push live legs to the top (the bettor cares about what's
-// happening right now), then upcoming sorted by tee time, then done. Within
-// "live" we put the player closer to finishing first — they're about to
-// settle. Legs we can't classify fall to the bottom.
-function legSortRank(leg: GradedLeg): { tier: number; key: number } {
+// Single chronological "when did/will this leg tee off" key. ESPN sometimes
+// drops the past teeTime once a player is on the course, so for anyone with
+// a todayLine we use a synthetic key pinned well below any real tee time —
+// guaranteeing they land ahead of upcoming legs. Within that group, more
+// holes done = teed off earlier = smaller key = sorts first. Upcoming legs
+// use their real teeTime in ms. Anything we can't place falls to the end.
+const TEED_OFF_BASE = -1e15;
+
+function effectiveTeeMs(leg: GradedLeg): number {
   const today = leg.player?.todayLine;
-  if (today && !today.complete && today.thru !== 18) {
-    // Live: smaller key = sorts first within tier. Closer to finishing
-    // (higher thru) gets the smaller key. Just-teed (thru null) sorts
-    // last within Live.
-    return { tier: 0, key: 18 - (today.thru ?? 0) };
+  if (today) {
+    return TEED_OFF_BASE + (18 - (today.thru ?? 0));
   }
-  if (!today && leg.teeTime) {
+  if (leg.teeTime) {
     const t = Date.parse(leg.teeTime);
-    return { tier: 1, key: Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER };
+    if (Number.isFinite(t)) return t;
   }
-  if (today?.complete || today?.thru === 18) {
-    return { tier: 2, key: 0 };
-  }
-  return { tier: 3, key: Number.MAX_SAFE_INTEGER };
+  return Number.MAX_SAFE_INTEGER;
 }
 
 function byTeeTime(a: GradedLeg, b: GradedLeg): number {
-  const ra = legSortRank(a);
-  const rb = legSortRank(b);
-  if (ra.tier !== rb.tier) return ra.tier - rb.tier;
-  return ra.key - rb.key;
+  return effectiveTeeMs(a) - effectiveTeeMs(b);
 }
 
 // ── Live "to cash" estimate (sweat meter) ───────────────────────────
