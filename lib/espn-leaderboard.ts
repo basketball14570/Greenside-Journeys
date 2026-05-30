@@ -2,7 +2,7 @@
 // the endpoint is the same one ESPN's own scoreboard.com uses. CORS is
 // open for browsers — we call it client-side.
 
-import { holeParStrict } from "@/lib/data/course-pars";
+import { holeParStrict, resolveCourseName } from "@/lib/data/course-pars";
 
 const ENDPOINT =
   "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
@@ -329,6 +329,13 @@ function buildSnapshot(json: any): LeaderboardSnapshot {
   addComputedPositions(players);
 
   const courseRec = Array.isArray(comp?.courses) ? comp.courses[0] : comp?.course;
+  // Canonicalize the course name to a COURSE_HOLE_PARS key so hole-par
+  // lookups resolve. ESPN's course record often reports a name that
+  // doesn't exactly match our curated key (or omits it entirely), e.g.
+  // the Charles Schwab Challenge plays Colonial Country Club; the event
+  // name alias backfills it. Without this, holeParStrict returns null and
+  // birdie/bogey counts fall back to ESPN's per-hole par 4 defaults.
+  const course = resolveCourseName(courseRec?.name || null, event.name);
   return {
     event: {
       id: event.id,
@@ -338,7 +345,7 @@ function buildSnapshot(json: any): LeaderboardSnapshot {
       statusDetail:
         event.status?.type?.detail || event.status?.type?.description || "",
       period,
-      course: courseRec?.name || null,
+      course,
       coursePar: par,
       holePars: extractHolePars(courseRec),
       location:
