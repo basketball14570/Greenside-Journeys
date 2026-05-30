@@ -392,14 +392,14 @@ export function roundStats(
     if (h.strokes === null || h.strokes <= 0) continue;
     played++;
     strokes += h.strokes;
-    // Par precedence: ESPN's per-hole par on the linescore (rare and
-    // authoritative when present — captures tournament-day par changes) →
-    // the curated scorecard map → ESPN's event-level holePars from the
-    // course record → 4. The curated map wins over the snapshot map
-    // because ESPN sometimes ships incomplete `courseRec.holes` (all 4s
-    // or missing entries), which would otherwise miscount any par on a
-    // par-3 as a birdie. Mirrors lib/bets/shot-props.ts.
-    const par = h.par ?? holeParStrict(courseName, h.hole) ?? holePars?.[h.hole - 1] ?? 4;
+    // Par precedence: curated scorecard map (verified per-course) →
+    // ESPN's per-hole linescore par → ESPN's event-level holePars from
+    // the course record → 4. The curated map wins because ESPN often
+    // ships `par: 4` defaults on every linescore — when that happens any
+    // par on a par-3 (a score of 3) gets miscounted as a birdie, and any
+    // par on a par-5 (a score of 5) as a bogey. If a tournament ever
+    // changes a hole's par for the week, update COURSE_HOLE_PARS for it.
+    const par = holeParStrict(courseName, h.hole) ?? h.par ?? holePars?.[h.hole - 1] ?? 4;
     const diff = h.strokes - par;
     if (diff <= -2) eagles++;
     else if (diff === -1) birdies++;
