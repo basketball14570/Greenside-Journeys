@@ -215,22 +215,56 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
 export function MobileBottomNav({ active }: { active: string }) {
   return (
     <div
-      className="sticky top-0 z-30 flex justify-around px-2 pt-1.5 pb-2 border-b border-line bg-bgDeep"
-      style={{ backdropFilter: "blur(6px)" }}
+      className="sticky top-0 z-30 flex justify-around px-1 pt-2 pb-2.5 border-b border-line bg-bgDeep"
+      style={{
+        backdropFilter: "blur(8px)",
+        background:
+          "linear-gradient(180deg, rgba(10,19,14,0.96), rgba(10,19,14,0.86))",
+      }}
     >
       {TABS.map((t) => {
         const isActive = t.id === active;
-        const c = isActive ? "#8ee68e" : "#6c7a72";
+        const c = isActive ? "#8ee68e" : "#7e8a83";
         return (
           <Link
             key={t.id}
             href={t.href}
-            className="flex flex-col items-center gap-0.5 flex-1"
+            aria-current={isActive ? "page" : undefined}
+            className="relative flex flex-col items-center justify-center gap-1 flex-1 py-1"
+            style={{ minHeight: 52 }}
           >
-            {ICONS[t.id](c)}
+            {/* Active accent — a green pill behind the icon so the live tab
+                jumps out of the row instead of just changing color. */}
+            {isActive && (
+              <span
+                aria-hidden
+                className="absolute"
+                style={{
+                  top: 0,
+                  width: 38,
+                  height: 28,
+                  borderRadius: 999,
+                  background: "rgba(142,230,142,0.14)",
+                  border: "1px solid rgba(142,230,142,0.28)",
+                }}
+              />
+            )}
             <span
-              className="num font-semibold uppercase"
-              style={{ fontSize: 9.5, letterSpacing: 0.6, color: c }}
+              className="relative inline-flex"
+              style={{
+                transform: isActive ? "translateY(-1px) scale(1.04)" : "none",
+                transition: "transform 0.18s ease",
+              }}
+            >
+              {ICONS[t.id](c)}
+            </span>
+            <span
+              className="num relative font-semibold uppercase"
+              style={{
+                fontSize: 9.5,
+                letterSpacing: 0.8,
+                color: isActive ? "#cfead4" : "#7e8a83",
+              }}
             >
               {t.label}
             </span>

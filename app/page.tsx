@@ -35,31 +35,27 @@ export default function MarketingHome() {
               "radial-gradient(circle, rgba(245,197,88,0.16) 0%, transparent 65%)",
           }}
         />
-        <div className="relative max-w-5xl mx-auto px-6 lg:px-12 py-20 lg:py-28">
+        <div className="relative max-w-5xl mx-auto px-5 lg:px-12 py-10 lg:py-28">
           <span
             className="num font-semibold uppercase"
-            style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
+            style={{ fontSize: 10.5, letterSpacing: 1.4, color: "#f5c558" }}
           >
             ● {eyebrow}
           </span>
           <h1
-            className="serif-italic mt-5 mb-6 text-text"
+            className="serif-italic mt-4 mb-5 text-text"
             style={{
-              fontSize: 72,
-              lineHeight: 1.02,
-              letterSpacing: -1,
+              fontSize: "clamp(34px, 9vw, 72px)",
+              lineHeight: 1.04,
+              letterSpacing: -0.8,
               fontStyle: "normal",
             }}
           >
-            <em>Greenside</em> is the bet
-            <br />
-            tracker you need
-            <br />
-            for tournaments.
+            <em>Greenside</em> is the bet tracker you need for tournaments.
           </h1>
           <p
-            className="text-text-dim mb-8 max-w-2xl"
-            style={{ fontSize: 19, lineHeight: 1.5 }}
+            className="text-text-dim mb-7 max-w-2xl"
+            style={{ fontSize: "clamp(15px, 2.2vw, 19px)", lineHeight: 1.5 }}
           >
             Upload your bets and we&apos;ll grade them against a live scoreboard
             so you can track them all in one spot. No bouncing from app to app
@@ -69,10 +65,30 @@ export default function MarketingHome() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/dashboard"
-              className="px-6 py-3 rounded font-semibold"
-              style={{ background: "#8ee68e", color: "#06140c", fontSize: 15 }}
+              className="rounded font-semibold text-center"
+              style={{
+                background: "#8ee68e",
+                color: "#06140c",
+                fontSize: 15,
+                padding: "13px 22px",
+                minWidth: 160,
+              }}
             >
               Open Dashboard
+            </Link>
+            <Link
+              href="/login"
+              className="rounded font-semibold text-center"
+              style={{
+                background: "transparent",
+                color: "#cfead4",
+                fontSize: 15,
+                padding: "13px 22px",
+                border: "1px solid rgba(142,230,142,0.35)",
+                minWidth: 120,
+              }}
+            >
+              Sign in
             </Link>
           </div>
         </div>
@@ -80,18 +96,18 @@ export default function MarketingHome() {
 
       {/* ─── Parlay of the week teaser ────────────────────── */}
       <section className="border-t border-line">
-        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-16">
+        <div className="max-w-5xl mx-auto px-5 lg:px-12 py-10 lg:py-16">
           <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
             <div>
               <div
                 className="num font-semibold uppercase mb-2"
-                style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
+                style={{ fontSize: 10.5, letterSpacing: 1.4, color: "#f5c558" }}
               >
                 ● Parlay of the week · graded live
               </div>
               <h2
                 className="serif-italic"
-                style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+                style={{ fontSize: "clamp(26px, 6vw, 40px)", letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
               >
                 <em>{FEATURED_PARLAY.legs.length} legs we&apos;re tracking this week.</em>
               </h2>
@@ -127,7 +143,7 @@ export default function MarketingHome() {
 
       {/* ─── How it works ────────────────────── */}
       <section className="border-t border-line">
-        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-16">
+        <div className="max-w-5xl mx-auto px-5 lg:px-12 py-10 lg:py-16">
           <div
             className="num font-semibold uppercase mb-3"
             style={{ fontSize: 11, letterSpacing: 1.6, color: "#7fd49a" }}
@@ -136,7 +152,7 @@ export default function MarketingHome() {
           </div>
           <h2
             className="serif-italic mb-10"
-            style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+            style={{ fontSize: "clamp(26px, 6vw, 40px)", letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
           >
             <em>Three steps. That&apos;s it.</em>
           </h2>
@@ -163,7 +179,7 @@ export default function MarketingHome() {
 
       {/* ─── Pricing ─────────────────────────────────── */}
       <section className="border-t border-line">
-        <div className="max-w-5xl mx-auto px-6 lg:px-12 py-20">
+        <div className="max-w-5xl mx-auto px-5 lg:px-12 py-12 lg:py-20">
           <div
             className="num font-semibold uppercase mb-3"
             style={{ fontSize: 11, letterSpacing: 1.6, color: "#f5c558" }}
@@ -172,7 +188,7 @@ export default function MarketingHome() {
           </div>
           <h2
             className="serif-italic mb-3"
-            style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+            style={{ fontSize: "clamp(26px, 6vw, 40px)", letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
           >
             <em>Free during beta.</em>
             <br />
@@ -262,7 +278,7 @@ export default function MarketingHome() {
 
       {/* ─── FAQ ─────────────────────────────────────── */}
       <section className="border-t border-line bg-surface-1/30">
-        <div className="max-w-3xl mx-auto px-6 lg:px-12 py-20">
+        <div className="max-w-3xl mx-auto px-5 lg:px-12 py-12 lg:py-20">
           <div
             className="num font-semibold uppercase mb-3"
             style={{ fontSize: 11, letterSpacing: 1.6, color: "#7fd49a" }}
@@ -271,7 +287,7 @@ export default function MarketingHome() {
           </div>
           <h2
             className="serif-italic mb-10"
-            style={{ fontSize: 40, letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
+            style={{ fontSize: "clamp(26px, 6vw, 40px)", letterSpacing: -0.5, lineHeight: 1.1, fontStyle: "normal" }}
           >
             <em>The stuff people ask</em>
             <br />
@@ -319,7 +335,7 @@ export default function MarketingHome() {
 
       {/* ─── Footer note ─────────────────────────────── */}
       <section className="border-t border-line">
-        <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16">
+        <div className="max-w-3xl mx-auto px-5 lg:px-12 py-10 lg:py-16">
           <p className="text-text-dim" style={{ fontSize: 15, lineHeight: 1.6 }}>
             <span
               className="num font-semibold uppercase"
