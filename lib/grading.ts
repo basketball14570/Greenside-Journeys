@@ -515,30 +515,44 @@ function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   const p = findPlayer(snapshot, bet.player);
   if (!p) return { bet, status: "unknown", reason: "Player not in field" };
   const finalState = eventComplete(snapshot);
-  // ESPN sets isCut once the cut has been applied. Until then we wait.
-  if (p.isCut) {
+  const period = snapshot.event?.period ?? 0;
+  const postR2 = period >= 3;
+
+  // Robust missed-cut detection. ESPN often doesn't set `isCut` even after
+  // round 2 — a missed player can keep their pre-cut position (e.g. T78).
+  // So we also treat any of these as missed once we're in R3+: explicit
+  // CUT/WD/DQ text, a position outside the top 65 (with ties, ESPN gives
+  // tied-at-65 players posNum=65 so >65 = genuinely outside), or no
+  // position at all (dropped from the active list).
+  const explicitlyOut =
+    p.isCut || /cut|wd|dq|withd/i.test(p.posDisplay || "") || /cut|wd|dq|withd/i.test(p.statusText || "");
+  const outByPos = postR2 && p.posNum != null && p.posNum > 65;
+  const noPosPostR2 = postR2 && p.posNum == null;
+  const missed = explicitlyOut || outByPos || noPosPostR2;
+
+  if (missed) {
     return {
       bet,
       status: wantsMake ? "lost" : "won",
       reason: wantsMake ? "Missed cut" : "Missed cut as predicted",
       observedValue: p.posDisplay,
+      standing: "CUT",
       pnl: wantsMake ? -bet.stake : payoutOnWin(bet),
     };
   }
-  // No isCut flag — either still pre-cut or made it. Require a real
-  // position on the board before grading as a made cut: if ESPN hasn't
-  // assigned a position number (mid-update, or quietly dropped from the
-  // active list), don't commit to "made" — wait until the next refresh
-  // rather than risk a false win.
-  if ((snapshot.event?.period ?? 0) >= 3 && !p.isCut && p.posNum != null) {
+
+  // R3+ with a real position inside the cut = made it.
+  if (postR2 && p.posNum != null && p.posNum <= 65) {
     return {
       bet,
       status: wantsMake ? "won" : "lost",
       reason: wantsMake ? "Made cut" : "Made cut against you",
       observedValue: p.posDisplay,
+      standing: p.posDisplay,
       pnl: wantsMake ? payoutOnWin(bet) : -bet.stake,
     };
   }
+
   return {
     bet,
     status: finalState ? (wantsMake ? "won" : "lost") : "live",
