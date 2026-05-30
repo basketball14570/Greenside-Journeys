@@ -476,7 +476,8 @@ function Row({
             className="truncate"
             style={{ fontSize: 13.5, fontWeight: rank != null && rank <= 10 ? 700 : 500 }}
           >
-            {player.name}
+            <span className="md:hidden">{abbrevName(player.name)}</span>
+            <span className="hidden md:inline">{player.name}</span>
           </span>
           {canExpand && (
             <span className="num shrink-0" style={{ fontSize: 8, color: "#7e8a83" }}>
@@ -544,6 +545,18 @@ function ScorePill({
       {value}
     </span>
   );
+}
+
+// Compact name for tight mobile rows: "Jordan Smith" → "J. Smith",
+// "Christiaan Bezuidenhout" → "C. Bezuidenhout". Keeps an already-initial
+// first token ("J.J. Spaun") intact.
+function abbrevName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return name;
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  if (first.includes(".")) return `${first} ${last}`;
+  return `${first[0]}. ${last}`;
 }
 
 function parseLeaderTotal(toPar: string | null): number | null {
