@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLeaderboard } from "@/lib/leaderboard-context";
 import { DesktopLeaderboard, MobileLeaderboard, type LeaderRow } from "@/components/edge/sections";
-import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
+import { type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
 
 // Dashboard-home leaderboard widget. Pulls the live ESPN snapshot,
 // keeps the top 12, and renders into the existing Desktop/Mobile
@@ -20,33 +21,14 @@ export function LiveDashboardLeaderboard({
   fallback: LeaderRow[];
   limit?: number;
 }) {
+  const { snapshot } = useLeaderboard();
   const [rows, setRows] = useState<LeaderRow[]>(fallback);
 
   useEffect(() => {
-    let cancelled = false;
-    fetchLeaderboard()
-      .then((snap) => {
-        if (cancelled) return;
-        const live = snapshotToRows(snap, limit);
-        if (live.length > 0) setRows(live);
-      })
-      .catch(() => undefined);
-
-    // Refresh every 60s; cron grading is every 15min so this stays fresh.
-    const id = setInterval(() => {
-      fetchLeaderboard()
-        .then((snap) => {
-          if (cancelled) return;
-          const live = snapshotToRows(snap, limit);
-          if (live.length > 0) setRows(live);
-        })
-        .catch(() => undefined);
-    }, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [limit]);
+    if (!snapshot) return;
+    const live = snapshotToRows(snapshot, limit);
+    if (live.length > 0) setRows(live);
+  }, [snapshot, limit]);
 
   if (layout === "desktop") return <DesktopLeaderboard rows={rows} />;
   return <MobileLeaderboard rows={rows} />;

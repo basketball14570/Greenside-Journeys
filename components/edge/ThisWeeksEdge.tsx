@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PlayerAvatar } from "@/components/edge/PlayerAvatar";
-import { fetchLeaderboard, type LeaderboardPlayer } from "@/lib/espn-leaderboard";
+import { useLeaderboard } from "@/lib/leaderboard-context";
 
 // "This week's edge" — DataGolf pre-tournament projections on the
 // dashboard home. Top players by win% with their top5/top10/top20/
@@ -27,16 +27,11 @@ type Response = {
 export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
   const [data, setData] = useState<Response | null>(null);
   const [loading, setLoading] = useState(true);
-  const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
+  const { findPlayer } = useLeaderboard();
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchLeaderboard()
-      .then((s) => {
-        if (!cancelled) setPlayers(s.players);
-      })
-      .catch(() => {});
     fetch("/api/projections/this-week", { cache: "no-store" })
       .then((r) => r.json())
       .then((j: Response) => {
@@ -52,16 +47,6 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
   }, []);
 
   const rows = (data?.projections ?? []).slice(0, limit);
-  // Match projection names to leaderboard headshots/flags so each row
-  // has a face. Loose-match by normalized token set so "C. Bezuidenhout"
-  // and "Christiaan Bezuidenhout" line up.
-  const playerByName = useMemo(() => {
-    const key = (s: string) =>
-      s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-    const m = new Map<string, LeaderboardPlayer>();
-    for (const p of players) m.set(key(p.name), p);
-    return (name: string) => m.get(key(name)) ?? null;
-  }, [players]);
   const isLive = data?.source === "datagolf";
 
   return (
@@ -159,8 +144,8 @@ export function ThisWeeksEdge({ limit = 8 }: { limit?: number }) {
             </span>
             <PlayerAvatar
               name={r.player_name}
-              headshot={playerByName(r.player_name)?.headshot}
-              flagHref={playerByName(r.player_name)?.flagHref}
+              headshot={findPlayer(r.player_name)?.headshot}
+              flagHref={findPlayer(r.player_name)?.flagHref}
               size={22}
             />
             <div

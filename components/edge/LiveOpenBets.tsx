@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookChip, type Book } from "@/components/edge/primitives";
 import { PlayerAvatar } from "@/components/edge/PlayerAvatar";
-import {
-  fetchLeaderboard,
-  type LeaderboardSnapshot,
-  type LeaderboardPlayer,
-} from "@/lib/espn-leaderboard";
+import { useLeaderboard } from "@/lib/leaderboard-context";
 
 // Dashboard-home open-tickets widget. Pulls the signed-in user's real
 // live/pending bets from /api/bets/mine and renders a compact list, or a
@@ -36,7 +32,7 @@ export function LiveOpenBets({ layout }: { layout: "mobile" | "desktop" }) {
   const [state, setState] = useState<
     { kind: "loading" } | { kind: "ready"; bets: RawBet[] }
   >({ kind: "loading" });
-  const [snap, setSnap] = useState<LeaderboardSnapshot | null>(null);
+  const { findPlayer } = useLeaderboard();
 
   useEffect(() => {
     let cancelled = false;
@@ -54,24 +50,10 @@ export function LiveOpenBets({ layout }: { layout: "mobile" | "desktop" }) {
         if (!cancelled) setState({ kind: "ready", bets: [] });
       }
     })();
-    fetchLeaderboard()
-      .then((s) => {
-        if (!cancelled) setSnap(s);
-      })
-      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
-
-  // Name → player so each row can show the right headshot + flag + position.
-  const playerByName = useMemo(() => {
-    const m = new Map<string, LeaderboardPlayer>();
-    const key = (s: string) =>
-      s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-    for (const p of snap?.players ?? []) m.set(key(p.name), p);
-    return (name: string) => m.get(key(name)) ?? null;
-  }, [snap]);
 
   const wrap = layout === "mobile" ? "mb-6 mx-5" : "";
 
@@ -136,7 +118,7 @@ export function LiveOpenBets({ layout }: { layout: "mobile" | "desktop" }) {
       {header}
       <div className="rounded-[14px] bg-surface-1 border border-line overflow-hidden">
         {state.bets.map((b, i) => {
-          const lp = playerByName(b.player);
+          const lp = findPlayer(b.player);
           const win = Number(b.to_win) || 0;
           const stake = Number(b.stake) || 0;
           const scoreNum = lp?.totalScoreNum;

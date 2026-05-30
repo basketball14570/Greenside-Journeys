@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { StatusDot } from "./primitives";
-import { fetchLeaderboard, type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
+import { type LeaderboardSnapshot } from "@/lib/espn-leaderboard";
+import { useLeaderboard } from "@/lib/leaderboard-context";
 import { getActiveEvent, findEventByName, SCHEDULE, statusOf, type PgaEvent } from "@/lib/data/pga-schedule";
 import { courseSlugFor } from "@/lib/weather/forecast";
 
@@ -46,37 +47,25 @@ export function LiveEventStrap() {
       ? `/courses/${photoSlug}.${exts[extIdx]}`
       : null;
 
+  const { snapshot } = useLeaderboard();
+
   useEffect(() => {
-    let cancelled = false;
-    async function refresh() {
-      try {
-        const snap = await fetchLeaderboard();
-        if (cancelled) return;
-        const next = fromSnapshot(snap);
-        if (!next) return;
-        // ESPN often returns the just-finished event for several days after
-        // Sunday. If that event is Final and the schedule has the next one
-        // starting within a week, prefer the upcoming one — that's what the
-        // bettor cares about on a Mon/Tue/Wed.
-        if (next.statusLabel === "Final") {
-          const upcoming = nextUpcomingWithinDays(7);
-          if (upcoming) {
-            setStrap(fromSchedule(upcoming));
-            return;
-          }
-        }
-        setStrap(next);
-      } catch {
-        // Network failed — leave the schedule-derived strap in place.
+    if (!snapshot) return;
+    const next = fromSnapshot(snapshot);
+    if (!next) return;
+    // ESPN often returns the just-finished event for several days after
+    // Sunday. If that event is Final and the schedule has the next one
+    // starting within a week, prefer the upcoming one — that's what the
+    // bettor cares about on a Mon/Tue/Wed.
+    if (next.statusLabel === "Final") {
+      const upcoming = nextUpcomingWithinDays(7);
+      if (upcoming) {
+        setStrap(fromSchedule(upcoming));
+        return;
       }
     }
-    refresh();
-    const id = setInterval(refresh, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+    setStrap(next);
+  }, [snapshot]);
 
   return (
     <div className="relative overflow-hidden border-b border-line">

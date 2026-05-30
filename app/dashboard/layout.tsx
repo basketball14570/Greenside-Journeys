@@ -12,6 +12,7 @@ import { DashboardFooter } from "@/components/edge/DashboardFooter";
 import { CommandPalette } from "@/components/edge/CommandPalette";
 import { PwaInstallPrompt } from "@/components/edge/PwaInstallPrompt";
 import { ToastProvider } from "@/components/edge/Toast";
+import { LeaderboardProvider } from "@/lib/leaderboard-context";
 
 // Responsive chrome: mobile (<lg) gets the brand bar + sticky tab nav
 // at the top; desktop gets the AppBar + LiveEventStrap. The active tab
@@ -27,6 +28,7 @@ export default function DashboardLayout({
 
   return (
     <ToastProvider>
+      <LeaderboardProvider>
       <div className="min-h-screen bg-bg text-text flex flex-col">
         {/* Desktop chrome */}
         <div className="hidden lg:block">
@@ -52,6 +54,7 @@ export default function DashboardLayout({
         <CommandPalette />
         <PwaInstallPrompt />
       </div>
+      </LeaderboardProvider>
     </ToastProvider>
   );
 }

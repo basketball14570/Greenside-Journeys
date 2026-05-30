@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import {
-  fetchLeaderboard,
-  type LeaderboardSnapshot,
   type LeaderboardPlayer,
 } from "@/lib/espn-leaderboard";
+import { useLeaderboard } from "@/lib/leaderboard-context";
 import { useStarredGolfers, normalizePlayerKey } from "@/lib/starred-golfers";
 import { courseSlugFor, courseTzFor } from "@/lib/weather/forecast";
 
@@ -19,7 +18,6 @@ import { courseSlugFor, courseTzFor } from "@/lib/weather/forecast";
 //     is still real, useful content rather than an empty bar.
 // Renders nothing when there's no field at all, so we never show filler.
 
-const REFRESH_MS = 60_000;
 const UNDER = "#7fd49a";
 const OVER = "#e57373";
 const EVEN = "#c7cfc9";
@@ -41,24 +39,8 @@ type TickItem = {
 );
 
 export function LiveTicker() {
-  const [snap, setSnap] = useState<LeaderboardSnapshot | null>(null);
+  const { snapshot: snap } = useLeaderboard();
   const { stars } = useStarredGolfers();
-
-  useEffect(() => {
-    let cancelled = false;
-    const pull = () =>
-      fetchLeaderboard()
-        .then((s) => {
-          if (!cancelled) setSnap(s);
-        })
-        .catch(() => {});
-    pull();
-    const id = setInterval(pull, REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
 
   const { items, label, live } = useMemo(() => {
     if (!snap?.event || snap.players.length === 0) {
