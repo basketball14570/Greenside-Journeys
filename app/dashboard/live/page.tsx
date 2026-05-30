@@ -92,6 +92,109 @@ function formatShotLine(
   return parts.length ? parts.join(" · ") : null;
 }
 
+// Ticket-level status across all of its legs. A ticket is "live" if any
+// leg is currently playing, "done" if every leg has finished today (or
+// already graded), "upcoming" if any leg still has a future tee time,
+// otherwise "other" (cut, withdrew, off-event). The order across sections
+// mirrors the Today widget so the two surfaces feel like one product.
+type TicketSection = {
+  key: "live" | "upcoming" | "done" | "other";
+  label: string;
+  accent: string;
+  tickets: { key: string; legs: GradedLeg[] }[];
+};
+
+function ticketBucket(
+  legs: GradedLeg[],
+): { bucket: TicketSection["key"]; sortKey: number } {
+  let hasLive = false;
+  let hasUpcoming = false;
+  let allDone = true;
+  let earliestUpcomingMs = Number.POSITIVE_INFINITY;
+  let mostUrgentLive = Number.POSITIVE_INFINITY;
+  let latestDoneMs = 0;
+  for (const leg of legs) {
+    const today = leg.player?.todayLine;
+    const thru = today?.thru ?? null;
+    const teeMs = leg.teeTime ? Date.parse(leg.teeTime) : NaN;
+    const settled = leg.bet.status === "won" || leg.bet.status === "lost" || leg.bet.status === "push" || leg.bet.status === "void";
+    if (settled) {
+      if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
+      continue;
+    }
+    if (today?.complete || thru === 18) {
+      if (Number.isFinite(teeMs)) latestDoneMs = Math.max(latestDoneMs, teeMs);
+      continue;
+    }
+    allDone = false;
+    if (thru !== null && thru > 0 && thru < 18) {
+      hasLive = true;
+      mostUrgentLive = Math.min(mostUrgentLive, 18 - thru);
+    } else if (leg.teeTime && Number.isFinite(teeMs)) {
+      hasUpcoming = true;
+      earliestUpcomingMs = Math.min(earliestUpcomingMs, teeMs);
+    }
+  }
+  if (hasLive) return { bucket: "live", sortKey: mostUrgentLive };
+  if (hasUpcoming) return { bucket: "upcoming", sortKey: earliestUpcomingMs };
+  if (allDone) return { bucket: "done", sortKey: -latestDoneMs };
+  return { bucket: "other", sortKey: Number.MAX_SAFE_INTEGER };
+}
+
+function bucketTickets(
+  groups: { key: string; legs: GradedLeg[] }[],
+): TicketSection[] {
+  const sections: TicketSection[] = [
+    { key: "live", label: "Live now", accent: "#7fd49a", tickets: [] },
+    { key: "upcoming", label: "Teeing off", accent: "#cdb47a", tickets: [] },
+    { key: "done", label: "Played — awaiting grade", accent: "#6c7a72", tickets: [] },
+    { key: "other", label: "Other", accent: "#6c7a72", tickets: [] },
+  ];
+  const annotated = groups.map((g) => ({ group: g, ...ticketBucket(g.legs) }));
+  for (const a of annotated) {
+    sections.find((s) => s.key === a.bucket)!.tickets.push(a.group);
+  }
+  for (const s of sections) {
+    s.tickets.sort((a, b) => {
+      const ka = ticketBucket(a.legs).sortKey;
+      const kb = ticketBucket(b.legs).sortKey;
+      return ka - kb;
+    });
+  }
+  return sections.filter((s) => s.tickets.length > 0);
+}
+
+function TicketSectionHeader({
+  label,
+  count,
+  accent,
+}: {
+  label: string;
+  count: number;
+  accent: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-1">
+      <span
+        className="inline-block rounded-full"
+        style={{ width: 6, height: 6, background: accent }}
+      />
+      <span
+        className="num uppercase"
+        style={{ fontSize: 10, letterSpacing: 1.2, color: "#a8b3ac", fontWeight: 600 }}
+      >
+        {label}
+      </span>
+      <span
+        className="num"
+        style={{ fontSize: 10, color: "#6c7a72", letterSpacing: 0.5 }}
+      >
+        · {count}
+      </span>
+    </div>
+  );
+}
+
 // Earliest tee time first; players with no tee time (already off, or not
 // in the field) sort to the bottom. ESPN tee times are ISO strings, so a
 // lexicographic compare is also chronological.
@@ -344,15 +447,26 @@ export default function MobileLivePage() {
       {signedIn && bets !== null && bets.length === 0 && <EmptyState />}
 
       {signedIn && groups.length > 0 && (
-        <div className="space-y-4">
-          {groups.map((group) => (
-            <ParlayGroup
-              key={group.key}
-              legs={group.legs}
-              eventName={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null}
-              period={snapshot?.event?.period ?? 1}
-              onRemoveAll={() => dismissBatch(group.legs.map((g) => g.bet.id))}
-            />
+        <div className="space-y-5">
+          {bucketTickets(groups).map((section) => (
+            <div key={section.key}>
+              <TicketSectionHeader
+                label={section.label}
+                count={section.tickets.length}
+                accent={section.accent}
+              />
+              <div className="space-y-4 mt-2">
+                {section.tickets.map((group) => (
+                  <ParlayGroup
+                    key={group.key}
+                    legs={group.legs}
+                    eventName={snapshot?.event?.shortName ?? snapshot?.event?.name ?? null}
+                    period={snapshot?.event?.period ?? 1}
+                    onRemoveAll={() => dismissBatch(group.legs.map((g) => g.bet.id))}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
