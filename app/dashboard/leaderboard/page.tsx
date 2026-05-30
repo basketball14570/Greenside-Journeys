@@ -223,7 +223,7 @@ export default function LeaderboardPage() {
                 <>
                   <SectionLabel>★ Favorites</SectionLabel>
                   {favorites.map((p) => (
-                    <Row key={p.id} player={p} courseName={courseName} holePars={holePars} />
+                    <Row key={p.id} player={p} courseName={courseName} holePars={holePars} mine />
                   ))}
                   {others.length > 0 && <SectionLabel>All players</SectionLabel>}
                 </>
@@ -414,40 +414,68 @@ function Row({
   player,
   courseName,
   holePars,
+  mine,
 }: {
   player: LeaderboardPlayer;
   courseName: string | null;
   holePars: number[] | undefined;
+  mine?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const today = player.todayLine;
   const scorecard = open ? buildScorecard(today, courseName, holePars) : null;
   const canExpand =
     !!today && today.holes.some((h) => h.strokes !== null && h.strokes > 0);
+  const rank = player.posNum;
+  const topColor = !player.isCut && rank === 1 ? "#f5c558" : rank === 2 ? "#cfd6d0" : rank === 3 ? "#d8a878" : null;
   return (
-    <div className="border-b border-line/50 last:border-b-0">
+    <div className="relative border-b border-line/50 last:border-b-0">
+      {mine && (
+        <span className="absolute left-0 top-0 bottom-0" style={{ width: 3, background: "#7fd49a" }} />
+      )}
       <div
-        className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 hover:bg-surface-2"
+        className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 hover:bg-surface-2"
         onClick={() => canExpand && setOpen((v) => !v)}
-        style={{ cursor: canExpand ? "pointer" : "default" }}
+        style={{
+          cursor: canExpand ? "pointer" : "default",
+          background: mine ? "rgba(127,212,154,0.06)" : undefined,
+        }}
       >
         <div className="shrink-0 -ml-1" onClick={(e) => e.stopPropagation()}>
           <StarButton player={player.name} size={14} />
         </div>
+        {/* Rank badge — medal-tinted for the top 3 */}
+        <span
+          className="num shrink-0 inline-flex items-center justify-center font-bold"
+          style={{
+            minWidth: 30,
+            height: 22,
+            padding: "0 6px",
+            fontSize: 11.5,
+            borderRadius: 6,
+            color: player.isCut ? "#7e8a83" : topColor ? "#0a130e" : "#c7cfc9",
+            background: player.isCut
+              ? "transparent"
+              : topColor
+                ? topColor
+                : "rgba(255,255,255,0.05)",
+            border: topColor ? "none" : "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {player.posDisplay || "—"}
+        </span>
         <div className="flex-1 min-w-0 flex items-center gap-2">
-          <span
-            className="num shrink-0 text-right"
-            style={{ fontSize: 12, width: 26, color: player.isCut ? "#a8b3ac" : "#7e8a83" }}
-          >
-            {player.posDisplay || "—"}
-          </span>
           <PlayerAvatar
             name={player.name}
             headshot={player.headshot}
             flagHref={player.flagHref}
-            size={26}
+            size={28}
+            ring={mine ? "#7fd49a" : null}
           />
-          <span className="font-medium truncate" style={{ fontSize: 13.5 }}>
+          <span
+            className="truncate"
+            style={{ fontSize: 13.5, fontWeight: rank != null && rank <= 10 ? 700 : 500 }}
+          >
             {player.name}
           </span>
           {canExpand && (
@@ -456,19 +484,16 @@ function Row({
             </span>
           )}
         </div>
-        <div
-          className="text-right num shrink-0 w-11 md:w-[70px]"
-          style={{ fontSize: 14, color: colorForToPar(player.totalScoreNum) }}
-        >
-          {player.totalToPar ?? "—"}
+        <div className="shrink-0 w-11 md:w-[70px] flex justify-end">
+          <ScorePill value={player.totalToPar} num={player.totalScoreNum} strong />
         </div>
         <div
           className="text-right num shrink-0 w-11 md:w-[70px]"
-          style={{ fontSize: 14, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) }}
+          style={{ fontSize: 13.5, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) ?? "#a8b3ac" }}
         >
           {today?.toPar ?? "—"}
         </div>
-        <div className="text-right num shrink-0 w-9 md:w-[60px]" style={{ fontSize: 13 }}>
+        <div className="text-right num shrink-0 w-9 md:w-[60px]" style={{ fontSize: 12.5, color: "#7e8a83" }}>
           {today?.complete
             ? "F"
             : today?.thru != null
@@ -484,6 +509,40 @@ function Row({
         </div>
       )}
     </div>
+  );
+}
+
+// To-par as a tinted pill — green under, red over, neutral even. The pop
+// that a bare number lacks on a dark board.
+function ScorePill({
+  value,
+  num,
+  strong,
+}: {
+  value: string | null;
+  num: number | null;
+  strong?: boolean;
+}) {
+  if (value == null) return <span className="num text-text-muted" style={{ fontSize: 13.5 }}>—</span>;
+  const under = num !== null && num < 0;
+  const over = num !== null && num > 0;
+  const color = under ? "#7fd49a" : over ? "#e87c7c" : "#d4dbd6";
+  const bg = under ? "rgba(127,212,154,0.14)" : over ? "rgba(232,124,124,0.13)" : "rgba(255,255,255,0.05)";
+  return (
+    <span
+      className="num inline-flex items-center justify-center font-bold"
+      style={{
+        minWidth: strong ? 40 : 34,
+        height: 22,
+        padding: "0 7px",
+        fontSize: 13.5,
+        borderRadius: 6,
+        color,
+        background: bg,
+      }}
+    >
+      {value}
+    </span>
   );
 }
 
