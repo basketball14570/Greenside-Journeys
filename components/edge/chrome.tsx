@@ -270,6 +270,7 @@ const DFS_TABS = [
 // More dropdown — everything still accessible, just not occupying the
 // top bar. Order = how often we expect users to want them, roughly.
 const MORE_TABS = [
+  { label: "Command Center", href: "/dashboard/command" },
   { label: "Course Guide", href: "/dashboard/guide" },
   { label: "Schedule", href: "/dashboard/schedule" },
   { label: "Hedge", href: "/dashboard/hedge" },

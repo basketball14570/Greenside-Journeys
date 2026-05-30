@@ -86,6 +86,7 @@ function activeDesktopTabFor(pathname: string | null): string {
   if (pathname.startsWith("/dashboard/bets")) return "Tickets";
   if (pathname.startsWith("/dashboard/upload")) return "Tickets";
   if (pathname.startsWith("/dashboard/slip")) return "Tickets";
+  if (pathname.startsWith("/dashboard/command")) return "Command Center";
   if (pathname.startsWith("/dashboard/live")) return "Live";
   if (pathname.startsWith("/dashboard/parlay")) return "Live";
   if (pathname.startsWith("/dashboard/weather")) return "Weather";
