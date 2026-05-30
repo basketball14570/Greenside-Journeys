@@ -167,7 +167,15 @@ function normalizePlayer(c: any, eventRound: number, par: number | null): Leader
   const linescores: RoundLine[] = (c.linescores || []).map(normalizeRound);
   const totalToParRaw = parseScore(c.score);
   const status = c.status?.type?.description || c.status?.description || "";
-  const isCut = /cut|wd|withdrawn|dq|did not/i.test(status);
+  const posDisplay = c.status?.position?.displayName || "";
+  // ESPN exposes the cut/WD/DQ state in two places that don't always agree:
+  // the status text and the position display. Trust either signal — the
+  // regex catches "Missed Cut", "Cut", "WD/Withdrawn", "DQ", "Did Not Start",
+  // "Disqualified"; the position string catches the bare "CUT" / "WD" / "DQ"
+  // / "MC" labels ESPN shows on the leaderboard after the cut applies.
+  const isCutStatus = /cut|wd|withdrawn|dq|did not|disqualif/i.test(status);
+  const isCutPos = /^(cut|mc|wd|dq)$/i.test(posDisplay.trim());
+  const isCut = isCutStatus || isCutPos;
   // Today = the linescore for the event's current round, strictly.
   // No fallback to prior rounds — if the player hasn't teed off today,
   // todayLine stays null and the UI shows "—" plus the tee time.
@@ -193,7 +201,7 @@ function normalizePlayer(c: any, eventRound: number, par: number | null): Leader
     countryFlag: ath.flag?.alt || ath.flag?.href || "",
     headshot,
     flagHref: ath.flag?.href || null,
-    posDisplay: c.status?.position?.displayName || "",
+    posDisplay,
     posNum: c.status?.position?.id ? Number(c.status.position.id) : null,
     totalToPar:
       typeof c.score === "string" && (c.score === "E" || /^[+-]?\d+$/.test(c.score))

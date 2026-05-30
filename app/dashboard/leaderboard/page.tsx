@@ -202,12 +202,12 @@ export default function LeaderboardPage() {
       />
 
       <div className="rounded-[14px] border border-line overflow-hidden bg-surface-1">
-        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line">
+        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 text-[10px] md:text-xs uppercase tracking-wider text-text-dim border-b border-line">
           <span className="w-4 md:w-9 shrink-0" />
           <span className="flex-1 min-w-0">Player</span>
           <span className="w-11 md:w-[70px] text-right shrink-0">Total</span>
-          <span className="w-11 md:w-[70px] text-right shrink-0">Today</span>
-          <span className="w-9 md:w-[60px] text-right shrink-0">Thru</span>
+          <span className="hidden md:inline-block md:w-[70px] text-right shrink-0">Today</span>
+          <span className="w-8 md:w-[60px] text-right shrink-0">Thru</span>
         </div>
         <div className="max-h-[640px] overflow-y-auto">
           {!snapshot && loading ? (
@@ -490,12 +490,12 @@ function Row({
           <ScorePill text={player.totalToPar} num={player.totalScoreNum} strong />
         </div>
         <div
-          className="text-right num shrink-0 w-11 md:w-[70px]"
+          className="hidden md:block text-right num shrink-0 md:w-[70px]"
           style={{ fontSize: 13.5, color: colorForToPar(parseLeaderTotal(today?.toPar ?? null)) ?? "#a8b3ac" }}
         >
           {today?.toPar ?? "—"}
         </div>
-        <div className="text-right num shrink-0 w-9 md:w-[60px]" style={{ fontSize: 12.5, color: "#7e8a83" }}>
+        <div className="text-right num shrink-0 w-8 md:w-[60px]" style={{ fontSize: 12.5, color: "#7e8a83" }}>
           {today?.complete
             ? "F"
             : today?.thru != null

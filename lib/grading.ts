@@ -525,9 +525,12 @@ function gradeMakeCut(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
       pnl: wantsMake ? -bet.stake : payoutOnWin(bet),
     };
   }
-  // No isCut flag — either still pre-cut or made it.
-  // Period >= 3 with the player still active = made the cut.
-  if ((snapshot.event?.period ?? 0) >= 3 && !p.isCut) {
+  // No isCut flag — either still pre-cut or made it. Require a real
+  // position on the board before grading as a made cut: if ESPN hasn't
+  // assigned a position number (mid-update, or quietly dropped from the
+  // active list), don't commit to "made" — wait until the next refresh
+  // rather than risk a false win.
+  if ((snapshot.event?.period ?? 0) >= 3 && !p.isCut && p.posNum != null) {
     return {
       bet,
       status: wantsMake ? "won" : "lost",
