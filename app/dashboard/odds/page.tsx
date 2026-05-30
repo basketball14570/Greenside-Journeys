@@ -16,6 +16,7 @@ import {
 } from "@/lib/data/odds-types";
 import { americanToDecimal, impliedProbability } from "@/lib/hedge";
 import { PageHeader } from "@/components/edge/PageHeader";
+import { SendToSlipButton } from "@/components/edge/SendToSlipButton";
 
 // Small live/demo status pill reused by both odds mastheads.
 function StatusPill({ live, on, off }: { live: boolean; on: string; off: string }) {
@@ -121,6 +122,7 @@ function OddsBoard({ matrix }: { matrix: OddsMatrix }) {
               <Th center>Book</Th>
               {hasFair && <Th center>DG fair</Th>}
               <Th center>{hasFair ? "EV" : "Edge"}</Th>
+              <Th>{""}</Th>
             </tr>
           </thead>
           <tbody>
@@ -187,6 +189,15 @@ function SlimRow({ row, hasFair, isLast }: { row: OddsRow; hasFair: boolean; isL
           <EdgePill cents={row.edgeCents} />
         )}
       </td>
+      <td className="px-2 py-2.5 text-right">
+        <SendToSlipButton
+          player={row.player}
+          market={row.market}
+          americanOdds={row.bestOdds}
+          book={row.bestBook}
+          compact
+        />
+      </td>
     </tr>
   );
 }
@@ -242,6 +253,12 @@ function SlimCard({ row }: { row: OddsRow }) {
         ) : (
           <EdgePill cents={row.edgeCents} />
         )}
+        <SendToSlipButton
+          player={row.player}
+          market={row.market}
+          americanOdds={row.bestOdds}
+          book={row.bestBook}
+        />
       </div>
     </article>
   );

@@ -10,6 +10,27 @@ import {
   type CourseArchetype,
   DEFAULT_WEIGHTS,
 } from "@/lib/dfs-optimizer";
+import {
+  parseDkSalaryCsv,
+  buildDkLineupsCsv,
+  downloadCsv,
+  type DkIdMap,
+} from "@/lib/dfs/dk-export";
+
+const DK_ID_MAP_KEY = "greenside:dk-id-map";
+
+// Pull the cached DK salary CSV from the user's last upload so they don't
+// have to re-upload every session.
+function loadCachedIdMap(): DkIdMap | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DK_ID_MAP_KEY);
+    if (!raw) return null;
+    return parseDkSalaryCsv(raw);
+  } catch {
+    return null;
+  }
+}
 
 // Monte Carlo lineup builder. Lives below the static lineup card on
 // /dashboard/dfs. The user dials in weight sliders (expected score vs
@@ -23,6 +44,38 @@ export function OptimizerPanel({ players }: { players: DfsPlayer[] }) {
   const [results, setResults] = useState<Lineup[] | null>(null);
   const [pop, setPop] = useState<{ meanSim: number; meanCeiling: number } | null>(null);
   const [running, setRunning] = useState(false);
+
+  // DK export: keep the last-uploaded DK salary CSV in localStorage so the
+  // user uploads once per week instead of per session.
+  const [idMap, setIdMap] = useState<DkIdMap | null>(() => loadCachedIdMap());
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportCount, setExportCount] = useState(20);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+
+  function onDkCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    file.text().then((text) => {
+      try {
+        window.localStorage.setItem(DK_ID_MAP_KEY, text);
+      } catch {}
+      const next = parseDkSalaryCsv(text);
+      setIdMap(next);
+      setExportMsg(`Loaded ${next.size} players from ${file.name}`);
+    });
+  }
+
+  function doExport() {
+    if (!results || !idMap) return;
+    const take = Math.max(1, Math.min(exportCount, results.length));
+    const { csv, exported, missing } = buildDkLineupsCsv(results.slice(0, take), idMap);
+    downloadCsv(`greenside-dk-lineups-${take}.csv`, csv);
+    setExportMsg(
+      missing.length === 0
+        ? `Exported ${exported} lineups. Import on DraftKings → Edit My Entries.`
+        : `Exported ${exported} of ${take} — ${missing.length} unmatched: ${missing.slice(0, 4).join(", ")}${missing.length > 4 ? "…" : ""}`,
+    );
+  }
   const [expanded, setExpanded] = useState<number | null>(null);
 
   function run() {
@@ -162,7 +215,70 @@ export function OptimizerPanel({ players }: { players: DfsPlayer[] }) {
               </span>
             </span>
           )}
+          {results && (
+            <button
+              onClick={() => setExportOpen((v) => !v)}
+              className="rounded-[8px] border border-line-strong px-3 py-2 hover:border-[#7fd49a]"
+              style={{ fontSize: 12.5 }}
+              title="Download lineups as a DraftKings import CSV"
+            >
+              ⬇ DK CSV
+            </button>
+          )}
         </div>
+        {exportOpen && results && (
+          <div
+            className="mt-3 rounded-[10px] border p-3 space-y-2"
+            style={{
+              borderColor: "rgba(127,212,154,0.28)",
+              background: "rgba(127,212,154,0.06)",
+            }}
+          >
+            <div className="num font-semibold uppercase text-text-muted" style={{ fontSize: 9.5, letterSpacing: 1.1 }}>
+              Export to DraftKings
+            </div>
+            <p className="text-text-dim" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+              DK&apos;s Import Lineups wizard needs the salary CSV (it has the
+              player IDs). Upload it once per week, then export as many top
+              lineups as you want.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                className="num cursor-pointer rounded-[6px] border border-line-strong px-3 py-1.5 hover:border-[#7fd49a]"
+                style={{ fontSize: 11.5 }}
+              >
+                <input type="file" accept=".csv,text/csv" onChange={onDkCsv} className="hidden" />
+                {idMap ? `↻ Replace DK salary CSV (${idMap.size} players cached)` : "📄 Upload DK salary CSV"}
+              </label>
+              <label className="flex items-center gap-1.5 num text-text-dim" style={{ fontSize: 11.5 }}>
+                Top
+                <input
+                  type="number"
+                  min={1}
+                  max={results.length}
+                  value={exportCount}
+                  onChange={(e) => setExportCount(Math.max(1, Number(e.target.value) || 1))}
+                  className="num rounded border border-line bg-bg px-2 py-1 text-text w-16"
+                  style={{ fontSize: 12 }}
+                />
+                lineups
+              </label>
+              <button
+                onClick={doExport}
+                disabled={!idMap}
+                className="rounded-[6px] px-3 py-1.5 font-semibold disabled:opacity-40"
+                style={{ background: "#7fd49a", color: "#06140c", fontSize: 11.5 }}
+              >
+                Download CSV
+              </button>
+            </div>
+            {exportMsg && (
+              <div className="num text-text-dim" style={{ fontSize: 11 }}>
+                {exportMsg}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {results && (
