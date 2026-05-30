@@ -200,16 +200,33 @@ function TicketSectionHeader({
   );
 }
 
-// Earliest tee time first; players with no tee time (already off, or not
-// in the field) sort to the bottom. ESPN tee times are ISO strings, so a
-// lexicographic compare is also chronological.
+// Within a ticket, push live legs to the top (the bettor cares about what's
+// happening right now), then upcoming sorted by tee time, then done. Within
+// "live" we put the player closer to finishing first — they're about to
+// settle. Legs we can't classify fall to the bottom.
+function legSortRank(leg: GradedLeg): { tier: number; key: number } {
+  const today = leg.player?.todayLine;
+  if (today && !today.complete && today.thru !== 18) {
+    // Live: smaller key = sorts first within tier. Closer to finishing
+    // (higher thru) gets the smaller key. Just-teed (thru null) sorts
+    // last within Live.
+    return { tier: 0, key: 18 - (today.thru ?? 0) };
+  }
+  if (!today && leg.teeTime) {
+    const t = Date.parse(leg.teeTime);
+    return { tier: 1, key: Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER };
+  }
+  if (today?.complete || today?.thru === 18) {
+    return { tier: 2, key: 0 };
+  }
+  return { tier: 3, key: Number.MAX_SAFE_INTEGER };
+}
+
 function byTeeTime(a: GradedLeg, b: GradedLeg): number {
-  const ta = a.teeTime ?? null;
-  const tb = b.teeTime ?? null;
-  if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
-  if (ta) return -1;
-  if (tb) return 1;
-  return 0;
+  const ra = legSortRank(a);
+  const rb = legSortRank(b);
+  if (ra.tier !== rb.tier) return ra.tier - rb.tier;
+  return ra.key - rb.key;
 }
 
 // ── Live "to cash" estimate (sweat meter) ───────────────────────────
