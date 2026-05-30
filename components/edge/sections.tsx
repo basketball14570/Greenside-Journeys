@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { StarButton } from "./StarButton";
+import { PlayerAvatar } from "./PlayerAvatar";
 import {
   BookChip,
   Stat,
@@ -41,6 +42,8 @@ export type LeaderRow = {
   wave: "AM" | "PM";
   mine?: string[];
   slug?: string;
+  headshot?: string | null;
+  flagHref?: string | null;
 };
 
 export type AlertItem = {
@@ -918,6 +921,7 @@ function MobileLeaderRow({ r, last }: { r: LeaderRow; last: boolean }) {
         {r.pos}
       </span>
       <StarButton player={r.name} size={14} className="-ml-1" />
+      <PlayerAvatar name={r.name} headshot={r.headshot} flagHref={r.flagHref} size={24} />
       {r.slug ? (
         <Link
           href={`/players/${r.slug}`}
@@ -1061,6 +1065,7 @@ export function DesktopLeaderboard({ rows }: { rows: LeaderRow[] }) {
             </span>
             <div className="min-w-0 flex items-center gap-1.5">
               <StarButton player={r.name} size={12} className="-ml-1.5" />
+              <PlayerAvatar name={r.name} headshot={r.headshot} flagHref={r.flagHref} size={22} />
               {r.slug ? (
                 <Link
                   href={`/players/${r.slug}`}

@@ -76,6 +76,8 @@ function snapshotToRows(snap: LeaderboardSnapshot, limit: number): LeaderRow[] {
             : String(thruRaw),
       wave: deriveWave(p.teeTime),
       slug: slugify(p.name),
+      headshot: p.headshot,
+      flagHref: p.flagHref,
     };
   });
 }

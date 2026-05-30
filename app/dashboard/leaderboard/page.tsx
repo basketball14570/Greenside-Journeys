@@ -201,7 +201,7 @@ export default function LeaderboardPage() {
       />
 
       <div className="rounded-[14px] border border-line overflow-hidden bg-surface-1">
-        <div className="grid gap-2 px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line grid-cols-[28px_30px_1fr_48px_52px_40px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]">
+        <div className="grid gap-1.5 md:gap-2 px-3 md:px-4 py-2.5 text-xs uppercase tracking-wider text-text-dim border-b border-line grid-cols-[20px_24px_1fr_40px_40px_30px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]">
           <div />
           <div>Pos</div>
           <div>Player</div>
@@ -428,7 +428,7 @@ function Row({
   return (
     <div className="border-b border-line/50 last:border-b-0">
       <div
-        className="grid gap-2 px-4 py-2 hover:bg-surface-2 grid-cols-[28px_30px_1fr_48px_52px_40px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]"
+        className="grid gap-1.5 md:gap-2 px-3 md:px-4 py-2 hover:bg-surface-2 grid-cols-[20px_24px_1fr_40px_40px_30px] md:grid-cols-[36px_44px_1.7fr_70px_80px_70px]"
         onClick={() => canExpand && setOpen((v) => !v)}
         style={{ cursor: canExpand ? "pointer" : "default" }}
       >
@@ -441,23 +441,21 @@ function Row({
         >
           {player.posDisplay || "—"}
         </div>
-        <div className="self-center min-w-0 flex items-center gap-2">
+        <div className="self-center min-w-0 flex items-center gap-1.5">
           <PlayerAvatar
             name={player.name}
             headshot={player.headshot}
             flagHref={player.flagHref}
-            size={28}
+            size={24}
           />
-          <span className="min-w-0 flex items-center gap-1.5">
-            <span className="font-medium truncate" style={{ fontSize: 13 }}>
-              {player.name}
-            </span>
-            {canExpand && (
-              <span className="num" style={{ fontSize: 8, color: "#7e8a83" }}>
-                {open ? "▲" : "▼"}
-              </span>
-            )}
+          <span className="font-medium truncate" style={{ fontSize: 13 }}>
+            {player.name}
           </span>
+          {canExpand && (
+            <span className="num shrink-0" style={{ fontSize: 8, color: "#7e8a83" }}>
+              {open ? "▲" : "▼"}
+            </span>
+          )}
         </div>
         <div
           className="text-right num self-center"
