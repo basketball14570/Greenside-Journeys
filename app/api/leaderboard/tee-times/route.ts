@@ -48,6 +48,13 @@ function normalize(name: string): string {
   return flipped
     .toLowerCase()
     .normalize("NFKD")
+    // Delete combining marks so "Åberg" → "aberg" (not "a berg"); map the
+    // letters NFKD leaves intact. Must match the backfill norm in
+    // espn-leaderboard.ts exactly or accented names won't join.
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ø/g, "o")
+    .replace(/æ/g, "ae")
+    .replace(/ß/g, "ss")
     .replace(/[^a-z\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

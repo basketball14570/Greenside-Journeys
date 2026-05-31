@@ -300,8 +300,21 @@ async function backfillTeeTimes(
     await res.json();
   const byName = json.byName ?? {};
 
+  // Strip combining marks (NFKD splits "Åberg" into a + ◌̊) by deleting them,
+  // not replacing with a space — otherwise "Åberg" → "a berg" and won't
+  // match DataGolf's plain "aberg". ø/æ/ß aren't decomposed by NFKD, so
+  // map them explicitly, mirroring the grader's name normalization.
   const norm = (s: string) =>
-    s.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+    s
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/ø/g, "o")
+      .replace(/æ/g, "ae")
+      .replace(/ß/g, "ss")
+      .replace(/[^a-z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
   for (const p of snap.players) {
     if (p.teeTime) continue;
