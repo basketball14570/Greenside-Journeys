@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Greenside Edge — Design Concept</title>
+<style>
+  :root{
+    --bg:#07150d; --panel:#0a1f14; --panel2:#102e22; --line:#1c3a2a;
+    --ink:#e8efe9; --mut:#9bb0a3; --dim:#5a6e62; --acc:#39c46d; --warn:#d99a3a; --bad:#e0625a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%, #0e2a1c 0%, var(--bg) 60%);
+    color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh; padding:48px 24px 80px;
+  }
+  .head{text-align:center;max-width:760px;margin:0 auto 44px}
+  .head .logo{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--acc);font-weight:700}
+  .head h1{font-size:30px;margin-top:10px;font-weight:800;letter-spacing:-.5px}
+  .head p{color:var(--mut);margin-top:12px;font-size:15px;line-height:1.5}
+  .rail{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .cap{color:var(--mut);font-size:13px;font-weight:600}
+  .cap b{color:var(--acc)}
+
+  /* phone */
+  .phone{
+    width:300px;height:640px;background:var(--panel);border:2px solid var(--line);
+    border-radius:36px;position:relative;overflow:hidden;
+    box-shadow:0 30px 60px rgba(0,0,0,.5), inset 0 0 0 6px #060f09;
+  }
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:96px;height:24px;background:#060f09;border-radius:0 0 14px 14px;z-index:5}
+  .screen{position:absolute;inset:8px;border-radius:30px;overflow:hidden;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 6px;font-size:12px;color:var(--mut);font-weight:600}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--acc);display:inline-block;margin-right:5px;box-shadow:0 0 8px var(--acc)}
+  .body{flex:1;overflow:hidden;padding:6px 16px}
+  .scn-title{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:6px 2px 2px}
+  .sub{color:var(--mut);font-size:12px;margin:0 2px}
+  .seclabel{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin:16px 2px 8px;font-weight:700}
+
+  /* cards */
+  .card{background:var(--panel2);border-radius:16px;padding:14px;margin-bottom:12px}
+  .row{display:flex;align-items:center;gap:10px}
+  .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1d4a32,#0e2a1c);border:1px solid var(--line);flex:none}
+  .nm{font-size:14px;font-weight:700}
+  .mkt{font-size:11px;color:var(--mut);margin-top:1px}
+  .big{margin-left:auto;text-align:right}
+  .big .n{font-size:26px;font-weight:800;color:var(--acc);line-height:1}
+  .big .u{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+  .hbh{display:flex;gap:4px;margin-top:12px}
+  .h{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--ink);background:#0a1f14;border-radius:6px;padding:5px 0}
+  .h.bog{background:#3a2a12;color:#e2b06a}
+  .h.par{background:#0a1f14;color:var(--mut)}
+  .meta{display:flex;justify-content:space-between;margin-top:10px;font-size:10px;color:var(--dim)}
+  .pill{font-size:9px;font-weight:800;letter-spacing:.8px;color:var(--acc);border:1px solid #1d4a32;border-radius:20px;padding:3px 8px;text-transform:uppercase}
+
+  /* rangefinder */
+  .rf-top{display:flex;justify-content:space-between;align-items:center;padding:4px 2px;font-size:13px}
+  .rf-top .done{color:var(--acc);font-weight:700}
+  .rf-course{font-weight:700;font-size:13px}
+  .holebar{display:flex;align-items:center;justify-content:space-between;margin:18px 4px}
+  .navbtn{width:46px;height:46px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--acc);font-size:26px}
+  .holemeta{text-align:center}
+  .holemeta .hn{font-size:20px;font-weight:800}
+  .holemeta .hp{color:var(--mut);font-size:13px;margin-top:2px}
+  .dists{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 6px}
+  .dist{display:flex;justify-content:space-between;align-items:baseline}
+  .dist .lbl{color:var(--mut);font-size:15px;font-weight:600}
+  .dist .val{font-size:38px;font-weight:800;color:var(--mut)}
+  .dist.c .lbl{color:var(--ink);font-size:18px;font-weight:700}
+  .dist.c .val{font-size:84px;color:var(--acc);font-weight:900;line-height:.9;text-shadow:0 0 30px rgba(57,196,109,.35)}
+  .yd{font-size:15px;color:var(--dim);font-weight:600}
+  .gps{text-align:center;color:var(--dim);font-size:11px;padding:6px 0}
+  .map{height:120px;border-radius:14px;margin:2px 0 6px;
+    background:
+      radial-gradient(60px 40px at 70% 35%, #2f7d4f 0%, #1f5a36 60%, transparent 62%),
+      radial-gradient(18px 14px at 40% 70%, #caa46a 0%, #caa46a 60%, transparent 62%),
+      linear-gradient(180deg,#16442b,#0e2e1d);
+    position:relative;border:1px solid var(--line)}
+  .map .flag{position:absolute;left:69%;top:26%;width:2px;height:18px;background:#fff}
+  .map .flag:after{content:"";position:absolute;top:0;left:2px;width:9px;height:6px;background:var(--bad)}
+  .map .me{position:absolute;left:24%;bottom:14%;width:10px;height:10px;border-radius:50%;background:#5ea0ff;box-shadow:0 0 0 4px rgba(94,160,255,.3)}
+
+  /* tee times */
+  .search{background:var(--panel2);border-radius:12px;padding:11px 14px;color:var(--mut);font-size:13px;margin:8px 2px 4px;display:flex;justify-content:space-between}
+  .tt{background:var(--panel2);border-radius:14px;padding:13px;margin-bottom:10px}
+  .tt .r1{display:flex;justify-content:space-between;align-items:flex-start}
+  .tt .cn{font-size:14px;font-weight:700}
+  .tt .loc{font-size:11px;color:var(--mut);margin-top:2px}
+  .tt .pr{color:var(--acc);font-weight:800;font-size:16px}
+  .tt .r2{display:flex;justify-content:space-between;align-items:center;margin-top:11px}
+  .times{display:flex;gap:6px}
+  .t{font-size:11px;font-weight:700;background:#0a1f14;border:1px solid var(--line);border-radius:8px;padding:5px 8px;color:var(--ink)}
+  .book{font-size:11px;font-weight:800;background:var(--acc);color:#07150d;border-radius:8px;padding:6px 12px}
+
+  /* tab bar */
+  .tabs{display:flex;justify-content:space-around;align-items:center;padding:12px 8px 16px;border-top:1px solid var(--line);background:var(--panel)}
+  .tab{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .tab .ic{width:20px;height:20px;border-radius:6px;border:2px solid var(--dim)}
+  .tab.on{color:var(--acc)}
+  .tab.on .ic{border-color:var(--acc);background:rgba(57,196,109,.15)}
+
+  .foot{max-width:760px;margin:46px auto 0;text-align:center;color:var(--dim);font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="logo">Greenside Edge</div>
+    <h1>The ultimate golf app — design concept</h1>
+    <p>One app for the whole round: bet intelligence, a GPS rangefinder while you play, and tee-time booking. Dark, course-green, data-forward. This is a clickable static mockup of three core screens.</p>
+  </div>
+
+  <div class="rail">
+
+    <!-- DASHBOARD -->
+    <div class="col">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="statusbar"><span>9:41</span><span><span class="dot"></span>LIVE</span></div>
+        <div class="body">
+          <div class="scn-title">Today</div>
+          <div class="sub">Charles Schwab Challenge · R3</div>
+          <div class="seclabel">In play · 3 bets</div>
+
+          <div class="card">
+            <div class="row">
+              <div class="av"></div>
+              <div><div class="nm">Keegan Bradley</div><div class="mkt">R3 birdies or better · U 3.5</div></div>
+              <div class="big"><div class="n">0</div><div class="u">birdies</div></div>
+            </div>
+            <div class="hbh">
+              <div class="h par">5</div><div class="h bog">5</div><div class="h bog">5</div>
+              <div class="h par">3</div><div class="h bog">5</div><div class="h par">4</div>
+              <div class="h par">4</div><div class="h par">3</div>
+            </div>
+            <div class="meta"><span>R3 · thru 10</span><span class="pill">Live ·  good</span></div>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <div class="av"></div>
+              <div><div class="nm">Ludvig Aberg</div><div class="mkt">R3 Top 10 finish</div></div>
+              <div class="big"><div class="n">T20</div><div class="u">thru 9</div></div>
+            </div>
+            <div class="meta"><span>2 back of top 10</span><span class="pill">Live</span></div>
+          </div>
+
+          <div class="card" style="padding:11px 14px">
+            <div class="row"><div class="nm" style="font-size:13px">Today's P/L</div>
+            <div class="big"><div class="n" style="font-size:20px">+$148</div></div></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab on"><div class="ic"></div>Home</div>
+          <div class="tab"><div class="ic"></div>Bets</div>
+          <div class="tab"><div class="ic"></div>Play</div>
+          <div class="tab"><div class="ic"></div>Tee</div>
+          <div class="tab"><div class="ic"></div>You</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>Home</b> — live bets &amp; P/L</div>
+    </div>
+
+    <!-- RANGEFINDER -->
+    <div class="col">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="statusbar"><span>9:41</span><span><span class="dot"></span>GPS</span></div>
+        <div class="body" style="display:flex;flex-direction:column">
+          <div class="rf-top"><span class="done">Done</span><span class="rf-course">Pebble Beach</span><span style="width:32px"></span></div>
+          <div class="map"><div class="flag"></div><div class="me"></div></div>
+          <div class="holebar">
+            <div class="navbtn">‹</div>
+            <div class="holemeta"><div class="hn">Hole 7</div><div class="hp">Par 3</div></div>
+            <div class="navbtn">›</div>
+          </div>
+          <div class="dists">
+            <div class="dist"><span class="lbl">Back</span><span class="val">168<span class="yd"> yd</span></span></div>
+            <div class="dist c"><span class="lbl">Center</span><span class="val">152</span></div>
+            <div class="dist"><span class="lbl">Front</span><span class="val">141<span class="yd"> yd</span></span></div>
+          </div>
+          <div class="gps">GPS ±3m · tap a target to lay up</div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><div class="ic"></div>Home</div>
+          <div class="tab"><div class="ic"></div>Bets</div>
+          <div class="tab on"><div class="ic"></div>Play</div>
+          <div class="tab"><div class="ic"></div>Tee</div>
+          <div class="tab"><div class="ic"></div>You</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>Play</b> — GPS rangefinder (the hero)</div>
+    </div>
+
+    <!-- TEE TIMES -->
+    <div class="col">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>􀙇 􀋦 􀛨</span></div>
+        <div class="body">
+          <div class="scn-title">Tee Times</div>
+          <div class="search"><span>📍 Near me · Today</span><span style="color:var(--acc);font-weight:700">Filter</span></div>
+
+          <div class="tt">
+            <div class="r1"><div><div class="cn">Pebble Beach Golf Links</div><div class="loc">2.4 mi · 18 holes</div></div><div class="pr">$210</div></div>
+            <div class="r2"><div class="times"><span class="t">1:40</span><span class="t">2:10</span><span class="t">2:50</span></div><span class="book">Book</span></div>
+          </div>
+          <div class="tt">
+            <div class="r1"><div><div class="cn">Spyglass Hill</div><div class="loc">3.1 mi · 18 holes</div></div><div class="pr">$165</div></div>
+            <div class="r2"><div class="times"><span class="t">12:20</span><span class="t">1:00</span><span class="t">3:30</span></div><span class="book">Book</span></div>
+          </div>
+          <div class="tt">
+            <div class="r1"><div><div class="cn">Poppy Hills</div><div class="loc">4.0 mi · 18 holes</div></div><div class="pr">$89</div></div>
+            <div class="r2"><div class="times"><span class="t">11:50</span><span class="t">2:30</span><span class="t">4:10</span></div><span class="book">Book</span></div>
+          </div>
+          <div class="seclabel" style="margin-top:14px">Powered by GolfNow · earns referral</div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><div class="ic"></div>Home</div>
+          <div class="tab"><div class="ic"></div>Bets</div>
+          <div class="tab"><div class="ic"></div>Play</div>
+          <div class="tab on"><div class="ic"></div>Tee</div>
+          <div class="tab"><div class="ic"></div>You</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>Tee Times</b> — find &amp; book a round</div>
+    </div>
+
+  </div>
+
+  <div class="foot">
+    Palette: course-green <b style="color:#39c46d">#39c46d</b> on near-black <b style="color:#9bb0a3">#0a1f14</b>. Same look the app code already uses.<br/>
+    This is a direction, not a final design — colors, type, and layout are all open to your taste.
+  </div>
+</body>
+</html>
