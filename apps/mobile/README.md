@@ -4,19 +4,31 @@ Native iOS + Android app (Expo / React Native) for greensideedge.com.
 Lives in this monorepo alongside the Next.js web app so the parser API,
 grader, and Supabase schema can be shared without duplication.
 
-## Phase 1 (today)
+## What works in the scaffold
 
-What works in the scaffold:
+Betting (the core):
 
 - **Supabase auth** — email + magic link or password, persisted across launches via AsyncStorage.
-- **Tabbed nav** — Dashboard / Bets / Leaderboard / Settings.
-- **WebView-backed pages** (Phase 1) — the three dashboard tabs render greensideedge.com inside an in-app webview with the user's native session handed off at `/auth/mobile-handoff` so they're already signed in.
+- **WebView-backed betting pages** — Home (dashboard) and Bets render greensideedge.com inside an in-app webview with the user's native session handed off at `/auth/mobile-handoff` so they're already signed in. Leaderboard is reachable via the dashboard's own nav.
 - **Scan bet slip** — camera capture → existing `/api/bets/parse` endpoint.
 - **Push notifications** — Expo Push token registration on first launch after sign-in; tokens persisted to `profiles.expo_push_tokens`.
-- **Sign out** in Settings.
 
-Native screens for Dashboard / Bets / Leaderboard, plus iOS Widget and
-Live Activity, are Phase 2+.
+Golf-life (new — see `docs/ROADMAP-golf-platform.md`):
+
+- **Play — GPS rangefinder** — live yardages to green front/center/back, computed client-side from device GPS (`expo-location`) + a pluggable course-data layer. Runs on a bundled sample course at zero data cost until a course API is configured. Source: `app/(tabs)/play.tsx`, `lib/geo.ts`, `lib/useLocation.ts`, `lib/courses.ts`.
+- **Tee Times** — aggregator/affiliate booking site in a webview, configurable via `extra.teeTimesUrl`. Source: `app/(tabs)/tee-times.tsx`.
+
+Five tabs: **Home · Bets · Play · Tee Times · Settings**.
+
+Native betting screens, iOS Widget, and Live Activity are later phases.
+
+## Budget configuration (app.json `extra`)
+
+- `courseApiUrl` — leave empty for sample-course demo mode; set to a free
+  (OpenGolfAPI / OSM-derived) or licensed course endpoint for real
+  coverage. The rangefinder code is source-agnostic.
+- `teeTimesUrl` — the booking site to embed. Use your **affiliate/partner
+  link** so referrals are attributed.
 
 ## First-time setup
 

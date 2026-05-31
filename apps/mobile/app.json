@@ -19,6 +19,7 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Used to snap a photo of your bet slip so Greenside Edge can parse and grade it for you.",
         "NSPhotoLibraryUsageDescription": "Used to pick a saved bet slip screenshot to parse.",
+        "NSLocationWhenInUseUsageDescription": "Used to show live yardages to the green while you play your round.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": ["applinks:greensideedge.com"]
@@ -29,7 +30,13 @@
         "backgroundColor": "#0a1f14"
       },
       "package": "com.greensideedge.app",
-      "permissions": ["CAMERA", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -58,6 +65,12 @@
           "color": "#39c46d"
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Used to show live yardages to the green while you play your round."
+        }
+      ],
       "expo-secure-store"
     ],
     "extra": {
@@ -67,7 +80,9 @@
       },
       "webAppUrl": "https://greensideedge.com",
       "supabaseUrl": "REPLACE_WITH_NEXT_PUBLIC_SUPABASE_URL",
-      "supabaseAnonKey": "REPLACE_WITH_NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      "supabaseAnonKey": "REPLACE_WITH_NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "courseApiUrl": "",
+      "teeTimesUrl": "https://www.golfnow.com/"
     }
   }
 }

@@ -19,8 +19,18 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   );
 }
 
-export default function TabsLayout() {
+// Header "Scan" shortcut — only meaningful on the betting screens, so
+// it's attached per-screen rather than globally.
+function ScanButton() {
   const router = useRouter();
+  return (
+    <Pressable onPress={() => router.push("/scan")} hitSlop={12} style={{ paddingRight: 16 }}>
+      <Text style={{ color: "#39c46d", fontWeight: "700" }}>Scan</Text>
+    </Pressable>
+  );
+}
+
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -33,21 +43,13 @@ export default function TabsLayout() {
           height: 64,
         },
         tabBarShowLabel: false,
-        headerRight: () => (
-          <Pressable
-            onPress={() => router.push("/scan")}
-            hitSlop={12}
-            style={{ paddingRight: 16 }}
-          >
-            <Text style={{ color: "#39c46d", fontWeight: "700" }}>Scan</Text>
-          </Pressable>
-        ),
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Dashboard",
+          headerRight: () => <ScanButton />,
           tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} />,
         }}
       />
@@ -55,14 +57,24 @@ export default function TabsLayout() {
         name="bets"
         options={{
           title: "Bets",
+          headerRight: () => <ScanButton />,
           tabBarIcon: ({ focused }) => <TabIcon label="Bets" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="leaderboard"
+        name="play"
         options={{
-          title: "Leaderboard",
-          tabBarIcon: ({ focused }) => <TabIcon label="Board" focused={focused} />,
+          // Play renders its own full-screen chrome (course picker /
+          // rangefinder), so suppress the tab header.
+          headerShown: false,
+          tabBarIcon: ({ focused }) => <TabIcon label="Play" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tee-times"
+        options={{
+          title: "Tee Times",
+          tabBarIcon: ({ focused }) => <TabIcon label="Tee Times" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -72,6 +84,9 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <TabIcon label="You" focused={focused} />,
         }}
       />
+      {/* Reachable via the dashboard webview's own nav — kept as a route
+          but hidden from the tab bar to keep it to five items. */}
+      <Tabs.Screen name="leaderboard" options={{ href: null, title: "Leaderboard" }} />
     </Tabs>
   );
 }
