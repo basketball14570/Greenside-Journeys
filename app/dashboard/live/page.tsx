@@ -1385,17 +1385,42 @@ function thruLabel(p: LeaderboardPlayer | null): string {
   const thru = p.todayLine?.thru;
   if (thru === 18) return "F";
   if (typeof thru === "number") return String(thru);
-  if (p.teeTime) {
-    try {
-      return new Date(p.teeTime).toLocaleTimeString([], {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    } catch {
-      return "—";
-    }
+  const tee = formatTeeClock(p.teeTime);
+  return tee ?? "—";
+}
+
+// A short tee-time / progress badge for a leg card: "F" / "thru 12" once
+// a player is on the course, otherwise the tee time. Lets the user (and
+// us) see the chronological order the list is sorted by.
+function teeBadge(p: LeaderboardPlayer | null | undefined): string | null {
+  if (!p) return null;
+  const today = p.todayLine;
+  if (today?.complete || today?.thru === 18) return "F";
+  if (typeof today?.thru === "number" && today.thru > 0) return `thru ${today.thru}`;
+  const tee = formatTeeClock(p.teeTime);
+  return tee ? `tee ${tee}` : null;
+}
+
+// Tee time arrives as ESPN ISO ("2026-05-31T15:30:00Z") OR DataGolf
+// time-of-day ("10:30", "1:45 PM", "13:45"). new Date() only parses the
+// former, so handle the latter explicitly — otherwise live-round tee
+// times (which come from the DataGolf backfill) render as "—".
+function formatTeeClock(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const isoMs = Date.parse(raw);
+  if (Number.isFinite(isoMs)) {
+    return new Date(isoMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
-  return "—";
+  const m = raw.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+  if (!m) return null;
+  let hh = Number(m[1]);
+  const mm = m[2];
+  const ampm = m[3]?.toLowerCase();
+  if (ampm === "pm" && hh < 12) hh += 12;
+  if (ampm === "am" && hh === 12) hh = 0;
+  const suffix = hh < 12 ? "AM" : "PM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${mm} ${suffix}`;
 }
 
 function slugifyName(name: string): string {
