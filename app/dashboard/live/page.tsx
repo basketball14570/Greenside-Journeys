@@ -937,13 +937,12 @@ function LiveBetCard({
           >
             {decision?.bet.market ?? bet.market}
             {bet.line !== null ? ` · ${bet.line}` : ""}
-            {teeBadge(player) ? (
-              <span className="num" style={{ color: "#cdb47a" }}>
-                {" · "}
-                {teeBadge(player)}
-              </span>
-            ) : null}
           </p>
+          {teeBadge(player) ? (
+            <p className="num mt-0.5" style={{ fontSize: 11, color: "#cdb47a", letterSpacing: 0.2 }}>
+              {teeBadge(player)}
+            </p>
+          ) : null}
         </div>
         {!hideMoney && (
           <div className="text-right shrink-0 leading-tight">
