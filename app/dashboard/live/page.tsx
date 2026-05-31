@@ -246,83 +246,14 @@ function byTeeTime(a: GradedLeg, b: GradedLeg): number {
   return effectiveTeeMs(a) - effectiveTeeMs(b);
 }
 
-// ── Live "to cash" estimate (sweat meter) ───────────────────────────
-// Coarse and transparent, NOT a book price. Decided legs are 1 / 0; live
-// legs lean from 50% toward 100% / 0% as their deciding period plays out
-// and the current side holds. The parlay number is the product across
-// legs — one missed leg busts it to 0.
-function clamp01(x: number): number {
-  return Math.max(0, Math.min(1, x));
-}
-
-function sweat(winning: boolean, progress: number): number {
-  const p = 0.5 + 0.45 * clamp01(progress) * (winning ? 1 : -1);
-  return Math.max(0.03, Math.min(0.97, p));
-}
-
-function legWinProbability(g: GradedLeg, period: number): number | null {
-  const d = g.decision;
-  if (!d) return null;
-  if (d.status === "won" || d.status === "push") return 1;
-  if (d.status === "lost") return 0;
-  if (d.status !== "live") return null; // unknown / unpriced
-
-  const ob = dbBetToOpenBet(g.bet);
-  const m = ob.market.toLowerCase();
-  const p = g.player;
-  const thru = p?.todayLine?.thru ?? g.shots?.played ?? 0;
-  const roundScoped = ob.round != null;
-  const progress = roundScoped
-    ? thru / 18
-    : (Math.max(0, (period || 1) - 1) + thru / 18) / 4;
-
-  // 3-ball / matchup — read the match-play standing.
-  if (m.includes("3-ball") || m.includes("3 ball") || m.includes("vs") || m.includes("matchup")) {
-    const st = (d.standing ?? "").toLowerCase();
-    if (st === "as") return 0.45;
-    if (st.includes("up")) return sweat(true, progress);
-    if (st.includes("down") || st.includes("dn")) return sweat(false, progress);
-    return 0.4;
-  }
-  // Position bets.
-  if (m.includes("top")) {
-    const target = parseInt(m.match(/top\s*(\d+)/)?.[1] ?? "10", 10);
-    return sweat(p?.posNum != null && p.posNum <= target, progress);
-  }
-  if (m.includes("win")) {
-    return sweat(p?.posNum === 1, progress);
-  }
-  // Count / score over-under props (birdies, bogeys, round score, FH, GIR).
-  const observed = typeof d.observedValue === "number" ? d.observedValue : null;
-  const lineMatch = ob.line.match(/(\d+(?:\.\d+)?)/);
-  const side: "over" | "under" =
-    /^u/i.test(ob.line.trim()) || /\b(under|lower)\b/.test(m) ? "under" : "over";
-  if (observed != null && lineMatch) {
-    const line = parseFloat(lineMatch[1]);
-    const proj = thru > 0 ? (observed / thru) * 18 : observed;
-    return sweat(side === "over" ? proj > line : proj < line, progress);
-  }
-  return 0.5;
-}
-
-function parlayCash(
-  legs: GradedLeg[],
-  period: number,
-): { pct: number; unpriced: number } {
-  let prod = 1;
-  let priced = 0;
-  let unpriced = 0;
-  for (const g of legs) {
-    const p = legWinProbability(g, period);
-    if (p == null) {
-      unpriced++;
-      continue;
-    }
-    prod *= p;
-    priced++;
-  }
-  return { pct: priced > 0 ? prod : 0, unpriced };
-}
+// ── End of sort helpers ──────────────────────────────────────────────
+// A "live cash %" sweat meter used to live here. Removed: with long
+// 7+ leg parlays the joint number was dominated by the worst leg and
+// communicated almost nothing useful (a 5/7-hit, 2-alive parlay could
+// read 0.6% even when both remaining legs were essentially won). The
+// per-leg status pills (WINNING / LOSING / IN PLAY) carry the real
+// signal; trying to roll them into a single probability bar caused
+// more confusion than it resolved.
 
 const STATUS_COLOR: Record<Decision["status"], string> = {
   won: "#7fd49a",
@@ -526,7 +457,6 @@ function ParlayGroup({
 }) {
   const first = legs[0].bet;
   const multi = legs.length > 1;
-  const cash = multi ? parlayCash(legs, period) : null;
   const when = first.placed_at
     ? new Date(first.placed_at).toLocaleString([], {
         month: "short",
@@ -702,7 +632,6 @@ function ParlayGroup({
           </div>
         </div>
       )}
-      {multi && cash && <SweatMeter pct={cash.pct} unpriced={cash.unpriced} />}
       <ul className="space-y-2.5">
         {legs.map((g) => (
           <LiveBetCard
@@ -726,64 +655,6 @@ function ParlayGroup({
 function americanToDecimal(a: number): number {
   if (!a) return 1;
   return a > 0 ? 1 + a / 100 : 1 + 100 / Math.abs(a);
-}
-
-// Parlay "to cash" sweat bar. Estimate only — labeled as such — derived
-// from each leg's live state, not a book price.
-function SweatMeter({ pct, unpriced }: { pct: number; unpriced: number }) {
-  const pctNum = pct * 100;
-  // A long parlay's joint odds are tiny but nonzero — round-to-integer would
-  // show a still-alive ticket as a flat "0%". Keep a decimal under 10% so the
-  // user can see it's a longshot, not dead.
-  const label =
-    pctNum <= 0
-      ? "0%"
-      : pctNum < 0.1
-        ? "<0.1%"
-        : pctNum < 10
-          ? `${pctNum.toFixed(1)}%`
-          : `${Math.round(pctNum)}%`;
-  const barWidth = Math.max(2, Math.round(pctNum));
-  const color = pct >= 0.5 ? "#7fd49a" : pct >= 0.2 ? "#f5c558" : "#e57373";
-  return (
-    <div className="px-1 pb-3">
-      <div className="flex items-center justify-between" style={{ marginBottom: 5 }}>
-        <span
-          className="num uppercase"
-          style={{ fontSize: 9, letterSpacing: 1, color: "#6c7a72" }}
-        >
-          Live cash est.
-        </span>
-        <span className="num font-semibold" style={{ fontSize: 12, color }}>
-          ≈ {label} to cash
-          {unpriced ? (
-            <span style={{ color: "#6c7a72", fontWeight: 400 }}>
-              {" "}
-              · {unpriced} unpriced
-            </span>
-          ) : null}
-        </span>
-      </div>
-      <div
-        style={{
-          height: 6,
-          borderRadius: 99,
-          background: "rgba(255,255,255,0.08)",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${Math.max(2, barWidth)}%`,
-            height: "100%",
-            background: color,
-            borderRadius: 99,
-            transition: "width .3s ease",
-          }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function LiveBetCard({
