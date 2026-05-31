@@ -19,8 +19,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   );
 }
 
-// Header "Scan" shortcut — only meaningful on the betting screens, so
-// it's attached per-screen rather than globally.
+// Header "Scan" shortcut — only meaningful on the betting screens.
 function ScanButton() {
   const router = useRouter();
   return (
@@ -48,24 +47,23 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: "Command Center",
           headerRight: () => <ScanButton />,
-          tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Command" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="bets"
         options={{
-          title: "Bets",
+          title: "Live Bets",
           headerRight: () => <ScanButton />,
-          tabBarIcon: ({ focused }) => <TabIcon label="Bets" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Live" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="play"
         options={{
-          // Play renders its own full-screen chrome (course picker /
-          // rangefinder), so suppress the tab header.
+          // Play renders its own full-screen chrome.
           headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label="Play" focused={focused} />,
         }}
@@ -80,13 +78,15 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: "You",
           tabBarIcon: ({ focused }) => <TabIcon label="You" focused={focused} />,
         }}
       />
-      {/* Reachable via the dashboard webview's own nav — kept as a route
-          but hidden from the tab bar to keep it to five items. */}
+      {/* Betting pages reachable from the Command Center's own nav and
+          from the You tab's quick links — kept as routes, hidden from
+          the bar to keep it to five items. */}
       <Tabs.Screen name="leaderboard" options={{ href: null, title: "Leaderboard" }} />
+      <Tabs.Screen name="guide" options={{ href: null, title: "Course Guide" }} />
     </Tabs>
   );
 }

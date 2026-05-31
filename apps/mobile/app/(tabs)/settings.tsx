@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function Settings() {
   const { session } = useAuth();
+  const router = useRouter();
   const email = session?.user?.email ?? "Not signed in";
   const version = Constants.expoConfig?.version ?? "0.1.0";
 
@@ -16,14 +18,21 @@ export default function Settings() {
   return (
     <SafeAreaView style={styles.root} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.body}>
+        <Section title="Betting tools">
+          <LinkRow label="Command Center" onPress={() => router.push("/(tabs)")} />
+          <LinkRow label="Live Bets" onPress={() => router.push("/(tabs)/bets")} />
+          <LinkRow label="Leaderboard" onPress={() => router.push("/leaderboard")} />
+          <LinkRow label="Course Guide" onPress={() => router.push("/guide")} last />
+        </Section>
+
         <Section title="Account">
           <Row label="Email" value={email} />
-          <Row label="User ID" value={session?.user?.id ?? "—"} mono />
+          <Row label="User ID" value={session?.user?.id ?? "—"} mono last />
         </Section>
 
         <Section title="App">
           <Row label="Version" value={version} />
-          <Row label="Bundle" value="com.greensideedge.app" mono />
+          <Row label="Bundle" value="com.greensideedge.app" mono last />
         </Section>
 
         <Pressable
@@ -34,8 +43,8 @@ export default function Settings() {
         </Pressable>
 
         <Text style={styles.footer}>
-          More native screens coming in Phase 2. Today the Dashboard, Bets, and Leaderboard tabs
-          load greensideedge.com inside a webview with your session pre-authenticated.
+          Betting screens load greensideedge.com with your session signed in, so they match the web
+          app exactly. Play and Tee Times are native.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -51,14 +60,33 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({
+  label,
+  value,
+  mono,
+  last,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  last?: boolean;
+}) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, last && styles.rowLast]}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={[styles.rowValue, mono && styles.mono]} numberOfLines={1}>
         {value}
       </Text>
     </View>
+  );
+}
+
+function LinkRow({ label, onPress, last }: { label: string; onPress: () => void; last?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, last && styles.rowLast, pressed && styles.rowPressed]}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
   );
 }
 
@@ -82,8 +110,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#0a1f14",
   },
-  rowLabel: { color: "#9bb0a3", fontSize: 14 },
-  rowValue: { color: "#e8efe9", fontSize: 14, flexShrink: 1, marginLeft: 12 },
+  rowLast: { borderBottomWidth: 0 },
+  rowPressed: { opacity: 0.6 },
+  rowLabel: { color: "#e8efe9", fontSize: 15 },
+  rowValue: { color: "#9bb0a3", fontSize: 14, flexShrink: 1, marginLeft: 12 },
+  chevron: { color: "#39c46d", fontSize: 22, fontWeight: "300" },
   mono: { fontFamily: "Menlo", fontSize: 12 },
   danger: {
     marginTop: 8,
