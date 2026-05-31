@@ -53,6 +53,39 @@ function statusColor(s: Decision["status"] | "unknown"): string {
   }
 }
 
+// Chronological sort key for a ticket. Tee time arrives in two formats:
+// ESPN ISO ("2026-05-31T15:30:00Z") and DataGolf time-of-day ("10:30",
+// "1:45 PM", "13:45"); both fold to a comparable number. A player already
+// on the course (tee time often nulled by ESPN) is keyed by holes played
+// so they still sort among the early starters; the unplaceable sink last.
+function parseTeeTime(s: string): number | null {
+  const isoMs = Date.parse(s);
+  if (Number.isFinite(isoMs)) return isoMs;
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+  if (!m) return null;
+  let hh = Number(m[1]);
+  const mm = Number(m[2]);
+  const ampm = m[3]?.toLowerCase();
+  if (ampm === "pm" && hh < 12) hh += 12;
+  if (ampm === "am" && hh === 12) hh = 0;
+  return hh * 60 + mm;
+}
+
+const TEED_OFF_BASE = -1e15;
+
+function effectiveTeeKey(g: { player: LeaderboardPlayer | null }): number {
+  const tee = g.player?.teeTime;
+  if (tee) {
+    const t = parseTeeTime(tee);
+    if (t !== null) return t;
+  }
+  const today = g.player?.todayLine;
+  const started =
+    !!today && (today.complete || (today.thru ?? 0) > 0 || today.strokes !== null);
+  if (started) return TEED_OFF_BASE + (18 - (today!.thru ?? 0));
+  return Number.MAX_SAFE_INTEGER;
+}
+
 export default function CommandCenterPage() {
   const [snapshot, setSnapshot] = useState<LeaderboardSnapshot | null>(null);
   const [bets, setBets] = useState<ApiBet[]>([]);
@@ -129,17 +162,14 @@ export default function CommandCenterPage() {
     return { live, winningLive, atRisk, potential, settledNet, won, lost };
   }, [graded]);
 
-  // Sort: live first, then pending, then settled; within live, "winning" up top.
+  // Order the day as a single chronological list by tee time, earliest
+  // first. Players already on the course (teeTime nulled by ESPN, or
+  // backfilled from DataGolf) are slotted by their tee time when we have
+  // it, otherwise by holes played (more thru = teed off earlier) so the
+  // list still reads top-to-bottom in tee order. Anyone unplaceable
+  // (cut/withdrew/no match) falls to the bottom.
   const ticketRows = useMemo(() => {
-    const rank = (g: (typeof graded)[number]) => {
-      const s = g.decision?.status;
-      if (s === "live") return 0;
-      if (g.bet.status === "pending") return 1;
-      if (s === "won") return 2;
-      if (s === "lost") return 4;
-      return 3;
-    };
-    return [...graded].sort((a, b) => rank(a) - rank(b));
+    return [...graded].sort((a, b) => effectiveTeeKey(a) - effectiveTeeKey(b));
   }, [graded]);
 
   // Board: your starred golfers + the leaders, deduped, avatars + form.
