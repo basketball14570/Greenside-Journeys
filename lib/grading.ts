@@ -481,6 +481,158 @@ function gradeRoundProp(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
   }
 }
 
+// Specific-holes strokes prop, e.g. "R4 Holes 16-17-18 Strokes O 10.5"
+// (cumulative strokes on the last three holes), or "R4 Holes 1-9 Strokes
+// U 35.5" (front-9 strokes), or "R4 Holes 10-18 Strokes O 36.5" (back-9).
+// The line targets a subset of holes, not the whole round, so we must
+// sum per-hole strokes for only those holes from the player's scorecard.
+//
+// Lock-in semantics, matching gradeRoundProp's stroke conventions:
+//   over:  sum > line as soon as it crosses → won (locked early)
+//          all target holes played AND sum ≤ line → lost
+//   under: sum > line at any point → lost (locked early; strokes only grow)
+//          all target holes played AND sum < line → won
+function gradeHoleRangeStrokes(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision {
+  const round = bet.round ?? deriveRoundFromMarket(bet.market);
+  const holes = parseHoleRange(bet.market);
+  const { side, line } = parsePropLine(bet.line);
+  if (!round || !side || line === null || !holes || holes.length === 0) {
+    return { bet, status: "unknown", reason: "Could not parse round / line / side / holes" };
+  }
+  const p = findPlayer(snapshot, bet.player);
+  if (!p) return { bet, status: "unknown", reason: "Player not in field" };
+  const rl = p.rounds.find((r) => r.period === round);
+  if (!rl) return { bet, status: "live", reason: `R${round} not started` };
+
+  // Per-hole strokes are null until the hole is finished. Treat null /
+  // missing / 0 as "not played" — strokes are never 0 in golf.
+  let played = 0;
+  let sum = 0;
+  for (const hole of holes) {
+    const h = rl.holes.find((x) => x.hole === hole);
+    if (h?.strokes != null && h.strokes > 0) {
+      played++;
+      sum += h.strokes;
+    }
+  }
+  const total = holes.length;
+  const label = formatHoleRangeLabel(holes);
+  const standing = String(sum);
+  const standingNote = `${played}/${total} holes`;
+
+  if (side === "over") {
+    if (sum > line) {
+      return {
+        bet,
+        status: "won",
+        reason:
+          played === total
+            ? `R${round} holes ${label}: ${sum} > ${line}`
+            : `R${round} holes ${label}: ${sum} > ${line} (locked thru ${played}/${total})`,
+        observedValue: sum,
+        standing,
+        standingNote,
+        pnl: payoutOnWin(bet),
+      };
+    }
+    if (played === total) {
+      return {
+        bet,
+        status: "lost",
+        reason: `R${round} holes ${label}: ${sum} ≤ ${line}`,
+        observedValue: sum,
+        standing,
+        standingNote,
+        pnl: -bet.stake,
+      };
+    }
+    return {
+      bet,
+      status: "live",
+      reason: `R${round} holes ${label}: ${sum} thru ${played}/${total}`,
+      observedValue: sum,
+      standing,
+      standingNote,
+    };
+  }
+
+  // under
+  if (sum > line) {
+    return {
+      bet,
+      status: "lost",
+      reason: `R${round} holes ${label}: ${sum} already at/over ${line} (locked thru ${played}/${total})`,
+      observedValue: sum,
+      standing,
+      standingNote,
+      pnl: -bet.stake,
+    };
+  }
+  if (played === total) {
+    const won = sum < line;
+    return {
+      bet,
+      status: won ? "won" : "lost",
+      reason: `R${round} holes ${label}: ${sum} ${won ? "<" : "≥"} ${line}`,
+      observedValue: sum,
+      standing,
+      standingNote,
+      pnl: won ? payoutOnWin(bet) : -bet.stake,
+    };
+  }
+  return {
+    bet,
+    status: "live",
+    reason: `R${round} holes ${label}: ${sum} thru ${played}/${total}`,
+    observedValue: sum,
+    standing,
+    standingNote,
+  };
+}
+
+// Extracts the list of target hole numbers from a hole-range market label.
+// Two formats books use:
+//   "Holes 16-17-18 Strokes" → explicit list [16, 17, 18]    (3+ numbers)
+//   "Holes 1-9 Strokes"      → range [1..9]                  (2 numbers)
+//   "Holes 10-18 Strokes"    → range [10..18]                (2 numbers)
+// Two-number specs are always treated as inclusive ranges; three or more
+// numbers are taken verbatim as an explicit list.
+function parseHoleRange(market: string): number[] | null {
+  const m = market.match(/\bholes?\s+(\d[\d\-,\s]*?)\s+strokes\b/i);
+  if (!m) return null;
+  const parts = m[1]
+    .split(/[\-,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => Number(s))
+    .filter((n) => Number.isFinite(n) && n >= 1 && n <= 18);
+  if (parts.length === 0) return null;
+  if (parts.length === 2) {
+    const [a, b] = parts;
+    if (a > b) return null;
+    const out: number[] = [];
+    for (let i = a; i <= b; i++) out.push(i);
+    return out;
+  }
+  return [...parts].sort((a, b) => a - b);
+}
+
+// Compact label for the grader's reason text. Consecutive runs of 3+
+// render as "X-Y" (1-9, 10-18); shorter or non-consecutive lists render
+// as "16-17-18" so the user can still see exactly which holes count.
+function formatHoleRangeLabel(holes: number[]): string {
+  if (holes.length === 0) return "";
+  let consecutive = true;
+  for (let i = 1; i < holes.length; i++) {
+    if (holes[i] !== holes[i - 1] + 1) {
+      consecutive = false;
+      break;
+    }
+  }
+  if (consecutive && holes.length >= 3) return `${holes[0]}-${holes[holes.length - 1]}`;
+  return holes.join("-");
+}
+
 // ── Parsers ───────────────────────────────────────────────────────
 
 function parseTopN(market: string): number {
@@ -605,6 +757,14 @@ export function gradeBet(bet: OpenBet, snapshot: LeaderboardSnapshot): Decision 
   if (m.includes("win") && !m.includes("over") && !m.includes("under")) return gradeToWin(bet, snapshot);
   if (m.includes("3-ball") || m.includes("3 ball")) return gradeThreeBall(bet, snapshot);
   if (m.includes("matchup") || m.includes("vs")) return gradeMatchup(bet, snapshot);
+  // Specific-holes strokes prop ("R4 Holes 16-17-18 Strokes O 10.5",
+  // "R4 Holes 1-9 / 10-18 Strokes O/U N.5"). Must precede the generic
+  // gradeRoundProp because both markets contain "strokes" — without this
+  // check the round-total grader would compare full-round strokes to a
+  // line that targets only a 3- or 9-hole subset.
+  if (/\bholes?\s+\d[\d\-,\s]*\s+strokes\b/i.test(m)) {
+    return gradeHoleRangeStrokes(bet, snapshot);
+  }
   if (m.includes("score") || m.includes("strokes") || m.includes("round")) return gradeRoundProp(bet, snapshot);
   // Birdies / bogeys / eagles: derive from hole-by-hole scores in the
   // ESPN snapshot vs course par.

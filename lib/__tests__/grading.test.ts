@@ -426,3 +426,145 @@ describe("gradeBet — winner / outright", () => {
     expect(d.status).toBe("lost");
   });
 });
+
+// Hole-range strokes prop ("R4 Holes 16-17-18 Strokes O 10.5", etc.).
+// Pinned because gradeRoundProp also matches "strokes" — without the
+// dispatcher's hole-range guard, this market would fall through to the
+// round-total grader and compare ALL of R4's strokes against a line
+// meant for just three holes. That's the exact bug that broke
+// Bradley / MacIntyre on the live Sunday board.
+describe("gradeBet — hole-range strokes prop", () => {
+  // R4 hole-by-hole through 11: Bradley shot 4,4,3,3,4,5,4,3,4,4,5
+  // (the 43-thru-11 scoreline). Target holes 16,17,18 are not yet played.
+  const partialHoles: HoleScore[] = [
+    hole(1, 4),
+    hole(2, 4),
+    hole(3, 3),
+    hole(4, 3),
+    hole(5, 4),
+    hole(6, 5),
+    hole(7, 4),
+    hole(8, 3),
+    hole(9, 4),
+    hole(10, 4),
+    hole(11, 5),
+    hole(12, null),
+    hole(13, null),
+    hole(14, null),
+    hole(15, null),
+    hole(16, null),
+    hole(17, null),
+    hole(18, null),
+  ];
+
+  it("does NOT call 'Holes 16-17-18' won mid-round when target holes are unplayed (Bradley regression)", () => {
+    const snap = snapshot([
+      player({
+        name: "Keegan Bradley",
+        rounds: [round(4, "-1", 11, false, partialHoles)],
+      }),
+    ]);
+    const bet: OpenBet = {
+      player: "Keegan Bradley",
+      market: "R4 Holes 16-17-18 Strokes",
+      line: "O 10.5",
+      stake: 10,
+      payout: 19.1,
+      round: 4,
+    };
+    const d = gradeBet(bet, snap);
+    expect(d.status).toBe("live");
+    // Standing reflects the target holes only (none played → 0), NOT the
+    // 43 strokes the round-total grader would have surfaced.
+    expect(d.standing).toBe("0");
+    expect(d.observedValue).toBe(0);
+  });
+
+  it("settles won once cumulative strokes on the target holes exceed the over line", () => {
+    const finished = [...partialHoles];
+    finished[15] = hole(16, 4);
+    finished[16] = hole(17, 4);
+    finished[17] = hole(18, 4);
+    const snap = snapshot([
+      player({
+        name: "Keegan Bradley",
+        rounds: [round(4, "-1", 18, true, finished)],
+      }),
+    ]);
+    const bet: OpenBet = {
+      player: "Keegan Bradley",
+      market: "R4 Holes 16-17-18 Strokes",
+      line: "O 10.5",
+      stake: 10,
+      payout: 19.1,
+      round: 4,
+    };
+    const d = gradeBet(bet, snap);
+    expect(d.status).toBe("won");
+    expect(d.observedValue).toBe(12);
+  });
+
+  it("locks under-bet as lost the moment cumulative strokes cross the line (strokes only grow)", () => {
+    const partial = [...partialHoles];
+    partial[15] = hole(16, 6);
+    partial[16] = hole(17, 7);
+    const snap = snapshot([
+      player({
+        name: "Robert MacIntyre",
+        rounds: [round(4, "+2", 17, false, partial)],
+      }),
+    ]);
+    const bet: OpenBet = {
+      player: "Robert MacIntyre",
+      market: "R4 Holes 16-17-18 Strokes",
+      line: "U 11.5",
+      stake: 10,
+      payout: 19.1,
+      round: 4,
+    };
+    const d = gradeBet(bet, snap);
+    expect(d.status).toBe("lost");
+    expect(d.observedValue).toBe(13);
+  });
+
+  it("expands 'Holes 1-9' as a 9-hole front-nine range", () => {
+    const front9: HoleScore[] = partialHoles.slice(0, 9);
+    const snap = snapshot([
+      player({
+        name: "Front Niner",
+        rounds: [round(4, "-2", 9, true, front9)],
+      }),
+    ]);
+    const bet: OpenBet = {
+      player: "Front Niner",
+      market: "R4 Holes 1-9 Strokes",
+      line: "U 35.5",
+      stake: 10,
+      payout: 19.1,
+      round: 4,
+    };
+    const d = gradeBet(bet, snap);
+    expect(d.status).toBe("won");
+    expect(d.observedValue).toBe(34);
+  });
+
+  it("expands 'Holes 10-18' as a 9-hole back-nine range (live while in progress)", () => {
+    const snap = snapshot([
+      player({
+        name: "Back Niner",
+        rounds: [round(4, "-1", 11, false, partialHoles)],
+      }),
+    ]);
+    const bet: OpenBet = {
+      player: "Back Niner",
+      market: "R4 Holes 10-18 Strokes",
+      line: "O 36.5",
+      stake: 10,
+      payout: 19.1,
+      round: 4,
+    };
+    const d = gradeBet(bet, snap);
+    expect(d.status).toBe("live");
+    expect(d.observedValue).toBe(9);
+  });
+});
