@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+ios/
+android/
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+
+# Local env overrides (use app.json `extra` for shared values)
+.env
+.env.local

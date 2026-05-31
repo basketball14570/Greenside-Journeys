@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseBetSlip, BetSlipParseError } from "@/lib/parsers/screenshot";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthedUser } from "@/lib/supabase/request-auth";
 import { checkQuota, bumpUsage, QUOTA_ERROR_CODE } from "@/lib/usage";
 
 export const runtime = "nodejs";
@@ -13,20 +13,21 @@ const MAX_B64_BYTES = 4 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   // Gate on auth — this endpoint hits Claude vision (paid). Anonymous
-  // callers could otherwise drain the API budget.
+  // callers could otherwise drain the API budget. Resolves either the
+  // SSR cookie session (web) or the Authorization: Bearer header that
+  // the native mobile app sends.
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
     return NextResponse.json({ error: "supabase not configured" }, { status: 503 });
   }
-  const supabase = supabaseServer();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) {
+  const user = await getAuthedUser(req);
+  if (!user) {
     return NextResponse.json({ error: "not signed in" }, { status: 401 });
   }
 
-  const quota = await checkQuota(userData.user.id, "screenshot_parse");
+  const quota = await checkQuota(user.id, "screenshot_parse");
   if (!quota.allowed) {
     return NextResponse.json(
       {
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     const bets = await parseBetSlip(imageBase64, mt);
     // Only bump after a successful parse so users aren't penalized for
     // upstream Claude errors.
-    await bumpUsage(userData.user.id, "screenshot_parse");
+    await bumpUsage(user.id, "screenshot_parse");
     return NextResponse.json({
       bets,
       usage: { used: quota.used + 1, limit: quota.limit, allowed: true, tier: quota.tier },

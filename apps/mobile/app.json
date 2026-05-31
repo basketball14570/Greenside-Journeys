@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Greenside Edge",
+    "slug": "greenside-edge",
+    "scheme": "greensideedge",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a1f14"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.greensideedge.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to snap a photo of your bet slip so Greenside Edge can parse and grade it for you.",
+        "NSPhotoLibraryUsageDescription": "Used to pick a saved bet slip screenshot to parse.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": ["applinks:greensideedge.com"]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a1f14"
+      },
+      "package": "com.greensideedge.app",
+      "permissions": ["CAMERA", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "greensideedge.com" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Greenside Edge needs camera access to scan bet slips."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#39c46d"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "TODO-RUN-eas-init-TO-GENERATE"
+      },
+      "webAppUrl": "https://greensideedge.com",
+      "supabaseUrl": "REPLACE_WITH_NEXT_PUBLIC_SUPABASE_URL",
+      "supabaseAnonKey": "REPLACE_WITH_NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    }
+  }
+}
