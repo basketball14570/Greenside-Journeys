@@ -209,6 +209,90 @@ export type DGFieldUpdates = {
   field: DGFieldPlayer[];
 };
 
+// Current-round tee times, sourced from /field-updates. This is the
+// correct source during live play: the /preds/in-play feed carries no
+// tee-time field at all (only round scores + projections), while
+// field-updates exposes a per-player `teetimes` array with one entry per
+// round, e.g.:
+//   { round_num: 4, start_hole: 1, teetime: "2026-05-31 10:55", wave: "late" }
+// We pick the entry matching the event's current_round. The teetime is a
+// tournament-local "YYYY-MM-DD HH:MM" string; we normalize the space to
+// "T" so downstream Date.parse() is reliable.
+export async function getFieldTeeTimes(
+  tour: "pga" | "euro" | "kft" | "alt" = "pga",
+): Promise<{ rows: { player_name: string; teetime: string; startHole: number | null }[]; round: number | null }> {
+  const url = `${BASE}/field-updates?tour=${tour}&file_format=json&key=${key()}`;
+  const res = await fetch(url, { next: { revalidate: 120 } });
+  if (!res.ok) throw new Error(`DataGolf field-updates failed: ${res.status}`);
+  const json = await res.json();
+  const round: number | null =
+    typeof json.current_round === "number" ? json.current_round : null;
+  const field: Record<string, unknown>[] = Array.isArray(json.field) ? json.field : [];
+
+  const rows: { player_name: string; teetime: string; startHole: number | null }[] = [];
+  for (const p of field) {
+    const name = p.player_name;
+    if (typeof name !== "string") continue;
+    const tts = Array.isArray(p.teetimes) ? (p.teetimes as Record<string, unknown>[]) : [];
+    if (tts.length === 0) continue;
+    // Prefer the current round; fall back to the last (latest) entry so we
+    // still return something between rounds.
+    const chosen =
+      (round != null && tts.find((t) => Number(t.round_num) === round)) ||
+      tts[tts.length - 1];
+    const teetime = chosen?.teetime;
+    if (typeof teetime !== "string") continue;
+    rows.push({
+      player_name: name,
+      teetime: teetime.replace(" ", "T"),
+      startHole: chosen?.start_hole != null ? Number(chosen.start_hole) : null,
+    });
+  }
+  return { rows, round };
+}
+
+// Current-round tee times, sourced from /field-updates. This is the
+// correct source during live play: the /preds/in-play feed carries no
+// tee-time field at all (only round scores + projections), while
+// field-updates exposes a per-player `teetimes` array with one entry per
+// round, e.g.:
+//   { round_num: 4, start_hole: 1, teetime: "2026-05-31 10:55", wave: "late" }
+// We pick the entry matching the event's current_round. The teetime is a
+// tournament-local "YYYY-MM-DD HH:MM" string; we normalize the space to
+// "T" so downstream Date.parse() is reliable.
+export async function getFieldTeeTimes(
+  tour: "pga" | "euro" | "kft" | "alt" = "pga",
+): Promise<{ rows: { player_name: string; teetime: string; startHole: number | null }[]; round: number | null }> {
+  const url = `${BASE}/field-updates?tour=${tour}&file_format=json&key=${key()}`;
+  const res = await fetch(url, { next: { revalidate: 120 } });
+  if (!res.ok) throw new Error(`DataGolf field-updates failed: ${res.status}`);
+  const json = await res.json();
+  const round: number | null =
+    typeof json.current_round === "number" ? json.current_round : null;
+  const field: Record<string, unknown>[] = Array.isArray(json.field) ? json.field : [];
+
+  const rows: { player_name: string; teetime: string; startHole: number | null }[] = [];
+  for (const p of field) {
+    const name = p.player_name;
+    if (typeof name !== "string") continue;
+    const tts = Array.isArray(p.teetimes) ? (p.teetimes as Record<string, unknown>[]) : [];
+    if (tts.length === 0) continue;
+    // Prefer the current round; fall back to the last (latest) entry so we
+    // still return something between rounds.
+    const chosen =
+      (round != null && tts.find((t) => Number(t.round_num) === round)) ||
+      tts[tts.length - 1];
+    const teetime = chosen?.teetime;
+    if (typeof teetime !== "string") continue;
+    rows.push({
+      player_name: name,
+      teetime: teetime.replace(" ", "T"),
+      startHole: chosen?.start_hole != null ? Number(chosen.start_hole) : null,
+    });
+  }
+  return { rows, round };
+}
+
 export async function getFieldUpdates(
   tour: "pga" | "euro" | "kft" | "alt" = "pga",
 ): Promise<DGFieldUpdates> {
