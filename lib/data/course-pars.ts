@@ -35,6 +35,11 @@ export const COURSE_HOLE_PARS: Record<string, HolePar> = {
   "Caves Valley": [4, 5, 4, 4, 4, 3, 4, 3, 5, 4, 3, 4, 5, 4, 4, 3, 4, 4],
   "TPC Craig Ranch": [4, 4, 4, 3, 5, 4, 3, 4, 5, 4, 4, 5, 4, 4, 3, 4, 3, 4],
   "Memorial Park Golf Course": [4, 4, 4, 3, 5, 4, 3, 4, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5],
+  // Muirfield Village (host of the Memorial Tournament): par 72, 36-36.
+  // Par-3s on 4, 8, 12, 16; par-5s on 5, 7, 11, 15. Verify if Jack ever
+  // re-routes a hole between events.
+  "Muirfield Village": [4, 4, 4, 3, 5, 4, 5, 3, 4, 4, 5, 3, 4, 4, 5, 3, 4, 4],
+  "Muirfield Village Golf Club": [4, 4, 4, 3, 5, 4, 5, 3, 4, 4, 5, 3, 4, 4, 5, 3, 4, 4],
   "Colonial Country Club": [5, 4, 4, 3, 4, 4, 4, 3, 4, 4, 5, 4, 3, 4, 4, 3, 4, 4],
 };
 
