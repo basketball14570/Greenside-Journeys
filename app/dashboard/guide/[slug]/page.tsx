@@ -10,23 +10,18 @@ import { getGuide } from "@/lib/course-guides/store";
 import { getCourseHistoryForField, type FieldHistoryResult } from "@/lib/course-guides/field-history";
 import type { CourseHistoryRow } from "@/lib/data/datagolf";
 
-// Returns a short DataGolf event-name substring used to match historical
-// rounds for the course-history section. Keep these short and unique so
-// "Memorial Tournament" matches but "AT&T Pebble Beach" doesn't bleed
-// into "Pebble Beach Pro-Am" by accident.
-function eventNeedleForGuide(g: CourseGuide): string | null {
-  const t = g.tournament.toLowerCase();
-  if (t.includes("memorial")) return "memorial";
-  if (t.includes("charles schwab")) return "charles schwab";
-  if (t.includes("byron nelson") || t.includes("craig ranch")) return "byron nelson";
-  if (t.includes("rbc canadian")) return "rbc canadian";
-  if (t.includes("travelers")) return "travelers";
-  if (t.includes("genesis")) return "genesis";
-  if (t.includes("masters")) return "masters";
-  if (t.includes("u.s. open") || t.includes("us open")) return "u.s. open";
-  if (t.includes("open championship") || t.includes("british open")) return "open championship";
-  if (t.includes("pga championship")) return "pga championship";
-  return null;
+// DataGolf event_id for each guide. The historical-rounds endpoint
+// requires this — substring-matching event_name doesn't work because
+// tour+year alone 400s. IDs are verified against
+// /historical-raw-data/event-list (see datagolf-debug route).
+// Add a new guide's ID here when probing the event-list for that year.
+function eventIdForGuide(g: CourseGuide): number | null {
+  switch (g.slug) {
+    case "muirfield-village":
+      return 23; // the Memorial Tournament presented by Workday
+    default:
+      return null;
+  }
 }
 
 export const dynamic = "force-dynamic";
@@ -45,10 +40,11 @@ export default async function CourseGuidePage({ params }: { params: { slug: stri
   if (!guide) return notFound();
 
   // Course history × current field. Best-effort: a missing DG key or a
-  // bad upstream returns an empty result and the section quietly hides.
-  const needle = eventNeedleForGuide(guide);
-  const history: FieldHistoryResult = needle
-    ? await getCourseHistoryForField(needle, 12)
+  // bad upstream returns an empty result and the section renders an
+  // honest empty state instead of breaking the page.
+  const eventId = eventIdForGuide(guide);
+  const history: FieldHistoryResult = eventId != null
+    ? await getCourseHistoryForField(eventId, 12)
     : { rows: [], fieldSize: 0, source: "unavailable" };
 
   return (
@@ -56,7 +52,7 @@ export default async function CourseGuidePage({ params }: { params: { slug: stri
       <Hero guide={guide} />
       <TLDR guide={guide} />
       <SkillStack guide={guide} />
-      {needle ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
+      {eventId != null ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
       <TierCards tiers={guide.tiers} />
       <HoleTable guide={guide} />
       <PenaltyOpportunity guide={guide} />

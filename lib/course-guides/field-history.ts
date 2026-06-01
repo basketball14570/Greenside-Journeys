@@ -15,12 +15,15 @@ export type FieldHistoryResult = {
 // course-history aggregate so the course guide can show "the best
 // Memorial performers who are actually teeing it up this week."
 //
+// Takes a DataGolf event_id (Memorial = 23, etc.) — the historical
+// rounds endpoint requires it; tour-only or tour+year both 400.
+//
 // Best-effort: returns an empty list (with source:"unavailable") when
 // the DataGolf key isn't set or either upstream call fails — the guide
 // page renders a graceful "history unavailable" state instead of
 // breaking the build.
 export async function getCourseHistoryForField(
-  eventNameContains: string,
+  eventId: number,
   topN = 12,
 ): Promise<FieldHistoryResult> {
   if (!datagolfEnabled()) {
@@ -36,11 +39,7 @@ export async function getCourseHistoryForField(
       const parts = p.player_name.split(",").map((s) => s.trim());
       fieldNames.add(parts.length === 2 ? `${parts[1]} ${parts[0]}` : p.player_name);
     }
-    const rows = await getCourseFieldHistory({
-      eventNameContains,
-      fieldNames,
-      topN,
-    });
+    const rows = await getCourseFieldHistory({ eventId, fieldNames, topN });
     return { rows, fieldSize: fieldNames.size, source: "datagolf" };
   } catch {
     return { rows: [], fieldSize: 0, source: "unavailable" };
