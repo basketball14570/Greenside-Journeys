@@ -35,7 +35,7 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
   waterOnHoles: 13,
   headline: "Jack's masterpiece — a major in everything but name.",
   tldr:
-    "Muirfield Village is the closest a non-major gets to major conditions: firm, fast bentgrass greens, narrow tree-lined fairways, water in play on most of the back nine, and a finishing stretch built to swing a tournament. Winning scores cluster in the −10 to −18 range and reward the same skill stack as a U.S. Open prep week — elite ball-striking, distance control on approaches, and survival on the par 3s. The course history list at Memorial is short and repeats: Nicklaus designed it for shotmakers and that's who keeps winning.",
+    "Muirfield Village is the closest a non-major gets to major conditions: firm, fast bentgrass greens, narrow tree-lined fairways, water in play on most of the back nine, and a finishing stretch built to swing a tournament. Winning scores cluster in the −8 to −13 range and reward the same skill stack as a U.S. Open prep week — elite ball-striking, distance control on approaches, and survival on the par 3s. The course history list at Memorial is short and repeats: Nicklaus designed it for shotmakers and that's who keeps winning.",
   skillStack: [
     "Strokes Gained: Approach (firm, fast greens)",
     "Strokes Gained: Tee-to-Green (overall ball-striking)",
@@ -51,7 +51,7 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
       description:
         "Top-40 Tour drivers. Distance helps on the long par 4s (10, 13, 17) and the reachable par 5s (5, 11, 15), but Muirfield's tree corridors punish a missed line — distance without accuracy isn't a true edge here.",
       examples: ["Rory McIlroy", "Ludvig Aberg", "Aldrich Potgieter"],
-      expectedScore: "−12 to −18 (winning range −12 to −15)",
+      expectedScore: "−6 to −13 (winning range −10 to −13)",
       avgApproachYds: 168,
       totalApproachYds: 3024,
       keyToSuccess:
@@ -64,7 +64,7 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
       description:
         "Top 40–100 in driving distance. Pays roughly +180 approach yards a round vs elite — a ~1.5-stroke premium on this course because mid-iron precision is the dominant skill anyway.",
       examples: ["Scottie Scheffler", "Patrick Cantlay", "Viktor Hovland"],
-      expectedScore: "−8 to −14 (legitimate winning tier with elite irons)",
+      expectedScore: "−4 to −10 (legitimate winning tier with elite irons — Scheffler/Cantlay/Hovland zone)",
       avgApproachYds: 180,
       totalApproachYds: 3240,
       keyToSuccess:
@@ -77,7 +77,7 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
       description:
         "Outside top-100 in driving distance. ~300 yards a round of extra approach work — a ~2.5-stroke tax on a course where every iron is into a firm bentgrass green. Margin for error is thin.",
       examples: ["Russell Henley", "Brian Harman"],
-      expectedScore: "−4 to −10 (top-20 ceiling)",
+      expectedScore: "E to −6 (top-20 ceiling on a hot iron week)",
       avgApproachYds: 192,
       totalApproachYds: 3456,
       keyToSuccess:
@@ -307,5 +307,5 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     },
   ],
   verdict:
-    "Muirfield Village is a ball-striker's course masquerading as a complete test. The list of repeat contenders is short and predictable — Scheffler, Cantlay, Hovland, and the Memorial-form-veterans — because the conditions reward precise mid-iron play above almost everything else. Build outright cards around elite SG: Approach with course history; fade pure distance without accuracy; and expect a winning score in the −12 to −15 range, settled on the back nine.",
+    "Muirfield Village is a ball-striker's course masquerading as a complete test. The list of repeat contenders is short and predictable — Scheffler, Cantlay, Hovland, and the Memorial-form-veterans — because the conditions reward precise mid-iron play above almost everything else. Build outright cards around elite SG: Approach with course history; fade pure distance without accuracy; and expect a winning score in the −10 to −13 range, settled on the back nine.",
 };
