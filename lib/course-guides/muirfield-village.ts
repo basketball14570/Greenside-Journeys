@@ -3,10 +3,17 @@ import type { CourseGuide } from "./types";
 // 2026 Memorial Tournament — Muirfield Village Golf Club.
 // Draft built from publicly known Muirfield Village characteristics:
 // Nicklaus 1974 design hosting the Memorial since 1976, par 72 with
-// par-3s on 4/8/12/16 and par-5s on 5/7/11/15, fast bentgrass greens.
-// Yardages reflect typical Memorial championship setup; verify against
-// the tournament's published 2026 setup before publish. Publishes
-// Sunday evening, 4 days before Thursday tee-off.
+// par-3s on 4/8/12/16 and par-5s on 5/7/11/15, fast bentgrass greens
+// with Kentucky bluegrass rough. Total 7,569 yards post-2021 renovation.
+//
+// Yardages verified from public sources for holes 1 (470), 2 (455),
+// 4 (210), 5 (527), 7 (563), 11 (567), 12 (184), 14 (363), 15 (529),
+// 18 (484). Holes 3, 6, 8, 9, 10, 13, 16, 17 use post-renovation
+// educated estimates and SHOULD BE CROSS-CHECKED against
+// https://www.pgatour.com/tournaments/2026/the-memorial-tournament-presented-by-workday/R2026023/course-stats
+// before the guide goes public.
+//
+// Publishes Sunday evening, 4 days before Thursday tee-off.
 
 export const MUIRFIELD_VILLAGE: CourseGuide = {
   slug: "muirfield-village",
@@ -19,13 +26,13 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
   designer: "Jack Nicklaus",
   established: 1974,
   par: 72,
-  yards: 7571,
+  yards: 7569,
   courseRating: 76.0,
   slope: 145,
   greens: "Bentgrass",
-  fairways: "Bentgrass (tree-lined)",
+  fairways: "Bentgrass (Kentucky bluegrass rough)",
   difficultyRank: "Major-grade par 72 — among the toughest non-major setups",
-  waterOnHoles: 11,
+  waterOnHoles: 13,
   headline: "Jack's masterpiece — a major in everything but name.",
   tldr:
     "Muirfield Village is the closest a non-major gets to major conditions: firm, fast bentgrass greens, narrow tree-lined fairways, water in play on most of the back nine, and a finishing stretch built to swing a tournament. Winning scores cluster in the −10 to −18 range and reward the same skill stack as a U.S. Open prep week — elite ball-striking, distance control on approaches, and survival on the par 3s. The course history list at Memorial is short and repeats: Nicklaus designed it for shotmakers and that's who keeps winning.",
@@ -77,6 +84,12 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
         "Elite mid-to-long iron play. Short hitters with cold approaches struggle; short hitters with hot mid-irons can crack the top-15.",
     },
   ],
+  // TODO: per-hole yardages for holes 3, 6, 8, 9, 10, 13, 16, 17 are
+  // post-renovation educated estimates and currently sum to ~146 yards
+  // less than the verified 7,569 course total. Replace with the official
+  // 2026 Memorial setup before publish (link in file header). Approach
+  // yardages and clubs scale linearly with hole length so update them
+  // too when the source yardage moves.
   holes: [
     {
       hole: 1,
@@ -109,11 +122,11 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     {
       hole: 4,
       par: 3,
-      yards: 200,
-      approachYds: { elite: 200, mid: 200, bottom: 200 },
+      yards: 210,
+      approachYds: { elite: 210, mid: 210, bottom: 210 },
       approachClubs: { elite: "5i / 4i", mid: "5i / 4i", bottom: "5i / 4i" },
       strategy:
-        "Demanding mid-long par 3. Center of green is the play; the miss long or right brings bogey into the picture.",
+        "Demanding 210-yard par 3 — same shot for everyone. Center of green is the play; the miss long or right brings bogey into the picture. Green was rebuilt in 2021 to receive shots better.",
     },
     {
       hole: 5,
@@ -137,13 +150,13 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     {
       hole: 7,
       par: 5,
-      yards: 590,
-      approachYds: { elite: 200, mid: 212, bottom: 225 },
-      approachClubs: { elite: "Layup → wedge", mid: "Layup → wedge", bottom: "Layup → wedge" },
+      yards: 563,
+      approachYds: { elite: 130, mid: 145, bottom: 160 },
+      approachClubs: { elite: "9i / 8i", mid: "8i / 7i", bottom: "7i" },
       strategy:
-        "Long par 5 — three-shotter for nearly everyone. Layup yardage matters more than 2nd-shot distance; pick a number you love.",
+        "Long par 5 — reachable for the elite tier off a perfect drive, comfortable 3-shotter for the rest. Either way the field gets a real birdie look on the third shot.",
       flag: "opportunity",
-      keyInsight: "Field plays this as a 3-shotter — wedge attack on the third.",
+      keyInsight: "Scoring chance for everyone — convert a 4.",
     },
     {
       hole: 8,
@@ -219,8 +232,8 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     {
       hole: 15,
       par: 5,
-      yards: 530,
-      approachYds: { elite: 220, mid: 235, bottom: 252 },
+      yards: 529,
+      approachYds: { elite: 219, mid: 234, bottom: 251 },
       approachClubs: { elite: "3w / hybrid", mid: "3w", bottom: "3w" },
       strategy:
         "Reachable par 5 with water guarding the green — go-for-it for the bombers, lay up for placement otherwise. Make 4.",
@@ -251,12 +264,12 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     {
       hole: 18,
       par: 4,
-      yards: 444,
-      approachYds: { elite: 134, mid: 147, bottom: 159 },
-      approachClubs: { elite: "9i / 8i", mid: "8i", bottom: "7i" },
+      yards: 484,
+      approachYds: { elite: 174, mid: 187, bottom: 199 },
+      approachClubs: { elite: "7i / 6i", mid: "6i", bottom: "5i / hybrid" },
       strategy:
-        "Iconic Nicklaus finisher — water down the left of the fairway and again front of the green, grandstand framing the back. Find the fairway, hit the green, take what you've got.",
-      keyInsight: "Sunday drama hole — water in play on both shots.",
+        "Iconic Nicklaus finisher — a 484-yard par 4 with creek down the left of the fairway and water front of the green, grandstand framing the back. Mid-long iron in to a tucked green — par is a Sunday win.",
+      keyInsight: "Sunday drama hole — water in play on both shots; bogey decides tournaments.",
     },
   ],
   penaltyHoles: [10, 12, 16, 17],
