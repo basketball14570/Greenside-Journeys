@@ -56,11 +56,11 @@ export default async function CourseGuidePage({ params }: { params: { slug: stri
       <Hero guide={guide} />
       <TLDR guide={guide} />
       <SkillStack guide={guide} />
+      {needle ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
       <TierCards tiers={guide.tiers} />
       <HoleTable guide={guide} />
       <PenaltyOpportunity guide={guide} />
       <BettingAngles angles={guide.bettingAngles} />
-      {needle ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
       <Verdict guide={guide} />
       <CTA guide={guide} />
     </div>
