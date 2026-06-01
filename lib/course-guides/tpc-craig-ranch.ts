@@ -61,7 +61,7 @@ export const TPC_CRAIG_RANCH: CourseGuide = {
     },
     {
       id: "bottom",
-      label: "Bottom tier drivers",
+      label: "Shorter drivers",
       range: "≤ 295 yards",
       description:
         "Outside top 100 in driving distance. 44% of approaches require long iron or hybrid (vs. 16.7% for elite). +343 yds/round of additional approach work — ≈2 strokes of drag.",
@@ -172,7 +172,7 @@ export const TPC_CRAIG_RANCH: CourseGuide = {
       approachYds: { elite: 176, mid: 189, bottom: 201 },
       approachClubs: { elite: "5i", mid: "4i", bottom: "2-3i / Hybrid" },
       strategy:
-        "Long par 4 — the back-9 grind begins. Bottom tier facing 201 yards puts them in major-disadvantage territory.",
+        "Long par 4 — the back-9 grind begins. Shorter drivers facing 201 yards puts them in major-disadvantage territory.",
       flag: "penalty",
     },
     {
@@ -202,7 +202,7 @@ export const TPC_CRAIG_RANCH: CourseGuide = {
       approachYds: { elite: 197, mid: 210, bottom: 222 },
       approachClubs: { elite: "4i", mid: "2-3i", bottom: "Hybrid / 3w" },
       strategy:
-        "Longest par 4 — the killer hole. Bottom tier facing 222 yards is essentially impossible to reach in regulation.",
+        "Longest par 4 — the killer hole. Shorter drivers facing 222 yards is essentially impossible to reach in regulation.",
       flag: "penalty",
       keyInsight: "The killer. Make a 4 here and you've gained on the field.",
     },
@@ -269,7 +269,7 @@ export const TPC_CRAIG_RANCH: CourseGuide = {
     {
       title: "Top-20 / Top-30 plays are where bottom-tier earns its keep",
       tone: "fit",
-      body: "Bottom-tier players can post -8 to -14 here — competitive enough to crack the top 20 in soft conditions. Wedge specialists and par-5 attackers (Putnam-type profiles) get sharper top-30 prices than top-10.",
+      body: "Shorter drivers can post -8 to -14 here — competitive enough to crack the top 20 in soft conditions. Wedge specialists and par-5 attackers (Putnam-type profiles) get sharper top-30 prices than top-10.",
     },
     {
       title: "Round-prop birdies tilt over",

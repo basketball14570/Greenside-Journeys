@@ -16,7 +16,7 @@ import type { PgaEvent } from "@/lib/data/pga-schedule";
 const TIER_META: { id: DriverTier["id"]; label: string; range: string; driveYds: number }[] = [
   { id: "elite", label: "Elite drivers", range: "310+ yards", driveYds: 315 },
   { id: "mid", label: "Mid-tier drivers", range: "295.1–310 yards", driveYds: 302 },
-  { id: "bottom", label: "Bottom tier drivers", range: "≤ 295 yards", driveYds: 290 },
+  { id: "bottom", label: "Shorter drivers", range: "≤ 295 yards", driveYds: 290 },
 ];
 
 const TIER_DRIVES: TierDrive[] = TIER_META.map((t) => ({ id: t.id, driveYds: t.driveYds }));
