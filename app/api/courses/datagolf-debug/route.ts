@@ -38,11 +38,29 @@ export async function GET() {
       const json = (await res.json()) as Record<string, unknown>;
       const topLevelKeys = Object.keys(json);
       // Find the first array under any plausible key.
-      const arrayKey = ["rounds", "data", "events", "event_list", "field"].find(
-        (k) => Array.isArray(json[k]),
-      );
-      const rows = arrayKey ? (json[arrayKey] as unknown[]) : [];
+      // Per the prior probe: per-event rounds live under "scores", not
+      // "rounds". The event-list call returns a top-level array directly.
+      let arrayKey: string | undefined;
+      let rows: unknown[] = [];
+      if (Array.isArray(json as unknown)) {
+        arrayKey = "<top-level array>";
+        rows = json as unknown as unknown[];
+      } else {
+        arrayKey = ["scores", "rounds", "data", "events", "event_list", "field"].find(
+          (k) => Array.isArray(json[k]),
+        );
+        rows = arrayKey ? (json[arrayKey] as unknown[]) : [];
+      }
       const first = rows[0] && typeof rows[0] === "object" ? (rows[0] as Record<string, unknown>) : null;
+      // For nested-shape rows (each player has a `round_X` sub-object),
+      // also surface the keys of the first nested object so we can see
+      // where the actual SG numbers live.
+      const nestedSampleKeys = first
+        ? Object.entries(first)
+            .filter(([, v]) => v && typeof v === "object" && !Array.isArray(v))
+            .slice(0, 2)
+            .map(([k, v]) => ({ key: k, subKeys: Object.keys(v as Record<string, unknown>) }))
+        : [];
       return {
         label,
         status: res.status,
@@ -50,6 +68,7 @@ export async function GET() {
         arrayKey,
         rowCount: rows.length,
         sampleRowKeys: first ? Object.keys(first) : [],
+        nestedSampleKeys,
         sampleRow: first,
       };
     } catch (e) {
