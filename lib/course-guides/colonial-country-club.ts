@@ -65,7 +65,7 @@ export const COLONIAL_COUNTRY_CLUB: CourseGuide = {
     },
     {
       id: "bottom",
-      label: "Bottom tier drivers",
+      label: "Shorter drivers",
       range: "≤ 295 yards",
       description:
         "Outside top 100 in driving distance. 50% of approaches sit in 100–150 (mid-iron dependent) and just 5.6% are wedges. +350 yards/round vs elite ≈ 2 strokes — but with no forced 250+ approaches, precision still wins.",
@@ -273,7 +273,7 @@ export const COLONIAL_COUNTRY_CLUB: CourseGuide = {
     {
       title: "Short, precise hitters are value in top-20/30",
       tone: "fit",
-      body: "Bottom-tier drivers can post −4 to even with hot mid-iron play — enough to crack the top 20. Their outright prices undervalue precision; target accurate short hitters in top-20 / top-30 and matchup markets rather than outright.",
+      body: "Shorter drivers can post −4 to even with hot mid-iron play — enough to crack the top 20. Their outright prices undervalue precision; target accurate short hitters in top-20 / top-30 and matchup markets rather than outright.",
     },
     {
       title: "The Horseshoe (3-4-5) drives bogey props",

@@ -1,17 +1,17 @@
 import type { CourseGuide } from "./types";
 
 // 2026 Memorial Tournament — Muirfield Village Golf Club.
-// Draft built from publicly known Muirfield Village characteristics:
 // Nicklaus 1974 design hosting the Memorial since 1976, par 72 with
 // par-3s on 4/8/12/16 and par-5s on 5/7/11/15, fast bentgrass greens
 // with Kentucky bluegrass rough. Total 7,569 yards post-2021 renovation.
 //
-// Yardages verified from public sources for holes 1 (470), 2 (455),
-// 4 (210), 5 (527), 7 (563), 11 (567), 12 (184), 14 (363), 15 (529),
-// 18 (484). Holes 3, 6, 8, 9, 10, 13, 16, 17 use post-renovation
-// educated estimates and SHOULD BE CROSS-CHECKED against
-// https://www.pgatour.com/tournaments/2026/the-memorial-tournament-presented-by-workday/R2026023/course-stats
-// before the guide goes public.
+// Per-hole yardages verified against the 2026 PGA Tour course-stats
+// page (https://www.pgatour.com/tournaments/2026/
+// the-memorial-tournament-presented-by-workday/R2026023/course-stats);
+// out 3,752 + in 3,817 = 7,569 confirmed.
+//
+// Approach yardages per tier assume drive distances of ~310 (elite),
+// ~295 (mid), ~285 (bottom). Update both if the source yardages change.
 //
 // Publishes Sunday evening, 4 days before Thursday tee-off.
 
@@ -52,8 +52,8 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
         "Top-40 Tour drivers. Distance helps on the long par 4s (10, 13, 17) and the reachable par 5s (5, 11, 15), but Muirfield's tree corridors punish a missed line — distance without accuracy isn't a true edge here.",
       examples: ["Rory McIlroy", "Ludvig Aberg", "Aldrich Potgieter"],
       expectedScore: "−6 to −13 (winning range −10 to −13)",
-      avgApproachYds: 168,
-      totalApproachYds: 3024,
+      avgApproachYds: 171.5,
+      totalApproachYds: 3087,
       keyToSuccess:
         "Find fairways, take the look on the reachable par 5s, and hit the long par 4s with controllable mid-irons. The bonus distance only matters if it stays between the trees.",
     },
@@ -65,58 +65,52 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
         "Top 40–100 in driving distance. Pays roughly +180 approach yards a round vs elite — a ~1.5-stroke premium on this course because mid-iron precision is the dominant skill anyway.",
       examples: ["Scottie Scheffler", "Patrick Cantlay", "Viktor Hovland"],
       expectedScore: "−4 to −10 (legitimate winning tier with elite irons — Scheffler/Cantlay/Hovland zone)",
-      avgApproachYds: 180,
-      totalApproachYds: 3240,
+      avgApproachYds: 183.2,
+      totalApproachYds: 3297,
       keyToSuccess:
         "Iron play decides it. Mid-tier ball-strikers like Scheffler / Cantlay / Hovland have won here repeatedly without leading the field in distance — they led in approach.",
     },
     {
       id: "bottom",
-      label: "Bottom-tier drivers",
+      label: "Shorter drivers",
       range: "≤ 295 yards",
       description:
         "Outside top-100 in driving distance. ~300 yards a round of extra approach work — a ~2.5-stroke tax on a course where every iron is into a firm bentgrass green. Margin for error is thin.",
       examples: ["Russell Henley", "Brian Harman"],
       expectedScore: "E to −6 (top-20 ceiling on a hot iron week)",
-      avgApproachYds: 192,
-      totalApproachYds: 3456,
+      avgApproachYds: 191.2,
+      totalApproachYds: 3442,
       keyToSuccess:
         "Elite mid-to-long iron play. Short hitters with cold approaches struggle; short hitters with hot mid-irons can crack the top-15.",
     },
   ],
-  // TODO: per-hole yardages for holes 3, 6, 8, 9, 10, 13, 16, 17 are
-  // post-renovation educated estimates and currently sum to ~146 yards
-  // less than the verified 7,569 course total. Replace with the official
-  // 2026 Memorial setup before publish (link in file header). Approach
-  // yardages and clubs scale linearly with hole length so update them
-  // too when the source yardage moves.
   holes: [
     {
       hole: 1,
       par: 4,
-      yards: 470,
-      approachYds: { elite: 160, mid: 172, bottom: 185 },
-      approachClubs: { elite: "7i / 6i", mid: "6i", bottom: "5i" },
+      yards: 490,
+      approachYds: { elite: 180, mid: 195, bottom: 205 },
+      approachClubs: { elite: "6i / 5i", mid: "5i", bottom: "5i / 4i" },
       strategy:
-        "Demanding par-4 opener. Mid-to-long iron in to a firm green — a 4 is a strong start.",
+        "Demanding 490-yard par-4 opener. Mid-to-long iron in to a firm green — a 4 is a strong start, no opening softball here.",
     },
     {
       hole: 2,
       par: 4,
-      yards: 455,
-      approachYds: { elite: 145, mid: 157, bottom: 170 },
+      yards: 459,
+      approachYds: { elite: 149, mid: 164, bottom: 174 },
       approachClubs: { elite: "8i / 7i", mid: "7i", bottom: "6i" },
       strategy:
-        "Another full-iron par 4. Fairway is essential to hold the green; no relief from distance off the tee.",
+        "Full-iron par 4. Fairway is essential to hold a firm bentgrass green; distance off the tee buys nothing.",
     },
     {
       hole: 3,
       par: 4,
-      yards: 411,
-      approachYds: { elite: 100, mid: 113, bottom: 125 },
-      approachClubs: { elite: "PW / 9i", mid: "9i / 8i", bottom: "8i" },
+      yards: 392,
+      approachYds: { elite: 82, mid: 97, bottom: 107 },
+      approachClubs: { elite: "SW / PW", mid: "PW", bottom: "PW / 9i" },
       strategy:
-        "First clear scoring chance. Short iron in for the whole field — a birdie look that the leaders convert.",
+        "First real scoring chance. Short par 4 with a wedge / short-iron approach for the whole field — leaders convert, the rest leak strokes here.",
       flag: "opportunity",
     },
     {
@@ -126,62 +120,62 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
       approachYds: { elite: 210, mid: 210, bottom: 210 },
       approachClubs: { elite: "5i / 4i", mid: "5i / 4i", bottom: "5i / 4i" },
       strategy:
-        "Demanding 210-yard par 3 — same shot for everyone. Center of green is the play; the miss long or right brings bogey into the picture. Green was rebuilt in 2021 to receive shots better.",
+        "Demanding 210-yard par 3 — same shot for everyone. Center of green is the play; the miss long or right brings bogey into the picture. Green was rebuilt in 2021 with more receptive contours.",
     },
     {
       hole: 5,
       par: 5,
-      yards: 527,
-      approachYds: { elite: 220, mid: 235, bottom: 252 },
+      yards: 547,
+      approachYds: { elite: 237, mid: 252, bottom: 262 },
       approachClubs: { elite: "3w / hybrid", mid: "3w", bottom: "3w" },
       strategy:
-        "Reachable par 5 for the long hitters and a comfortable layup for the rest. Front-nine scoring hole — make a 4.",
+        "Reachable par 5 for the long hitters and a comfortable layup for the rest. Front-nine scoring hole — make 4.",
       flag: "opportunity",
     },
     {
       hole: 6,
       par: 4,
-      yards: 447,
-      approachYds: { elite: 137, mid: 150, bottom: 162 },
-      approachClubs: { elite: "9i / 8i", mid: "8i / 7i", bottom: "7i" },
+      yards: 455,
+      approachYds: { elite: 145, mid: 160, bottom: 170 },
+      approachClubs: { elite: "8i / 7i", mid: "7i", bottom: "6i" },
       strategy:
         "Mid-length par 4. Mid-iron in — fair, but a missed fairway is rough-rescue with limited spin control on a firm green.",
     },
     {
       hole: 7,
       par: 5,
-      yards: 563,
+      yards: 582,
       approachYds: { elite: 130, mid: 145, bottom: 160 },
       approachClubs: { elite: "9i / 8i", mid: "8i / 7i", bottom: "7i" },
       strategy:
-        "Long par 5 — reachable for the elite tier off a perfect drive, comfortable 3-shotter for the rest. Either way the field gets a real birdie look on the third shot.",
+        "Long 582-yard par 5 — reachable for elite drivers off a perfect line, comfortable 3-shotter for the rest. Either way the field gets a real birdie look on the third.",
       flag: "opportunity",
       keyInsight: "Scoring chance for everyone — convert a 4.",
     },
     {
       hole: 8,
       par: 3,
-      yards: 182,
-      approachYds: { elite: 182, mid: 182, bottom: 182 },
-      approachClubs: { elite: "7i / 6i", mid: "7i / 6i", bottom: "7i / 6i" },
+      yards: 200,
+      approachYds: { elite: 200, mid: 200, bottom: 200 },
+      approachClubs: { elite: "6i / 5i", mid: "6i / 5i", bottom: "6i / 5i" },
       strategy:
-        "Mid par 3, same for everyone. Take the center, take your par, head to 9.",
+        "200-yard par 3, same for everyone. Center the green — the miss into the bunkers brings bogey in.",
     },
     {
       hole: 9,
       par: 4,
-      yards: 412,
-      approachYds: { elite: 102, mid: 115, bottom: 127 },
-      approachClubs: { elite: "PW", mid: "9i", bottom: "9i / 8i" },
+      yards: 417,
+      approachYds: { elite: 107, mid: 122, bottom: 132 },
+      approachClubs: { elite: "PW / 9i", mid: "9i", bottom: "9i / 8i" },
       strategy:
-        "Short-iron par 4 to close the front. Wedge in for the leaders — a real birdie chance before the turn.",
+        "Short-iron par 4 to close the front. Wedge / short iron in for the field — a real birdie chance before the turn.",
       flag: "opportunity",
     },
     {
       hole: 10,
       par: 4,
-      yards: 471,
-      approachYds: { elite: 161, mid: 173, bottom: 186 },
+      yards: 472,
+      approachYds: { elite: 162, mid: 177, bottom: 187 },
       approachClubs: { elite: "7i", mid: "6i", bottom: "5i / hybrid" },
       strategy:
         "Brutal par-4 opener for the back. Long iron / hybrid for shorter hitters — par is gaining ground.",
@@ -190,19 +184,19 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     {
       hole: 11,
       par: 5,
-      yards: 567,
-      approachYds: { elite: 232, mid: 247, bottom: 263 },
+      yards: 588,
+      approachYds: { elite: 278, mid: 293, bottom: 303 },
       approachClubs: { elite: "3w / hybrid", mid: "3w", bottom: "3w / layup" },
       strategy:
-        "Reachable for the elite, easy 3-shotter for the rest. Either way the field's best back-nine scoring chance — convert.",
+        "Reachable for elite drivers off a perfect tee shot, longer 3-shotter for the rest. Either way the field's best back-nine scoring chance — convert.",
       flag: "opportunity",
       keyInsight: "Back-nine scoring hole #1 — make your 4.",
     },
     {
       hole: 12,
       par: 3,
-      yards: 184,
-      approachYds: { elite: 184, mid: 184, bottom: 184 },
+      yards: 180,
+      approachYds: { elite: 180, mid: 180, bottom: 180 },
       approachClubs: { elite: "7i / 6i", mid: "7i / 6i", bottom: "7i / 6i" },
       strategy:
         "Mid par 3 over water — wind off the pond firms up distance control. Center pin, exit at par.",
@@ -213,27 +207,27 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
       hole: 13,
       par: 4,
       yards: 455,
-      approachYds: { elite: 145, mid: 157, bottom: 170 },
+      approachYds: { elite: 145, mid: 160, bottom: 170 },
       approachClubs: { elite: "8i / 7i", mid: "7i", bottom: "6i" },
       strategy:
-        "Mid-long par 4 — fairway essential, full iron in. Defensive hole; par is winning.",
+        "Mid-long par 4 — fairway essential, full iron in. Defensive hole; par is gaining ground.",
     },
     {
       hole: 14,
       par: 4,
-      yards: 363,
-      approachYds: { elite: 90, mid: 103, bottom: 115 },
-      approachClubs: { elite: "SW / PW", mid: "PW", bottom: "PW / 9i" },
+      yards: 360,
+      approachYds: { elite: 50, mid: 65, bottom: 75 },
+      approachClubs: { elite: "SW", mid: "SW", bottom: "SW / PW" },
       strategy:
-        "Short par 4 — driver tempts everyone, creek crosses ~270 out. Aggressive line, wedge in; the tournament's signature risk/reward.",
+        "Short 360-yard par 4 — driver tempts everyone, creek crosses ~270 out. Aggressive line leaves a wedge; the tournament's signature risk/reward.",
       flag: "opportunity",
       keyInsight: "Sunday gamble hole — wedge looks reward the brave tee shot.",
     },
     {
       hole: 15,
       par: 5,
-      yards: 529,
-      approachYds: { elite: 219, mid: 234, bottom: 251 },
+      yards: 561,
+      approachYds: { elite: 251, mid: 266, bottom: 276 },
       approachClubs: { elite: "3w / hybrid", mid: "3w", bottom: "3w" },
       strategy:
         "Reachable par 5 with water guarding the green — go-for-it for the bombers, lay up for placement otherwise. Make 4.",
@@ -243,32 +237,33 @@ export const MUIRFIELD_VILLAGE: CourseGuide = {
     {
       hole: 16,
       par: 3,
-      yards: 215,
-      approachYds: { elite: 215, mid: 215, bottom: 215 },
+      yards: 218,
+      approachYds: { elite: 218, mid: 218, bottom: 218 },
       approachClubs: { elite: "5i / 4i", mid: "5i / 4i", bottom: "5i / 4i" },
       strategy:
-        "Long par 3 — same hard shot for all. Bunkers right, water short and left; this is where rounds quietly turn.",
+        "Long 218-yard par 3 — same hard shot for all. Bunkers right, water short and left; this is where rounds quietly turn.",
       flag: "penalty",
       keyInsight: "Hardest par 3 on the course — par is gaining strokes.",
     },
     {
       hole: 17,
       par: 4,
-      yards: 478,
-      approachYds: { elite: 168, mid: 180, bottom: 193 },
-      approachClubs: { elite: "7i / 6i", mid: "6i", bottom: "5i" },
+      yards: 503,
+      approachYds: { elite: 193, mid: 208, bottom: 218 },
+      approachClubs: { elite: "5i / hybrid", mid: "hybrid / 5w", bottom: "hybrid / 5w" },
       strategy:
-        "Long par 4 with a demanding approach into a tucked green. Mid-long iron in — keep the round alive before 18.",
+        "Monster 503-yard par 4 — long iron / hybrid in for everyone, among the hardest par 4s on Tour. Par here Sunday is a major win.",
       flag: "penalty",
+      keyInsight: "Toughest par 4 on the course — Sunday par gains 0.4+ strokes.",
     },
     {
       hole: 18,
       par: 4,
-      yards: 484,
-      approachYds: { elite: 174, mid: 187, bottom: 199 },
-      approachClubs: { elite: "7i / 6i", mid: "6i", bottom: "5i / hybrid" },
+      yards: 480,
+      approachYds: { elite: 170, mid: 185, bottom: 195 },
+      approachClubs: { elite: "6i", mid: "6i / 5i", bottom: "5i" },
       strategy:
-        "Iconic Nicklaus finisher — a 484-yard par 4 with creek down the left of the fairway and water front of the green, grandstand framing the back. Mid-long iron in to a tucked green — par is a Sunday win.",
+        "Iconic Nicklaus finisher — 480-yard par 4 with creek down the left of the fairway and water front of the green, grandstand framing the back. Mid-long iron in to a tucked green — par is a Sunday win.",
       keyInsight: "Sunday drama hole — water in play on both shots; bogey decides tournaments.",
     },
   ],
