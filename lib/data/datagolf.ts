@@ -718,14 +718,15 @@ export async function getCourseFieldHistory(opts: {
   // Set of normalized "first last" names currently in the field. Only
   // these players are kept in the result.
   fieldNames: Set<string>;
-  // Seasons to scan. Default: last 4 completed seasons (skip current
+  // Seasons to scan. Default: last 5 completed seasons (skip current
   // in-flight year — those rounds aren't in the historical archive yet).
   years?: number[];
   topN?: number;
 }): Promise<CourseHistoryRow[]> {
   if (!datagolfEnabled()) return [];
   const thisYear = new Date().getUTCFullYear();
-  const years = opts.years ?? [thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4];
+  const years =
+    opts.years ?? [thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4, thisYear - 5];
   const topN = opts.topN ?? 12;
   const cacheKey = `${opts.eventId}|${years.join(",")}`;
   const cached = HISTORY_CACHE.get(cacheKey);

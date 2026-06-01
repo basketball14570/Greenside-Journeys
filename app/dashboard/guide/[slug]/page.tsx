@@ -142,7 +142,7 @@ function FieldHistoryEmpty({
       "Couldn't read this week's field from DataGolf. Refresh in a minute — the field-updates feed publishes pairings Tuesday afternoon.";
   } else {
     line =
-      "No historical rounds matched the current field yet. The first load fetches 4 seasons of data and can take ~30-60 seconds — refresh to retry. If it stays empty, the event name in DataGolf may not match our filter; tell us and we'll fix the lookup.";
+      "No historical rounds matched the current field yet. The first load fetches 5 seasons of data and can take ~30-60 seconds — refresh to retry. If it stays empty, the event name in DataGolf may not match our filter; tell us and we'll fix the lookup.";
   }
   return (
     <div
