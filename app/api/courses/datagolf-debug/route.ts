@@ -16,11 +16,14 @@ export async function GET() {
   const key = process.env.DATAGOLF_API_KEY!;
   const base = "https://feeds.datagolf.com";
 
-  async function probeYear(year: number) {
+  // Probe with NO year param (matches the working signature in
+  // getPlayerProfile()). The /historical-raw-data/rounds endpoint
+  // returns the multi-year archive, which we'll filter client-side.
+  async function probeRoundsAllYears() {
     try {
-      const url = `${base}/historical-raw-data/rounds?tour=pga&year=${year}&file_format=json&key=${key}`;
+      const url = `${base}/historical-raw-data/rounds?tour=pga&file_format=json&key=${key}`;
       const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) return { year, status: res.status, error: "non-200" };
+      if (!res.ok) return { call: "no-year", status: res.status, error: "non-200" };
       const json = await res.json();
       const topLevelKeys = Object.keys(json as Record<string, unknown>);
       // The endpoint historically returns either { rounds: [...] } or { data: [...] };
@@ -39,21 +42,29 @@ export async function GET() {
       const memorialEventNames = Object.keys(eventCounts).filter((e) =>
         e.toLowerCase().includes("memorial"),
       );
+      // Count rows per year so we can see if the archive really spans
+      // multiple seasons or if it's effectively current-only.
+      const yearCounts: Record<string, number> = {};
+      for (const r of rows) {
+        if (!r || typeof r !== "object") continue;
+        const y = (r as Record<string, unknown>).year;
+        if (typeof y === "number") yearCounts[String(y)] = (yearCounts[String(y)] || 0) + 1;
+      }
       return {
-        year,
+        call: "no-year",
         status: res.status,
         topLevelKeys,
         rowCount: rows.length,
         sampleRowKeys: rows[0] ? Object.keys(rows[0] as Record<string, unknown>) : [],
         totalUniqueEvents: Object.keys(eventCounts).length,
+        rowsByYear: yearCounts,
         memorialEventNames: memorialEventNames.map((n) => ({
           name: n,
           count: eventCounts[n],
         })),
-        sampleNonMemorialEventNames: Object.keys(eventCounts).slice(0, 5),
       };
     } catch (e) {
-      return { year, error: e instanceof Error ? e.message : "fetch failed" };
+      return { call: "no-year", error: e instanceof Error ? e.message : "fetch failed" };
     }
   }
 
@@ -76,11 +87,6 @@ export async function GET() {
     }
   }
 
-  const [y2025, y2024, fieldInfo] = await Promise.all([
-    probeYear(2025),
-    probeYear(2024),
-    probeField(),
-  ]);
-
-  return NextResponse.json({ y2025, y2024, field: fieldInfo });
+  const [rounds, fieldInfo] = await Promise.all([probeRoundsAllYears(), probeField()]);
+  return NextResponse.json({ rounds, field: fieldInfo });
 }

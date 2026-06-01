@@ -700,11 +700,16 @@ export async function getCourseFieldHistory(opts: {
   topN?: number;
 }): Promise<CourseHistoryRow[]> {
   if (!datagolfEnabled()) return [];
-  // Default to the last 4 completed seasons (skip current year — the
-  // current event's rounds aren't in the historical archive yet, and
-  // the request often 404s for an in-flight year).
+  // DataGolf's /historical-raw-data/rounds endpoint rejects a `year`
+  // parameter with 400 (verified via the diagnostic endpoint). The
+  // working signature — matched against getPlayerProfile() in this same
+  // file — is { tour } only; the response is the full multi-year
+  // archive and we filter by year + event_name client-side. Default
+  // window: last 4 completed seasons, skipping the current in-flight
+  // year (its rounds aren't in the historical archive yet).
   const thisYear = new Date().getUTCFullYear();
   const years = opts.years ?? [thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4];
+  const yearSet = new Set(years);
   const topN = opts.topN ?? 12;
   const cacheKey = `${opts.eventNameContains}|${years.join(",")}`;
   const cached = HISTORY_CACHE.get(cacheKey);
@@ -713,41 +718,32 @@ export async function getCourseFieldHistory(opts: {
   if (cached && Date.now() - cached.at < HISTORY_TTL_MS) {
     aggregated = cached.data;
   } else {
-    // Fetch all years in parallel — they're independent and the
-    // sequential version pushed total latency over the page's render
-    // budget on a cold cache. Tolerant of any single year failing
-    // (DataGolf's older archives occasionally 404).
     const needle = opts.eventNameContains.toLowerCase();
     const perPlayer = new Map<
       string,
       { sgSum: number; rounds: number; years: Set<number>; best: string | null }
     >();
-    const yearResponses = await Promise.all(
-      years.map((year) =>
-        safeFetch<{ rounds: DgRoundRecord[] }>("/historical-raw-data/rounds", {
-          tour: "pga",
-          year: String(year),
-        }).then((data) => ({ year, data })),
-      ),
+    const data = await safeFetch<{ rounds: DgRoundRecord[] }>(
+      "/historical-raw-data/rounds",
+      { tour: "pga" },
     );
-    for (const { year, data } of yearResponses) {
-      const rows = data?.rounds ?? [];
-      for (const r of rows) {
-        if (typeof r.event_name !== "string") continue;
-        if (!r.event_name.toLowerCase().includes(needle)) continue;
-        if (typeof r.sg_total !== "number") continue;
-        const name = r.player_name;
-        if (typeof name !== "string") continue;
-        const entry =
-          perPlayer.get(name) ?? { sgSum: 0, rounds: 0, years: new Set<number>(), best: null };
-        entry.sgSum += r.sg_total;
-        entry.rounds += 1;
-        entry.years.add(year);
-        if (typeof r.fin_text === "string" && isBetterFinish(entry.best, r.fin_text)) {
-          entry.best = r.fin_text;
-        }
-        perPlayer.set(name, entry);
+    const rows = data?.rounds ?? [];
+    for (const r of rows) {
+      if (typeof r.event_name !== "string") continue;
+      if (!r.event_name.toLowerCase().includes(needle)) continue;
+      if (typeof r.sg_total !== "number") continue;
+      if (typeof r.year !== "number" || !yearSet.has(r.year)) continue;
+      const name = r.player_name;
+      if (typeof name !== "string") continue;
+      const entry =
+        perPlayer.get(name) ?? { sgSum: 0, rounds: 0, years: new Set<number>(), best: null };
+      entry.sgSum += r.sg_total;
+      entry.rounds += 1;
+      entry.years.add(r.year);
+      if (typeof r.fin_text === "string" && isBetterFinish(entry.best, r.fin_text)) {
+        entry.best = r.fin_text;
       }
+      perPlayer.set(name, entry);
     }
     aggregated = [];
     for (const [dgName, v] of perPlayer.entries()) {
