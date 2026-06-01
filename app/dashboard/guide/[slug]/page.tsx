@@ -60,7 +60,7 @@ export default async function CourseGuidePage({ params }: { params: { slug: stri
       <HoleTable guide={guide} />
       <PenaltyOpportunity guide={guide} />
       <BettingAngles angles={guide.bettingAngles} />
-      {history.rows.length > 0 ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
+      {needle ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
       <Verdict guide={guide} />
       <CTA guide={guide} />
     </div>
@@ -92,32 +92,69 @@ function FieldHistory({
         prior {tournament} starts. Repeat performers — not single-week heroics — surface to
         the top.
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full" style={{ fontSize: 13 }}>
-          <thead>
-            <tr className="text-left text-text-muted" style={{ fontSize: 10, letterSpacing: 1 }}>
-              <FhTh>#</FhTh>
-              <FhTh>Player</FhTh>
-              <FhTh align="right">Avg SG</FhTh>
-              <FhTh align="right">Rounds</FhTh>
-              <FhTh align="right">Best</FhTh>
-              <FhTh align="right" hideOnMobile>
-                Years
-              </FhTh>
-            </tr>
-          </thead>
-          <tbody>
-            {history.rows.map((row, i) => (
-              <FieldHistoryRow key={row.player_name} rank={i + 1} row={row} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-text-muted mt-3" style={{ fontSize: 11 }}>
-        Aggregated from DataGolf historical rounds. Players with fewer than 4 rounds at the
-        event are shown but ranked the same way — read low-sample lines accordingly.
-      </p>
+      {history.rows.length > 0 ? (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ fontSize: 13 }}>
+              <thead>
+                <tr className="text-left text-text-muted" style={{ fontSize: 10, letterSpacing: 1 }}>
+                  <FhTh>#</FhTh>
+                  <FhTh>Player</FhTh>
+                  <FhTh align="right">Avg SG</FhTh>
+                  <FhTh align="right">Rounds</FhTh>
+                  <FhTh align="right">Best</FhTh>
+                  <FhTh align="right" hideOnMobile>
+                    Years
+                  </FhTh>
+                </tr>
+              </thead>
+              <tbody>
+                {history.rows.map((row, i) => (
+                  <FieldHistoryRow key={row.player_name} rank={i + 1} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-text-muted mt-3" style={{ fontSize: 11 }}>
+            Aggregated from DataGolf historical rounds. Players with fewer than 4 rounds at the
+            event are shown but ranked the same way — read low-sample lines accordingly.
+          </p>
+        </>
+      ) : (
+        <FieldHistoryEmpty source={history.source} fieldSize={history.fieldSize} />
+      )}
     </section>
+  );
+}
+
+// Honest empty state instead of silently hiding the section. Each branch
+// tells the reader specifically why no rows came back so the box doesn't
+// look broken when the cause is configuration or a slow first cache fill.
+function FieldHistoryEmpty({
+  source,
+  fieldSize,
+}: {
+  source: FieldHistoryResult["source"];
+  fieldSize: number;
+}) {
+  let line: string;
+  if (source === "unavailable") {
+    line =
+      "DataGolf historical-rounds access isn't configured for this environment yet — once the API key is in place this list will populate automatically.";
+  } else if (fieldSize === 0) {
+    line =
+      "Couldn't read this week's field from DataGolf. Refresh in a minute — the field-updates feed publishes pairings Tuesday afternoon.";
+  } else {
+    line =
+      "No historical rounds matched the current field yet. The first load fetches 4 seasons of data and can take ~30-60 seconds — refresh to retry. If it stays empty, the event name in DataGolf may not match our filter; tell us and we'll fix the lookup.";
+  }
+  return (
+    <div
+      className="rounded-xl border border-line bg-bg p-4"
+      style={{ fontSize: 13, color: "#9aa6a0", lineHeight: 1.5 }}
+    >
+      {line}
+    </div>
   );
 }
 

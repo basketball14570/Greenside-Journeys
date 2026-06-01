@@ -700,14 +700,11 @@ export async function getCourseFieldHistory(opts: {
   topN?: number;
 }): Promise<CourseHistoryRow[]> {
   if (!datagolfEnabled()) return [];
-  const years =
-    opts.years ?? [
-      new Date().getUTCFullYear(),
-      new Date().getUTCFullYear() - 1,
-      new Date().getUTCFullYear() - 2,
-      new Date().getUTCFullYear() - 3,
-      new Date().getUTCFullYear() - 4,
-    ];
+  // Default to the last 4 completed seasons (skip current year — the
+  // current event's rounds aren't in the historical archive yet, and
+  // the request often 404s for an in-flight year).
+  const thisYear = new Date().getUTCFullYear();
+  const years = opts.years ?? [thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4];
   const topN = opts.topN ?? 12;
   const cacheKey = `${opts.eventNameContains}|${years.join(",")}`;
   const cached = HISTORY_CACHE.get(cacheKey);
@@ -716,19 +713,24 @@ export async function getCourseFieldHistory(opts: {
   if (cached && Date.now() - cached.at < HISTORY_TTL_MS) {
     aggregated = cached.data;
   } else {
-    // Fetch one year at a time — the historical-raw-data/rounds endpoint
-    // is per-year. Tolerant of any single year failing (DataGolf's older
-    // archives occasionally 404).
+    // Fetch all years in parallel — they're independent and the
+    // sequential version pushed total latency over the page's render
+    // budget on a cold cache. Tolerant of any single year failing
+    // (DataGolf's older archives occasionally 404).
     const needle = opts.eventNameContains.toLowerCase();
     const perPlayer = new Map<
       string,
       { sgSum: number; rounds: number; years: Set<number>; best: string | null }
     >();
-    for (const year of years) {
-      const data = await safeFetch<{ rounds: DgRoundRecord[] }>(
-        "/historical-raw-data/rounds",
-        { tour: "pga", year: String(year) },
-      );
+    const yearResponses = await Promise.all(
+      years.map((year) =>
+        safeFetch<{ rounds: DgRoundRecord[] }>("/historical-raw-data/rounds", {
+          tour: "pga",
+          year: String(year),
+        }).then((data) => ({ year, data })),
+      ),
+    );
+    for (const { year, data } of yearResponses) {
       const rows = data?.rounds ?? [];
       for (const r of rows) {
         if (typeof r.event_name !== "string") continue;
