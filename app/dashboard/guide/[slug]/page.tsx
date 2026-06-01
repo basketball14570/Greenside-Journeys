@@ -7,6 +7,27 @@ import {
   type BettingAngle,
 } from "@/lib/course-guides";
 import { getGuide } from "@/lib/course-guides/store";
+import { getCourseHistoryForField, type FieldHistoryResult } from "@/lib/course-guides/field-history";
+import type { CourseHistoryRow } from "@/lib/data/datagolf";
+
+// Returns a short DataGolf event-name substring used to match historical
+// rounds for the course-history section. Keep these short and unique so
+// "Memorial Tournament" matches but "AT&T Pebble Beach" doesn't bleed
+// into "Pebble Beach Pro-Am" by accident.
+function eventNeedleForGuide(g: CourseGuide): string | null {
+  const t = g.tournament.toLowerCase();
+  if (t.includes("memorial")) return "memorial";
+  if (t.includes("charles schwab")) return "charles schwab";
+  if (t.includes("byron nelson") || t.includes("craig ranch")) return "byron nelson";
+  if (t.includes("rbc canadian")) return "rbc canadian";
+  if (t.includes("travelers")) return "travelers";
+  if (t.includes("genesis")) return "genesis";
+  if (t.includes("masters")) return "masters";
+  if (t.includes("u.s. open") || t.includes("us open")) return "u.s. open";
+  if (t.includes("open championship") || t.includes("british open")) return "open championship";
+  if (t.includes("pga championship")) return "pga championship";
+  return null;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +44,13 @@ export default async function CourseGuidePage({ params }: { params: { slug: stri
   const guide = await getGuide(params.slug);
   if (!guide) return notFound();
 
+  // Course history × current field. Best-effort: a missing DG key or a
+  // bad upstream returns an empty result and the section quietly hides.
+  const needle = eventNeedleForGuide(guide);
+  const history: FieldHistoryResult = needle
+    ? await getCourseHistoryForField(needle, 12)
+    : { rows: [], fieldSize: 0, source: "unavailable" };
+
   return (
     <div className="px-5 lg:px-8 py-6 space-y-6 max-w-5xl mx-auto">
       <Hero guide={guide} />
@@ -32,9 +60,112 @@ export default async function CourseGuidePage({ params }: { params: { slug: stri
       <HoleTable guide={guide} />
       <PenaltyOpportunity guide={guide} />
       <BettingAngles angles={guide.bettingAngles} />
+      {history.rows.length > 0 ? <FieldHistory tournament={guide.tournament} history={history} /> : null}
       <Verdict guide={guide} />
       <CTA guide={guide} />
     </div>
+  );
+}
+
+function FieldHistory({
+  tournament,
+  history,
+}: {
+  tournament: string;
+  history: FieldHistoryResult;
+}) {
+  return (
+    <section className="rounded-2xl border border-line bg-surface-1 p-5 lg:p-6">
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <h2 className="serif text-text" style={{ fontSize: 20, letterSpacing: -0.2 }}>
+          Course history · your field
+        </h2>
+        <span
+          className="num uppercase text-text-muted"
+          style={{ fontSize: 10, letterSpacing: 1 }}
+        >
+          DataGolf · last 5 yrs
+        </span>
+      </div>
+      <p className="text-text-dim mb-4" style={{ fontSize: 13, lineHeight: 1.5 }}>
+        Players in this week&apos;s field ranked by average Strokes Gained: Total in their
+        prior {tournament} starts. Repeat performers — not single-week heroics — surface to
+        the top.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full" style={{ fontSize: 13 }}>
+          <thead>
+            <tr className="text-left text-text-muted" style={{ fontSize: 10, letterSpacing: 1 }}>
+              <FhTh>#</FhTh>
+              <FhTh>Player</FhTh>
+              <FhTh align="right">Avg SG</FhTh>
+              <FhTh align="right">Rounds</FhTh>
+              <FhTh align="right">Best</FhTh>
+              <FhTh align="right" hideOnMobile>
+                Years
+              </FhTh>
+            </tr>
+          </thead>
+          <tbody>
+            {history.rows.map((row, i) => (
+              <FieldHistoryRow key={row.player_name} rank={i + 1} row={row} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-text-muted mt-3" style={{ fontSize: 11 }}>
+        Aggregated from DataGolf historical rounds. Players with fewer than 4 rounds at the
+        event are shown but ranked the same way — read low-sample lines accordingly.
+      </p>
+    </section>
+  );
+}
+
+function FhTh({
+  children,
+  align,
+  hideOnMobile,
+}: {
+  children: React.ReactNode;
+  align?: "right";
+  hideOnMobile?: boolean;
+}) {
+  return (
+    <th
+      className={[
+        "py-2 pr-3 font-semibold uppercase",
+        align === "right" ? "text-right" : "",
+        hideOnMobile ? "hidden md:table-cell" : "",
+      ].join(" ")}
+    >
+      {children}
+    </th>
+  );
+}
+
+function FieldHistoryRow({ rank, row }: { rank: number; row: CourseHistoryRow }) {
+  const sg = row.avgSgTotal;
+  const sgColor = sg >= 1.5 ? "#7fd49a" : sg >= 0.5 ? "#cdb47a" : "#e8efe9";
+  return (
+    <tr className="border-t border-line">
+      <td className="py-2.5 pr-3 num text-text-muted" style={{ width: 32 }}>
+        {rank}
+      </td>
+      <td className="py-2.5 pr-3 text-text" style={{ fontWeight: 600 }}>
+        {row.player_name}
+      </td>
+      <td className="py-2.5 pr-3 num text-right" style={{ color: sgColor, fontWeight: 700 }}>
+        {sg >= 0 ? "+" : ""}
+        {sg.toFixed(2)}
+      </td>
+      <td className="py-2.5 pr-3 num text-right text-text-dim">{row.rounds}</td>
+      <td className="py-2.5 pr-3 num text-right text-text-dim">
+        {row.bestFinish ?? "—"}
+      </td>
+      <td className="py-2.5 pr-3 num text-right text-text-muted hidden md:table-cell">
+        {row.years.length}
+      </td>
+    </tr>
   );
 }
 

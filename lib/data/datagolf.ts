@@ -652,6 +652,134 @@ export async function fetchDfsPointsWithStatus(
   }
 }
 
+// ─── Course history × current field ────────────────────────────────
+// Aggregates DataGolf's historical-raw-data rounds for one tournament
+// over the last N seasons, restricts to players present in this week's
+// field, and ranks by average SG total. Powers the course-guide's
+// "Course history — your field" section, where the user wants to see
+// which players in the field have actually shown well at the course.
+//
+// Cached aggressively (24h server-memory TTL) because the inputs barely
+// change inside a tournament week: the field locks in on Tuesday and
+// history doesn't move until next year's event finishes.
+
+export type CourseHistoryRow = {
+  player_name: string;       // "First Last" — already flipped from DG's "Last, First"
+  rounds: number;            // rounds counted at this event over the years scanned
+  years: number[];           // distinct years the player appeared
+  avgSgTotal: number;        // average SG: Total across those rounds
+  bestFinish: string | null; // shortest fin_text seen (e.g. "T3" / "1")
+};
+
+const HISTORY_CACHE = new Map<string, { at: number; data: CourseHistoryRow[] }>();
+const HISTORY_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Lower of two fin_text strings, where T3 < T10 < CUT etc. Returns the
+// "better" finish for the player's all-time best at this event.
+function isBetterFinish(a: string | null, b: string | null): boolean {
+  if (!b) return false;
+  if (!a) return true;
+  const num = (s: string): number => {
+    const m = s.replace(/^T/i, "").match(/^\d+/);
+    if (m) return parseInt(m[0], 10);
+    if (/cut|wd|dq|mc/i.test(s)) return 999;
+    return 998;
+  };
+  return num(b) < num(a);
+}
+
+export async function getCourseFieldHistory(opts: {
+  // Substring matched against event_name (case-insensitive). For the
+  // Memorial pass "memorial"; for Travelers pass "travelers"; etc.
+  eventNameContains: string;
+  // Set of normalized "first last" names currently in the field. Only
+  // these players are kept in the result.
+  fieldNames: Set<string>;
+  // Seasons to scan. Default: last 4 completed + current.
+  years?: number[];
+  topN?: number;
+}): Promise<CourseHistoryRow[]> {
+  if (!datagolfEnabled()) return [];
+  const years =
+    opts.years ?? [
+      new Date().getUTCFullYear(),
+      new Date().getUTCFullYear() - 1,
+      new Date().getUTCFullYear() - 2,
+      new Date().getUTCFullYear() - 3,
+      new Date().getUTCFullYear() - 4,
+    ];
+  const topN = opts.topN ?? 12;
+  const cacheKey = `${opts.eventNameContains}|${years.join(",")}`;
+  const cached = HISTORY_CACHE.get(cacheKey);
+
+  let aggregated: CourseHistoryRow[];
+  if (cached && Date.now() - cached.at < HISTORY_TTL_MS) {
+    aggregated = cached.data;
+  } else {
+    // Fetch one year at a time — the historical-raw-data/rounds endpoint
+    // is per-year. Tolerant of any single year failing (DataGolf's older
+    // archives occasionally 404).
+    const needle = opts.eventNameContains.toLowerCase();
+    const perPlayer = new Map<
+      string,
+      { sgSum: number; rounds: number; years: Set<number>; best: string | null }
+    >();
+    for (const year of years) {
+      const data = await safeFetch<{ rounds: DgRoundRecord[] }>(
+        "/historical-raw-data/rounds",
+        { tour: "pga", year: String(year) },
+      );
+      const rows = data?.rounds ?? [];
+      for (const r of rows) {
+        if (typeof r.event_name !== "string") continue;
+        if (!r.event_name.toLowerCase().includes(needle)) continue;
+        if (typeof r.sg_total !== "number") continue;
+        const name = r.player_name;
+        if (typeof name !== "string") continue;
+        const entry =
+          perPlayer.get(name) ?? { sgSum: 0, rounds: 0, years: new Set<number>(), best: null };
+        entry.sgSum += r.sg_total;
+        entry.rounds += 1;
+        entry.years.add(year);
+        if (typeof r.fin_text === "string" && isBetterFinish(entry.best, r.fin_text)) {
+          entry.best = r.fin_text;
+        }
+        perPlayer.set(name, entry);
+      }
+    }
+    aggregated = [];
+    for (const [dgName, v] of perPlayer.entries()) {
+      if (v.rounds === 0) continue;
+      aggregated.push({
+        player_name: flipName(dgName),
+        rounds: v.rounds,
+        years: [...v.years].sort((a, b) => b - a),
+        avgSgTotal: +(v.sgSum / v.rounds).toFixed(2),
+        bestFinish: v.best,
+      });
+    }
+    HISTORY_CACHE.set(cacheKey, { at: Date.now(), data: aggregated });
+  }
+
+  // Restrict to the current field. Normalize both sides identically so
+  // "Bryson DeChambeau" matches "bryson dechambeau" regardless of source.
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/ø/g, "o")
+      .replace(/æ/g, "ae")
+      .replace(/ß/g, "ss")
+      .replace(/[^a-z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const normField = new Set([...opts.fieldNames].map(norm));
+  const filtered = aggregated.filter((r) => normField.has(norm(r.player_name)));
+  filtered.sort((a, b) => b.avgSgTotal - a.avgSgTotal || b.rounds - a.rounds);
+  return filtered.slice(0, topN);
+}
+
 export async function getPreTournamentProjections(
   tour = "pga",
 ): Promise<DgProjection[] | null> {

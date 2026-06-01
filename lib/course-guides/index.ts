@@ -2,6 +2,7 @@ import type { CourseGuide } from "./types";
 import { goLiveAtCentral } from "@/lib/data/event-rollover";
 import { TPC_CRAIG_RANCH } from "./tpc-craig-ranch";
 import { COLONIAL_COUNTRY_CLUB } from "./colonial-country-club";
+import { MUIRFIELD_VILLAGE } from "./muirfield-village";
 
 export type { CourseGuide, DriverTier, HoleGuide, BettingAngle } from "./types";
 
@@ -11,6 +12,7 @@ export type { CourseGuide, DriverTier, HoleGuide, BettingAngle } from "./types";
 export const COURSE_GUIDES: Record<string, CourseGuide> = {
   [TPC_CRAIG_RANCH.slug]: TPC_CRAIG_RANCH,
   [COLONIAL_COUNTRY_CLUB.slug]: COLONIAL_COUNTRY_CLUB,
+  [MUIRFIELD_VILLAGE.slug]: MUIRFIELD_VILLAGE,
 };
 
 export const COURSE_GUIDE_LIST: CourseGuide[] = Object.values(COURSE_GUIDES).sort(
