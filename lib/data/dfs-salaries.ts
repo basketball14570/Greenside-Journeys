@@ -23,6 +23,23 @@ export const DK_SALARY_CAP = 50000;
 // loosely (case/space/punctuation-insensitive) against the salary rows.
 export const DK_WITHDRAWALS: string[] = [];
 
+// Manual ownership overrides for this week. The salary+value+DataGolf
+// model can't see narrative chalk (recent winners drive heavy ownership
+// regardless of salary value) or PPG inflation (one big finish
+// over-weighting the season average). Use this map to set a hard %
+// for specific players this week, expressed as the displayed projOwn.
+//   - Key: player name (loose-matched, accents/punctuation insensitive).
+//   - Value: % owned to display (0..100).
+// Reset every week alongside the salaries. Pre-populated with the two
+// players the slate operator called out — refine as the week develops.
+export const DK_OWNERSHIP_OVERRIDES: Record<string, number> = {
+  // U.S. Open winner — narrative chalk the model misses.
+  "J.J. Spaun": 13,
+  // PPG inflated by one big recent finish; field doesn't chase him
+  // like the value-z says they will.
+  "Si Woo Kim": 10,
+};
+
 const RAW_DK_SALARIES: DkSalaryRow[] = [
   { name: "Scottie Scheffler", salary: 13500, ppg: 106.14 },
   { name: "Rory McIlroy", salary: 11500, ppg: 82.6 },

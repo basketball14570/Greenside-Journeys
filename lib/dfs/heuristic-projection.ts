@@ -7,7 +7,7 @@
 // /api/dfs/heuristic-ownership route (which the vs-Actual tab calls) so both
 // surfaces show the exact same numbers.
 
-import { DK_EVENT, DK_SALARIES } from "@/lib/data/dfs-salaries";
+import { DK_EVENT, DK_OWNERSHIP_OVERRIDES, DK_SALARIES } from "@/lib/data/dfs-salaries";
 import {
   projectOwnership,
   normName,
@@ -20,6 +20,28 @@ export type HeuristicProjectionResult = {
   source: "v2-datagolf" | "v1.1";
   projections: OwnershipProjection[];
 };
+
+// Replaces the model's projOwn for any player in the overrides map with
+// the operator's manual %. Re-sorts so the table stays ordered by the
+// new displayed values. We intentionally don't re-normalize the field
+// to sum to ROSTER_SIZE * 100 after overrides — the displayed % per
+// player is what matters; minor sum drift is acceptable in exchange for
+// a hard, predictable override behavior.
+function applyOwnershipOverrides(
+  projections: OwnershipProjection[],
+  overrides: Record<string, number>,
+): OwnershipProjection[] {
+  const keys = Object.keys(overrides);
+  if (keys.length === 0) return projections;
+  const byNorm = new Map<string, number>();
+  for (const k of keys) byNorm.set(normName(k), overrides[k]);
+  return projections
+    .map((p) => {
+      const v = byNorm.get(normName(p.name));
+      return v == null ? p : { ...p, projOwn: Number(v.toFixed(1)) };
+    })
+    .sort((a, b) => b.projOwn - a.projOwn);
+}
 
 export async function computeHeuristicProjection(): Promise<HeuristicProjectionResult> {
   let marketByName: Map<string, number> | undefined;
@@ -41,9 +63,10 @@ export async function computeHeuristicProjection(): Promise<HeuristicProjectionR
     // DataGolf unavailable — fall through to the v1.1 salary+value model.
   }
 
+  const modelOutput = projectOwnership(DK_SALARIES, marketByName);
   return {
     event: DK_EVENT,
     source,
-    projections: projectOwnership(DK_SALARIES, marketByName),
+    projections: applyOwnershipOverrides(modelOutput, DK_OWNERSHIP_OVERRIDES),
   };
 }
