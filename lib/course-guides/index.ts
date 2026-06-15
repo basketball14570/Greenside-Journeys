@@ -4,6 +4,7 @@ import { TPC_CRAIG_RANCH } from "./tpc-craig-ranch";
 import { COLONIAL_COUNTRY_CLUB } from "./colonial-country-club";
 import { MUIRFIELD_VILLAGE } from "./muirfield-village";
 import { TPC_TORONTO_AT_OSPREY_VALLEY } from "./tpc-toronto-at-osprey-valley";
+import { SHINNECOCK_HILLS } from "./shinnecock-hills";
 
 export type { CourseGuide, DriverTier, HoleGuide, BettingAngle } from "./types";
 
@@ -15,6 +16,7 @@ export const COURSE_GUIDES: Record<string, CourseGuide> = {
   [COLONIAL_COUNTRY_CLUB.slug]: COLONIAL_COUNTRY_CLUB,
   [MUIRFIELD_VILLAGE.slug]: MUIRFIELD_VILLAGE,
   [TPC_TORONTO_AT_OSPREY_VALLEY.slug]: TPC_TORONTO_AT_OSPREY_VALLEY,
+  [SHINNECOCK_HILLS.slug]: SHINNECOCK_HILLS,
 };
 
 export const COURSE_GUIDE_LIST: CourseGuide[] = Object.values(COURSE_GUIDES).sort(
